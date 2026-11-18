@@ -45,7 +45,8 @@ def parse_ric_label(label: str | None) -> tuple[str | None, str | None]:
     'RIC II, Part 3 (second edition) Hadrian 10-11' -> ('RIC II, Part 3 (second edition)', '10-11')."""
     if not label:
         return None, None
-    m = _RIC_LABEL.match(label.strip())
+    # Types OCRE split by denomination end in a qualifier: 'RIC II Trajan 22 (aureus)'.
+    m = _RIC_LABEL.match(re.sub(r"\s+\([^()]*\)$", "", label.strip()))
     if not m:
         return None, None
     return m.group(1), m.group(3)

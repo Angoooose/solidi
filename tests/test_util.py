@@ -42,6 +42,8 @@ def test_parse_ric_label():
     assert parse_ric_label("RIC I (second edition) Augustus 1a") == ("RIC I (second edition)", "1a")
     assert parse_ric_label("RIC II.1 (second edition) Vespasian 10") == ("RIC II.1 (second edition)", "10")
     assert parse_ric_label("Something else") == (None, None)
+    assert parse_ric_label("RIC II Trajan 22 (aureus)") == ("RIC II", "22")
+    assert parse_ric_label("RIC II Trajan 134 (quinarius aureus)") == ("RIC II", "134")
 
 
 def test_commercial_ok():
