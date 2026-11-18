@@ -164,6 +164,20 @@ CREATE TABLE type_subject (
   PRIMARY KEY (type_id, subject_id, side)
 );
 
+-- Legends for search: the source text, a normalised form, and a space-free form.
+CREATE TABLE legend (
+  id         INTEGER PRIMARY KEY,
+  type_id    TEXT NOT NULL REFERENCES coin_type(id),
+  side       TEXT NOT NULL,                -- 'obverse', 'reverse'
+  legend     TEXT NOT NULL,                -- as written by the source
+  normalised TEXT NOT NULL,                -- 'D N HONORIVS P F AVG'
+  compact    TEXT NOT NULL                 -- 'DNHONORIVSPFAVG'
+);
+CREATE INDEX idx_legend_type ON legend(type_id);
+
+-- Trigram index: fast spacing-insensitive fragment search with LIKE.
+CREATE VIRTUAL TABLE legend_fts USING fts5(compact, content='legend', content_rowid='id', tokenize='trigram');
+
 -- Evidence.
 CREATE TABLE institution (
   id          TEXT PRIMARY KEY,

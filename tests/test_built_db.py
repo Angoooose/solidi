@@ -101,3 +101,15 @@ def test_wikipedia_articles(db):
                                               WHERE entity_type='person' AND entity_id='trajan'""")
     assert title == "Trajan" and url.startswith("https://en.wikipedia.org/wiki/")
     assert "emperor" in extract.lower() and licence == "CC BY-SA 4.0"
+
+
+def test_legend_search(db):
+    from pipeline.legends import search
+    hits = {t for t, _, _ in search(db, "IMP TRAIANO AVG GER DAC P M TR P")}
+    assert "ric.2.tr.147" in hits
+    # spacing-insensitive, gaps for unreadable stretches, '?' for one unknown letter
+    assert "ric.2.tr.147" in {t for t, _, _ in search(db, "IMPTRAIANO … DAC PM")}
+    assert "ric.2.tr.147" in {t for t, _, _ in search(db, "TRAI?NO AVG")}
+    assert "ric.2.tr.147" in {t for t, _, _ in search(db, "OPTIMO PRINC", side="reverse")}
+    assert search(db, "OPTIMO PRINC", side="obverse") == [] or all(
+        s == "obverse" for _, s, _ in search(db, "OPTIMO PRINC", side="obverse"))

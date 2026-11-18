@@ -108,6 +108,8 @@ def run(db: sqlite3.Connection) -> Result:
         "articles": {t: _pct(_one(db, f"SELECT COUNT(*) FROM article WHERE entity_type='{t}'"),
                              _one(db, f"SELECT COUNT(*) FROM {t}"))
                      for t in ("person", "mint", "denomination", "subject", "organization")},
+        "active_types_with_searchable_legend_pct": _pct(_one(db, f"""SELECT COUNT(DISTINCT type_id) FROM legend
+                                         JOIN coin_type ON coin_type.id = type_id AND {ACTIVE}"""), active),
         "mints": _one(db, "SELECT COUNT(*) FROM mint"),
         "mints_with_pleiades_pct": _pct(_one(db, """SELECT COUNT(DISTINCT entity_id) FROM external_id
                                        WHERE entity_type='mint' AND system='pleiades'"""),

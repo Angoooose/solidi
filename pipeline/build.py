@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from pipeline import stage, transform
+from pipeline import legends, stage, transform
 from pipeline.checks import checks
 from pipeline.link import wikidata, wikipedia
 from pipeline.sources.nomisma import fetch as nomisma_fetch
@@ -44,6 +44,8 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
     wikidata.enrich(db, raw, refresh=refresh)
     print("enrich: wikipedia")
     wikipedia.enrich(db, raw, refresh=refresh)
+
+    print(f"index legends: {legends.build_index(db)}")
 
     print("check")
     result = checks.run(db)
