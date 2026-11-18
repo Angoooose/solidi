@@ -85,3 +85,12 @@ def test_every_type_has_a_ric_reference(db):
 def test_no_placeholder_images_or_zero_weights(db):
     assert one(db, "SELECT COUNT(*) FROM image WHERE url LIKE '%localhost%'")[0] == 0
     assert one(db, "SELECT COUNT(*) FROM specimen WHERE weight_g <= 0 OR weight_g > 500")[0] == 0
+
+
+def test_wikidata_enrichment(db):
+    # Augustus: birth 63 BC either from Nomisma or Wikidata, never off by one.
+    assert one(db, "SELECT birth_year FROM person WHERE id='augustus'") == (-63,)
+    assert one(db, "SELECT COUNT(*) FROM wikipedia_link WHERE entity_id='trajan'")[0] == 1
+    # Trajan's father is on coins too, so the family link is kept.
+    assert one(db, """SELECT COUNT(*) FROM person_relation
+                      WHERE person_id='trajan' AND relation='father' AND related_person_id='marcus_ulpius_traianus'""")[0] == 1

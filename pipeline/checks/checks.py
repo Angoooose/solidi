@@ -59,9 +59,10 @@ def run(db: sqlite3.Connection) -> Result:
                      (SELECT type_id FROM type_denomination)""")
     if n:
         r.warnings.append(f"{n} active types have no denomination")
-    n = _one(db, "SELECT COUNT(*) FROM person WHERE start_year IS NULL")
+    n = _one(db, """SELECT COUNT(*) FROM person
+                    WHERE start_year IS NULL AND birth_year IS NULL AND death_year IS NULL""")
     if n:
-        r.warnings.append(f"{n} people have no dates")
+        r.warnings.append(f"{n} people have no dates at all")
     n = _one(db, "SELECT COUNT(*) FROM dataset WHERE name IS NULL")
     if n:
         r.warnings.append(f"{n} datasets referenced by specimens have no metadata")
@@ -99,6 +100,11 @@ def run(db: sqlite3.Connection) -> Result:
         "people_with_wikidata_pct": _pct(_one(db, """SELECT COUNT(DISTINCT entity_id) FROM external_id
                                         WHERE entity_type='person' AND system='wikidata'"""),
                                         _one(db, "SELECT COUNT(*) FROM person")),
+        "people_with_any_date_pct": _pct(_one(db, """SELECT COUNT(*) FROM person WHERE start_year IS NOT NULL
+                                         OR birth_year IS NOT NULL OR death_year IS NOT NULL"""),
+                                         _one(db, "SELECT COUNT(*) FROM person")),
+        "family_relations": _one(db, "SELECT COUNT(*) FROM person_relation"),
+        "entities_with_wikipedia": _one(db, "SELECT COUNT(*) FROM wikipedia_link"),
         "mints": _one(db, "SELECT COUNT(*) FROM mint"),
         "mints_with_pleiades_pct": _pct(_one(db, """SELECT COUNT(DISTINCT entity_id) FROM external_id
                                        WHERE entity_type='mint' AND system='pleiades'"""),

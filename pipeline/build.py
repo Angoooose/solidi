@@ -13,6 +13,7 @@ import yaml
 
 from pipeline import stage, transform
 from pipeline.checks import checks
+from pipeline.link import wikidata
 from pipeline.sources.nomisma import fetch as nomisma_fetch
 from pipeline.sources.numishare import fetch as numishare_fetch
 
@@ -37,9 +38,12 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
     info = {"scope": f"authority={authority}" if authority else "all",
             "corpora": ",".join(config["corpora"])}
     transform.build(stage.Graph(store), db_path, config, info)
+    db = sqlite3.connect(db_path)
+
+    print("enrich: wikidata")
+    wikidata.enrich(db, raw, refresh=refresh)
 
     print("check")
-    db = sqlite3.connect(db_path)
     result = checks.run(db)
     report = {"errors": result.errors, "warnings": result.warnings, "coverage": result.coverage,
               "seconds": round(time.time() - t0, 1)}

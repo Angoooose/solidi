@@ -82,3 +82,11 @@ def test_plausibility_filters():
     assert plausible_weight(0.0) is None
     assert plausible_weight(2141.0) is None
     assert plausible_weight(3.4) == 3.4
+
+
+def test_wikidata_year_converts_astronomical_numbering():
+    from pipeline.link.wikidata import wikidata_year
+    assert wikidata_year("-0062-09-21T00:00:00Z") == -63   # Augustus, born 63 BC
+    assert wikidata_year("0000-01-01T00:00:00Z") == -1     # astronomical year 0 = 1 BC
+    assert wikidata_year("0053-09-18T00:00:00Z") == 53
+    assert wikidata_year(None) is None

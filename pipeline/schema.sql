@@ -73,8 +73,25 @@ CREATE TABLE external_id (
   system      TEXT NOT NULL,               -- 'wikidata', 'pleiades', 'viaf', 'getty', 'other'
   uri         TEXT NOT NULL,
   match_type  TEXT NOT NULL,               -- 'exact', 'close'
-  method      TEXT NOT NULL,               -- 'source', 'automatic', 'reviewed'
+  method      TEXT NOT NULL,               -- 'source', 'wikidata_p2950', 'automatic', 'reviewed'
   PRIMARY KEY (entity_type, entity_id, uri)
+);
+
+-- Family links between people we hold (from Wikidata).
+CREATE TABLE person_relation (
+  person_id         TEXT NOT NULL REFERENCES person(id),
+  relation          TEXT NOT NULL,         -- 'father', 'mother', 'spouse', 'child'
+  related_person_id TEXT NOT NULL REFERENCES person(id),
+  PRIMARY KEY (person_id, relation, related_person_id)
+);
+
+-- English Wikipedia article for an entity, via its Wikidata item.
+CREATE TABLE wikipedia_link (
+  entity_type TEXT NOT NULL,
+  entity_id   TEXT NOT NULL,
+  qid         TEXT NOT NULL,
+  url         TEXT NOT NULL,
+  PRIMARY KEY (entity_type, entity_id)
 );
 
 -- The centre.
