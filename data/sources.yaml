@@ -12,6 +12,7 @@ corpora:
     dataset: http://numismatics.org/ocre/
     id_path: /ocre/id/                       # used to match type URIs and their variants
     licence: ODbL
+    # legend_language: the corpus's main legend language (default 'la'); other scripts are detected.
     # Specimens are fetched in groups of type IDs; the regex's first group is the group key.
     # 'ric.2.tr.147' -> 'ric.2.' (about 20 groups).
     specimen_group: '^([^.]+\.[^.]+\.)'
@@ -24,6 +25,44 @@ corpora:
     licence: ODbL
     # 'rrc-414.1' -> 'rrc-4' (Crawford numbers by hundreds: about 6 groups).
     specimen_group: '^(rrc-\d)'
+
+  # Hellenistic royal coinages (ANS). Specimens grouped by series and first character:
+  # 'price.153' -> 'price.1', 'sc.1.1043.3' -> 'sc.1', 'newell.demetrius.1' -> 'newell.d'.
+  pella:
+    name: Coinage of the Macedonian Kings of the Argead Dynasty
+    dataset: http://numismatics.org/pella/
+    id_path: /pella/id/
+    licence: ODbL
+    specimen_group: '^([^.]+\.[^.])'
+    legend_language: grc       # Latin look-alike text in these legends is Greek
+  agco:
+    name: Antigonid Coinage Online
+    dataset: http://numismatics.org/agco/
+    id_path: /agco/id/
+    licence: ODbL
+    specimen_group: '^([^.]+\.[^.])'
+    legend_language: grc       # Latin look-alike text in these legends is Greek
+  sco:
+    name: Seleucid Coins Online
+    dataset: http://numismatics.org/sco/
+    id_path: /sco/id/
+    licence: ODbL
+    specimen_group: '^([^.]+\.[^.])'
+    legend_language: grc       # Latin look-alike text in these legends is Greek
+  pco:
+    name: Ptolemaic Coins Online
+    dataset: http://numismatics.org/pco/
+    id_path: /pco/id/
+    licence: ODbL
+    specimen_group: '^([^.]+\.[^.])'
+    legend_language: grc       # Latin look-alike text in these legends is Greek
+  bigr:
+    name: Bactrian and Indo-Greek Coinage
+    dataset: https://numismatics.org/bigr/
+    id_path: /bigr/id/
+    licence: ODbL
+    specimen_group: '^([^.]+\.[^.])'
+    legend_language: grc       # Latin look-alike text in these legends is Greek
 
 # Licence classification for the commercial switch. Matched as substrings of the
 # dataset's licence URL; first match wins. Anything unmatched is treated as not

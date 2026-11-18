@@ -21,6 +21,8 @@ def _source(path):
     db.execute("INSERT INTO coin_type VALUES ('t.1', 'rome', NULL, NULL)")
     for i in range(300):
         db.execute("INSERT INTO legend (type_id, compact) VALUES (?, ?)", ("t.1", f"IMPTRAIANOAVG{i}" + "X" * 500))
+    for i in range(100):   # 4-byte Kharoshthi: statement limits are in bytes, not characters
+        db.execute("INSERT INTO legend (type_id, compact) VALUES (?, ?)", ("t.1", "\U00010A28" * 400))
     db.execute("INSERT INTO legend_fts (legend_fts) VALUES ('rebuild')")
     db.commit()
     db.close()
@@ -30,13 +32,13 @@ def test_round_trip(tmp_path):
     src, sql = tmp_path / "src.sqlite", tmp_path / "out.sql"
     _source(src)
     counts = export_d1.export(src, sql)
-    assert counts == {"mint": 1, "coin_type": 3, "legend": 300}
+    assert counts == {"mint": 1, "coin_type": 3, "legend": 400}
 
     text = sql.read_text()
     assert "PRAGMA" not in text and "BEGIN" not in text
     assert "legend_fts_data" not in text
     assert text.count('INSERT INTO "legend"') > 1
-    assert max(len(line) for line in text.splitlines()) < export_d1.MAX_STATEMENT_BYTES + 1000
+    assert max(len(line.encode()) for line in text.splitlines()) < export_d1.MAX_STATEMENT_BYTES + 1000
 
     # Load twice with foreign keys enforced, as D1 does: the second load exercises the drops.
     db = sqlite3.connect(":memory:")

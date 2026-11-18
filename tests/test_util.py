@@ -117,3 +117,10 @@ def test_natural_sort():
     # A volume that extends another sorts after it, whatever punctuation follows.
     assert reference_sort_key("RIC II", "999") < reference_sort_key("RIC II, Part 3 (second edition)", "1")
     assert reference_sort_key("RIC II", "999") < reference_sort_key("RIC II (second edition)", "1")
+
+
+def test_wikidata_dates_need_year_precision():
+    from pipeline.link.wikidata import exact
+    assert exact({"birth": "-0300-01-01T00:00:00Z", "birth_precision": "9"}, "birth")
+    assert not exact({"birth": "0500-01-01T00:00:00Z", "birth_precision": "7"}, "birth")   # 5th century
+    assert not exact({"birth": "0500-01-01T00:00:00Z"}, "birth")

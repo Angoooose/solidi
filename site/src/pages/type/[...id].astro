@@ -10,7 +10,7 @@ import { DataList, DataRow, RowLink } from "@/components/data"
 import { CoinPair, TypeCard } from "@/components/coin"
 import { SpecimenTable } from "@/components/specimens"
 import { PhotoCredit } from "@/components/credits"
-import { Legend, LegendGloss } from "@/components/legend"
+import { LegendGloss, LegendText, NEEDS_SCRIPT_FONTS } from "@/components/legend"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Breadcrumb,
@@ -40,23 +40,38 @@ if (result.kind === "missing") {
 }
 const type = result.kind === "found" ? result.type : null
 
-const issuer = type?.authorities[0] ?? null
-const denomination = type?.denominations.map((d) => d.name.toLowerCase()).join(" or ")
+/* The ruler who struck it; else, for a coin struck in a ruler's name by someone else, that ruler. */
+const authority = type?.authorities.find((p) => p.role === "authority") ?? null
+const stated = type?.statedAuthorities[0] ?? null
+const ruler = authority ?? stated ?? type?.authorities[0] ?? null
+/* "denarius", but "denomination B (double)": only the initial is lowered. */
+const denomination = type?.denominations.map((d) => d.name.charAt(0).toLowerCase() + d.name.slice(1)).join(" or ")
 const material = type?.materials[0]?.toLowerCase()
 
-/* "Silver denarius of Trajan, struck at Rome, AD 103–111": built only from fields we have. */
+/*
+ * "Silver denarius of Trajan, struck at Rome, AD 103–111", "Silver tetradrachm of Ptolemy I in the
+ * name of Alexander III": built only from fields we have. A magistrate (role 'issuer') names the
+ * coin only when no ruler is named on it.
+ */
+const strucker = authority ?? type?.organizations[0] ?? (stated ? null : type?.authorities[0]) ?? null
 const subtitle = type
   ? capitalise(
       [
         [material, denomination].filter(Boolean).join(" ") || "Coin",
-        issuer || type.organizations[0] ? ` of ${(issuer ?? type.organizations[0]).name}` : "",
+        strucker ? ` of ${strucker.name}` : "",
+        stated ? ` in the name of ${stated.name}` : "",
         type.mint ? `, ${type.mint.uncertain ? "probably struck" : "struck"} at ${type.mint.name}` : "",
         type.date ? `, ${type.date}` : "",
       ].join("")
     )
   : ""
 
-const acsearch = type?.catalogue ? acsearchUrl(type.catalogue.volume, type.catalogue.number, issuer?.name ?? null) : null
+const acsearch = type?.catalogue
+  ? acsearchUrl(type.catalogue.work, type.catalogue.volume, type.catalogue.number, ruler?.name ?? null)
+  : null
+/* Kharoshthi, Phoenician or Brahmi on the page: load the Noto fonts for them. */
+const scripts = !!type?.sides.some((s) => s.legend && NEEDS_SCRIPT_FONTS.test(s.legend + (s.transliteration ?? "")))
+const anyMarks = type?.sides.some((s) => s.marks.length)
 const sideLabel = { obverse: "Obverse", reverse: "Reverse" } as const
 const sideHint = { obverse: "Front of the coin", reverse: "Back of the coin" } as const
 const sidePhoto = (side: "obverse" | "reverse") => type?.hero?.photos.find((p) => p.side === side)?.src ?? null
@@ -64,7 +79,7 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
 
 ---
 
-<Base title={type ? `${type.reference}` : "Type not found"}>
+<Base title={type ? `${type.reference}` : "Type not found"} scripts={scripts}>
   <SiteHeader />
   {
     !type ? (
@@ -92,20 +107,22 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
           <div class="flex min-w-0 flex-[1_1_440px] flex-col gap-10">
             <Breadcrumb>
               <BreadcrumbList>
-                {type.category && (
-                  <BreadcrumbItem>
-                    <BreadcrumbLink href="/">{type.category.name}</BreadcrumbLink>
-                  </BreadcrumbItem>
-                )}
-                {issuer && (
+                {type.categoryPath.map((c) => (
                   <>
-                    {type.category && <BreadcrumbSeparator />}
                     <BreadcrumbItem>
-                      <BreadcrumbLink href={`/ruler/${issuer.id}`}>{issuer.name}</BreadcrumbLink>
+                      <BreadcrumbLink href={`/category/${c.id}`}>{c.name}</BreadcrumbLink>
                     </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                  </>
+                ))}
+                {ruler && (
+                  <>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink href={`/ruler/${ruler.id}`}>{ruler.name}</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
                   </>
                 )}
-                {(type.category || issuer) && <BreadcrumbSeparator />}
                 <BreadcrumbItem>
                   <BreadcrumbPage>
                     {type.catalogue?.volume && type.catalogue.number
@@ -136,6 +153,20 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
               {type.authorities.length > 0 && (
                 <DataRow label={type.authorities.length > 1 ? "Issuers" : "Issuer"}>
                   {type.authorities.map((p, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      <RowLink href={`/ruler/${p.id}`}>{p.name}</RowLink>
+                      {p.years && <span class="text-stone">, {p.years}</span>}
+                    </>
+                  ))}
+                </DataRow>
+              )}
+              {type.statedAuthorities.length > 0 && (
+                <DataRow
+                  label="In the name of"
+                  note={type.authorities.length || type.organizations.length ? undefined : "issuer not recorded"}
+                >
+                  {type.statedAuthorities.map((p, i) => (
                     <>
                       {i > 0 && ", "}
                       <RowLink href={`/ruler/${p.id}`}>{p.name}</RowLink>
@@ -215,7 +246,7 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
         {/* Legends, word by word */}
         {type.sides.length > 0 && (
           <section class="flex flex-wrap gap-x-20 gap-y-10 border-t border-hairline pt-18 pb-22">
-            <h2 class="m-0 flex-[1_1_220px] font-serif text-heading font-normal">Legends</h2>
+            <h2 class="m-0 flex-[1_1_220px] font-serif text-heading font-normal">{anyMarks ? "Legends and marks" : "Legends"}</h2>
             <div class="flex min-w-0 flex-[3_1_640px] flex-col gap-16">
               {type.sides.map((s) => (
                 <div class="flex flex-col gap-7">
@@ -234,9 +265,35 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
                   {s.segments?.length ? (
                     <LegendGloss segments={s.segments} />
                   ) : s.legend ? (
-                    <Legend>{s.legend}</Legend>
+                    <LegendText legend={s.legend} language={s.language} transliteration={s.transliteration} />
                   ) : (
                     <p class="m-0 text-body text-stone">No legend.</p>
+                  )}
+                  {s.marks.length > 0 && (
+                    <ul class="m-0 flex list-none flex-wrap gap-x-8 gap-y-6 p-0" aria-label={`${sideLabel[s.side]} monograms and marks`}>
+                      {s.marks.map((m) => (
+                        <li>
+                          <figure class="m-0 flex w-28 flex-col gap-2" title={m.definition ?? undefined}>
+                            <span class="flex size-16 items-center justify-center bg-plinth p-2">
+                              {m.image ? (
+                                <img src={m.image} alt={m.letters ? `Monogram of ${m.letters}` : m.name} class="size-full object-contain mix-blend-multiply" loading="lazy" />
+                              ) : (
+                                <span class="text-center text-credit text-stone">No drawing</span>
+                              )}
+                            </span>
+                            <figcaption class="flex flex-col text-credit text-stone">
+                              <span class="text-ink">{m.name}</span>
+                              {m.letters && (
+                                <span lang={/[\u0370-\u03FF]/.test(m.letters) ? "grc" : undefined} class="font-serif text-label tracking-[0.08em]">
+                                  {m.letters}
+                                </span>
+                              )}
+                              {m.uncertain && <span>uncertain</span>}
+                            </figcaption>
+                          </figure>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               ))}
@@ -287,9 +344,12 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
           <section class="flex flex-col gap-10 border-t border-hairline pt-18 pb-24">
             <div class="flex flex-wrap items-baseline justify-between gap-3">
               <h2 class="m-0 font-serif text-heading font-normal">Related types</h2>
-              {issuer && (
-                <a href={`/ruler/${issuer.id}`} class={buttonVariants({ variant: "link" })}>All types of {issuer.name}</a>
-              )}
+              {ruler &&
+                (ruler === stated ? (
+                  <a href={`/ruler/${ruler.id}?struck=name`} class={buttonVariants({ variant: "link" })}>All types in the name of {ruler.name}</a>
+                ) : (
+                  <a href={`/ruler/${ruler.id}`} class={buttonVariants({ variant: "link" })}>All types of {ruler.name}</a>
+                ))}
             </div>
             <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10">
               {type.related.map((r) => (

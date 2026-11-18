@@ -5,8 +5,12 @@
  *
  * Portrait and issuer are separate filters, as the data models them: "coins of Plotina" are coins
  * with her portrait, struck by Trajan; Constantine issued thousands of coins for his sons.
+ *
+ * Coins struck in a ruler's name by others (role 'stated_authority' without 'authority': most
+ * Alexanders were struck after his death, by his successors and by cities) are part of the ruler's
+ * coinage but kept apart by the "Struck" filter.
  */
-import { iiif, secure, yearRange } from "@/lib/format"
+import { iiif, secure, year, yearRange } from "@/lib/format"
 import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
 import { CARD_SELECT, REFUSING_HOST, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
 
@@ -14,6 +18,9 @@ export const PAGE_SIZE = 30
 const PORTRAITS = 6
 /** Portrait filter value for types with no obverse portrait. */
 export const NO_PORTRAIT = "none"
+/** Struck filter values: the person's own coinage, or coins others struck in their name. */
+export const OWN = "own"
+export const IN_NAME = "name"
 
 export type Sort = "earliest" | "latest" | "reference"
 
@@ -25,6 +32,8 @@ export type RulerQuery = {
   denomination: string | null
   /** A catalogue date range, "103-111". */
   period: string | null
+  /** OWN, IN_NAME, or null for both. */
+  struck: string | null
   sort: Sort
   limit: number
 }
@@ -39,12 +48,22 @@ export type Ruler = {
   lead: string | null
   article: { url: string; licence: string } | null
   mainMint: { id: string; name: string } | null
+  /** The category most of their own coins are in, with its ancestors, broadest first. */
+  categoryPath: { id: string; name: string }[]
   family: { relation: string; people: { id: string; name: string }[] }[]
   /** Their own portrait across the reign: up to six types, evenly spaced, earliest to latest. */
   portraits: { typeId: string; src: string; years: string | null; reference: string; denomination: string | null }[]
+  /**
+   * Years for the portrait heading: the reign when known, else the span of their own issues
+   * (not coins merely struck in their name, nor posthumous ones dated after their reign or death).
+   */
+  portraitSpan: string | null
   portraitCredits: PhotoCreditItem[]
   /** Whether each filter can narrow the person's whole coinage (more than one option without filters). */
-  available: { portrait: boolean; issuer: boolean; denomination: boolean; period: boolean }
+  available: { struck: boolean; portrait: boolean; issuer: boolean; denomination: boolean; period: boolean }
+  struckFacet: Facet[]
+  /** Types struck in the person's name by others, across the whole coinage. */
+  inNameCount: number
   portraitFacet: Facet[]
   issuerFacet: Facet[]
   denominationFacet: Facet[]
@@ -64,18 +83,22 @@ const ORDER: Record<Sort, string> = {
 const RELATION_LABEL: Record<string, string> = { father: "Father", mother: "Mother", spouse: "Spouse", child: "Child" }
 
 /*
- * Parameters: ?1 person, ?2 portrait, ?3 issuer, ?4 denomination, ?5 period ('' = any).
+ * Parameters: ?1 person, ?2 portrait, ?3 issuer, ?4 denomination, ?5 period, ?6 struck ('' = any).
  * BASE is every live type connected to the person. Each filter matches everything when empty.
  */
 const BASE = `t.replaced_by_id IS NULL AND t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1)`
+/* Struck in the person's name by someone else: they are named on it but are not its authority. */
+const IN_NAME_SQL = `(t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role = 'stated_authority')
+  AND t.id NOT IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role IN ('authority', 'issuer')))`
 const FILTER = {
+  struck: `(?6 = '' OR (?6 = '${IN_NAME}') = ${IN_NAME_SQL})`,
   portrait: `(?2 = '' OR (?2 = '${NO_PORTRAIT}' AND NOT EXISTS (SELECT 1 FROM type_person WHERE type_id = t.id AND role = 'portrait_obverse'))
               OR t.id IN (SELECT type_id FROM type_person WHERE role = 'portrait_obverse' AND person_id = ?2))`,
   issuer: `(?3 = '' OR t.id IN (SELECT type_id FROM type_person WHERE role IN ('authority', 'issuer') AND person_id = ?3))`,
   denomination: `(?4 = '' OR t.id IN (SELECT type_id FROM type_denomination WHERE denomination_id = ?4))`,
   period: `(?5 = '' OR (coalesce(t.start_year, '') || '-' || coalesce(t.end_year, '')) = ?5)`,
 }
-const PARAM = { portrait: "?2", issuer: "?3", denomination: "?4", period: "?5" }
+const PARAM = { struck: "?6", portrait: "?2", issuer: "?3", denomination: "?4", period: "?5" }
 type FilterName = keyof typeof FILTER
 
 /*
@@ -94,6 +117,7 @@ export function parseQuery(params: URLSearchParams): RulerQuery {
   const sort = params.get("sort") as Sort
   const limit = Number(params.get("limit"))
   return {
+    struck: params.get("struck") === OWN || params.get("struck") === IN_NAME ? params.get("struck") : null,
     portrait: slug("portrait"),
     issuer: slug("issuer"),
     denomination: slug("denomination"),
@@ -101,6 +125,14 @@ export function parseQuery(params: URLSearchParams): RulerQuery {
     sort: sort in ORDER ? sort : "earliest",
     limit: Number.isInteger(limit) && limit > 0 ? Math.min(limit, 600) : PAGE_SIZE,
   }
+}
+
+/** "356–323 BC"; "died 130 BC" or "born AD 53" when only one end is known. */
+function lifespan(birth: number | null, death: number | null): string | null {
+  if (birth != null && death != null) return yearRange(birth, death)
+  if (death != null) return `died ${year(death)}`
+  if (birth != null) return `born ${year(birth)}`
+  return null
 }
 
 /** First sentences of an extract, up to about `max` characters, ending on a full stop. */
@@ -133,12 +165,14 @@ export async function getRuler(db: D1Database, id: string, query: RulerQuery): P
   /** Statements about the person alone bind ?1; statements about the filtered grid bind ?1–?5. */
   const one = (sql: string) => db.prepare(sql).bind(id)
   const grid = (sql: string) =>
-    db.prepare(sql).bind(id, query.portrait ?? "", query.issuer ?? "", query.denomination ?? "", query.period ?? "")
+    db.prepare(sql).bind(id, query.portrait ?? "", query.issuer ?? "", query.denomination ?? "", query.period ?? "", query.struck ?? "")
 
-  const [available, article, family, mainMint, portraitFacet, noPortrait, issuerFacet, denoms, periods, total, types, portraits] =
+  const [available, article, family, mainMint, ownSpan, categories, struckFacet, portraitFacet, noPortrait, issuerFacet, denoms, periods, total, types, portraits] =
     await db.batch([
       // Option counts over the unfiltered coinage, to decide which filters the page offers.
       one(`SELECT
+             (SELECT count(*) FROM coin_type t WHERE ${BASE} AND ${IN_NAME_SQL}) AS in_name,
+             (SELECT count(*) FROM coin_type t WHERE ${BASE} AND NOT ${IN_NAME_SQL}) AS own,
              (SELECT count(DISTINCT tp.person_id) FROM coin_type t JOIN type_person tp ON tp.type_id = t.id AND tp.role = 'portrait_obverse' WHERE ${BASE})
                + (SELECT count(*) > 0 FROM coin_type t WHERE ${BASE}
                   AND NOT EXISTS (SELECT 1 FROM type_person WHERE type_id = t.id AND role = 'portrait_obverse')) AS portrait,
@@ -153,6 +187,26 @@ export async function getRuler(db: D1Database, id: string, query: RulerQuery): P
            WHERE t.replaced_by_id IS NULL
              AND t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role IN ('authority', 'issuer'))
            GROUP BY m.id ORDER BY count(*) DESC LIMIT 1`),
+      // Fallback for the portrait heading when the reign is unknown: their own issues, in their lifetime/reign.
+      one(`SELECT min(t.start_year) AS s, max(coalesce(t.end_year, t.start_year)) AS e FROM coin_type t
+           WHERE t.replaced_by_id IS NULL AND t.start_year IS NOT NULL
+             AND t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role != 'stated_authority')
+             AND t.start_year <= coalesce((SELECT coalesce(end_year, death_year) FROM person WHERE id = ?1), t.start_year)`),
+      // Their coins' commonest primary category (their own issues first), then its ancestors.
+      one(`WITH RECURSIVE home AS (
+             SELECT tc.category_id AS id FROM type_category tc JOIN type_person tp ON tp.type_id = tc.type_id
+             WHERE tp.person_id = ?1 AND tc.is_primary = 1
+             GROUP BY tc.category_id
+             ORDER BY count(DISTINCT CASE WHEN tp.role IN ('authority', 'issuer') THEN tc.type_id END) DESC,
+               count(DISTINCT tc.type_id) DESC
+             LIMIT 1
+           ),
+           path(id, name, parent_id, depth) AS (
+             SELECT c.id, c.name, c.parent_id, 0 FROM category c JOIN home ON home.id = c.id
+             UNION ALL SELECT c.id, c.name, c.parent_id, p.depth + 1 FROM category c JOIN path p ON c.id = p.parent_id
+           )
+           SELECT id, name FROM path ORDER BY depth DESC`),
+      grid(`SELECT ${IN_NAME_SQL} AS in_name, count(*) AS count FROM coin_type t WHERE ${where("struck")} GROUP BY 1`),
       // Whose portrait is on the obverse: the person first, then others by count.
       grid(`SELECT p.id AS value, p.name AS label, count(DISTINCT t.id) AS count
             FROM coin_type t JOIN type_person tp ON tp.type_id = t.id AND tp.role = 'portrait_obverse'
@@ -224,6 +278,8 @@ export async function getRuler(db: D1Database, id: string, query: RulerQuery): P
   const picks =
     all.length <= PORTRAITS ? all : Array.from({ length: PORTRAITS }, (_, i) => all[Math.round((i * (all.length - 1)) / (PORTRAITS - 1))])
 
+  const own = ownSpan.results[0] as { s: number | null; e: number | null } | undefined
+  const portraitSpan = yearRange(person.start_year, person.end_year) ?? yearRange(own?.s ?? null, own?.e ?? null)
   const shownImages = picks.map((p) => imageIds.get(p.typeId)).filter((id): id is number => id != null)
   const cards = (types.results as CardRow[]).map(card)
   const [portraitCredits, typeCredits] = await Promise.all([
@@ -232,25 +288,34 @@ export async function getRuler(db: D1Database, id: string, query: RulerQuery): P
   ])
 
   const none = (noPortrait.results[0] as { count: number }).count
-  const opts = available.results[0] as Record<"portrait" | "issuer" | "denomination" | "period", number>
+  const opts = available.results[0] as Record<"in_name" | "own" | "portrait" | "issuer" | "denomination" | "period", number>
+  const struckCounts = new Map((struckFacet.results as { in_name: number; count: number }[]).map((r) => [!!r.in_name, r.count]))
 
   return {
     id: person.id,
     name: person.name,
     ruled: yearRange(person.start_year, person.end_year),
-    lived: yearRange(person.birth_year, person.death_year),
+    lived: lifespan(person.birth_year, person.death_year),
     lead: lead(art?.extract ?? person.definition),
     article: art ? { url: art.url, licence: art.licence } : null,
     mainMint: (mainMint.results[0] as { id: string; name: string } | undefined) ?? null,
+    categoryPath: categories.results as { id: string; name: string }[],
     family: familyGroups,
     portraits: picks,
+    portraitSpan,
     portraitCredits,
     available: {
+      struck: opts.own > 0 && opts.in_name > 0,
       portrait: opts.portrait > 1,
       issuer: opts.issuer > 1,
       denomination: opts.denomination > 1,
       period: opts.period > 1,
     },
+    struckFacet: [
+      { value: OWN, label: "Own issues", count: struckCounts.get(false) ?? 0 },
+      { value: IN_NAME, label: "Struck in their name", count: struckCounts.get(true) ?? 0 },
+    ],
+    inNameCount: opts.in_name,
     portraitFacet: [
       ...(portraitFacet.results as Facet[]),
       ...(none ? [{ value: NO_PORTRAIT, label: "No portrait", count: none }] : []),

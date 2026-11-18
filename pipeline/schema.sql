@@ -59,8 +59,9 @@ CREATE TABLE mint (
   source      TEXT NOT NULL,
   name        TEXT NOT NULL,
   definition  TEXT,
+  parent_id   TEXT REFERENCES mint(id),    -- a workshop's city mint (Seleucia on the Tigris II -> Seleucia)
   region_id   TEXT REFERENCES region(id),
-  lat         REAL,
+  lat         REAL,                        -- NULL for most workshops: use the parent mint's
   lon         REAL
 );
 
@@ -269,7 +270,8 @@ CREATE TABLE legend (
   legend     TEXT NOT NULL,                -- as written by the source
   normalised TEXT NOT NULL,                -- 'D N HONORIVS P F AVG'
   compact    TEXT NOT NULL,                -- 'DNHONORIVSPFAVG'
-  romanised  TEXT,                         -- compact form in Latin letters, for non-Latin legends
+  romanised  TEXT,                         -- search key in Latin letters, for non-Latin legends ('MAHARAIASA...')
+  transliteration TEXT,                    -- readable transliteration for display ('maharajasa tratarasa menadrasa')
   segments   TEXT,                         -- JSON: [{text, latin, english, kind, number?}, ...]
   expanded_latin TEXT,                     -- 'Dominus Noster Honorius Pius Felix Augustus'
   english    TEXT,                         -- 'Our Lord · Honorius · dutiful and fortunate · Augustus'

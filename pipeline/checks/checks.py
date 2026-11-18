@@ -42,7 +42,7 @@ def run(db: sqlite3.Connection) -> Result:
     n = _one(db, "SELECT COUNT(*) FROM coin_type WHERE start_year > end_year")
     if n:
         r.errors.append(f"{n} types end before they start")
-    for table in ("coin_type", "region", "category"):
+    for table in ("coin_type", "region", "category", "mint"):
         n = _one(db, f"""WITH RECURSIVE reach(id) AS (
                             SELECT id FROM {table} WHERE parent_id IS NULL
                             UNION SELECT c.id FROM {table} c JOIN reach ON c.parent_id = reach.id)
@@ -59,18 +59,21 @@ def run(db: sqlite3.Connection) -> Result:
         r.errors.append(f"{n} type IDs do not start with their dataset slug")
 
     # Warnings: gaps worth knowing about, not build-breaking.
-    # Republican coins name their moneyer (issuer), not an authority: either counts.
+    # Republican coins name their moneyer (issuer), not an authority; posthumous Alexanders name
+    # the king they were struck for (stated authority). Any of the three counts.
+    roles = "('authority', 'stated_authority', 'issuer')"
     n = _one(db, f"""SELECT COUNT(*) FROM coin_type WHERE {ACTIVE}
-                     AND id NOT IN (SELECT type_id FROM type_person WHERE role IN ('authority', 'issuer'))
-                     AND id NOT IN (SELECT type_id FROM type_organization WHERE role IN ('authority', 'issuer'))""")
+                     AND id NOT IN (SELECT type_id FROM type_person WHERE role IN {roles})
+                     AND id NOT IN (SELECT type_id FROM type_organization WHERE role IN {roles})""")
     if n:
         r.warnings.append(f"{n} active types have no authority or issuer in the source")
     n = _one(db, f"SELECT COUNT(*) FROM coin_type WHERE {ACTIVE} AND id NOT IN (SELECT type_id FROM type_category)")
     if n:
         r.warnings.append(f"{n} active types match no category rule")
-    n = _one(db, "SELECT COUNT(*) FROM mint WHERE lat IS NULL")
+    n = _one(db, """SELECT COUNT(*) FROM mint m LEFT JOIN mint p ON p.id = m.parent_id
+                    WHERE m.lat IS NULL AND p.lat IS NULL""")
     if n:
-        r.warnings.append(f"{n} mints have no coordinates")
+        r.warnings.append(f"{n} mints have no coordinates, nor a parent mint with them")
     n = _one(db, f"SELECT COUNT(*) FROM coin_type WHERE {ACTIVE} AND mint_id IS NULL AND mint_uncertain = 0")
     if n:
         r.warnings.append(f"{n} active types have no mint")
@@ -82,6 +85,10 @@ def run(db: sqlite3.Connection) -> Result:
                     WHERE start_year IS NULL AND birth_year IS NULL AND death_year IS NULL""")
     if n:
         r.warnings.append(f"{n} people have no dates at all")
+    n = _one(db, """SELECT COUNT(*) FROM person WHERE birth_year > death_year
+                    OR death_year - birth_year > 110 OR birth_year > start_year""")
+    if n:
+        r.warnings.append(f"{n} people have impossible life dates")
     n = _one(db, "SELECT COUNT(*) FROM dataset WHERE name IS NULL")
     if n:
         r.warnings.append(f"{n} datasets referenced by specimens have no metadata")

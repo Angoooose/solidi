@@ -48,7 +48,8 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
 
     abbreviations = ROOT / "data" / "legend_abbreviations.yaml"
     dictionary = Dictionary.load(abbreviations) if abbreviations.exists() else None
-    print(f"index legends: {legends.build_index(db, dictionary)}")
+    languages = {k: c.get("legend_language", "la") for k, c in config["corpora"].items()}
+    print(f"index legends: {legends.build_index(db, dictionary, languages)}")
 
     print("categories")
     categories.load_and_assign(db, ROOT / "data" / "categories.yaml")

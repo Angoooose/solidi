@@ -81,6 +81,57 @@ export function Legend({ children, className }: { children: React.ReactNode; cla
 }
 
 /*
+ * legend.language codes and how to mark them up. Kharoshthi (Gandhari on Indo-Greek reverses)
+ * and Phoenician run right to left; 'zxx' is a cataloguer's note ("Illegible inscription"), not a legend.
+ */
+const SCRIPTS: Record<string, { lang: string; dir?: "rtl"; tracked: boolean }> = {
+  la: { lang: "la", tracked: true },
+  grc: { lang: "grc", tracked: true },
+  pgd: { lang: "pgd", dir: "rtl", tracked: false },
+  phn: { lang: "phn", dir: "rtl", tracked: false },
+  pra: { lang: "pra", tracked: false },
+}
+
+/** Kharoshthi, Phoenician or Brahmi letters: the page needs the Noto fonts for them (Base.astro `scripts`). */
+export const NEEDS_SCRIPT_FONTS = /[\u{10900}-\u{1091F}\u{10A00}-\u{10A5F}\u{11000}-\u{1107F}]/u
+
+/*
+ * A legend in any language, without a word-by-word gloss: the text as struck, in its own script
+ * and direction, with a Latin-letter transliteration beneath in stone when there is one.
+ */
+export function LegendText({
+  legend,
+  language,
+  transliteration,
+  className,
+}: {
+  legend: string
+  language: string | null
+  transliteration?: string | null
+  className?: string
+}) {
+  if (language === "zxx") return <p className={cn("m-0 font-serif text-reading text-stone italic", className)}>{legend}</p>
+  const script = SCRIPTS[language ?? "la"]
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      <p
+        lang={script?.lang ?? language ?? undefined}
+        dir={script?.dir}
+        className={cn("legend-script m-0 w-fit text-latin", script && !script.tracked && "tracking-normal")}
+      >
+        {legend}
+      </p>
+      {transliteration && (
+        <p className="m-0 font-serif text-[18px] leading-snug text-stone italic">
+          <span className="sr-only">Transliteration: </span>
+          {transliteration}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/*
  * Legend line in a search result: small stone capitals with the matched run in ink on the plinth.
  * Pass the full legend and the matched substring.
  */

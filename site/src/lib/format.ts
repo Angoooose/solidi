@@ -13,10 +13,14 @@ export function year(y: number): string {
   return y < 0 ? `${-y} BC` : `AD ${y}`
 }
 
-/** A date range as written in the catalogue: "AD 103–111", "27 BC – AD 14", "AD 112". */
+/**
+ * A date range as written in the catalogue: "AD 103–111", "336–323 BC", "27 BC – AD 14", "AD 112".
+ * Always earliest first, even if the source gave the years the other way round.
+ */
 export function yearRange(start: number | null, end: number | null): string | null {
   if (start == null && end == null) return null
   if (start == null || end == null || start === end) return year((start ?? end)!)
+  if (start > end) [start, end] = [end, start]
   if (start < 0 && end > 0) return `${year(start)} – ${year(end)}`
   if (start < 0) return `${-start}–${-end} BC`
   return `AD ${start}–${end}`
@@ -83,9 +87,20 @@ export function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-/** ACSearch past-sales search for a type, by its RIC citation and ruler. */
-export function acsearchUrl(volume: string | null, number: string | null, ruler: string | null): string | null {
+/* How dealers cite each catalogue, by reference_work id. RIC numbers restart for every ruler, so
+ * a RIC search also needs the volume and the ruler; the others number their types uniquely. */
+const DEALER_CITATION: Record<string, string> = {
+  rrc: "Crawford",
+  price1991: "Price",
+  seleucid_coins: "SC",
+  "svoronos-1904": "Svoronos",
+}
+
+/** ACSearch past-sales search for a type, by its catalogue citation (and ruler, for RIC); null for catalogues dealers don't cite. */
+export function acsearchUrl(work: string | null, volume: string | null, number: string | null, ruler: string | null): string | null {
   if (!number) return null
-  const term = [ruler, volume ?? "RIC", number].filter(Boolean).join(" ")
+  const term =
+    work === "ric" ? [ruler, volume ?? "RIC", number].filter(Boolean).join(" ") : work && DEALER_CITATION[work] ? `${DEALER_CITATION[work]} ${number}` : null
+  if (!term) return null
   return `https://www.acsearch.info/search.html?term=${encodeURIComponent(term)}&category=1-2-3-4-5-6-7-8&images=1`
 }

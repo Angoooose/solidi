@@ -160,7 +160,11 @@ def test_licence_overrides_apply_regardless_of_trailing_slash(db):
 
 
 def test_legends_have_a_language(db):
-    assert one(db, "SELECT COUNT(*) FROM legend WHERE language NOT IN ('la', 'grc')")[0] == 0
+    assert one(db, """SELECT COUNT(*) FROM legend
+                      WHERE language NOT IN ('la', 'grc', 'pgd', 'pra', 'phn', 'zxx')""")[0] == 0
+    # Indo-Greek reverses are Kharoshthi, romanised for search.
+    if one(db, "SELECT COUNT(*) FROM legend WHERE language = 'pgd'")[0]:
+        assert one(db, "SELECT COUNT(*) FROM legend WHERE language = 'pgd' AND romanised LIKE 'MAHARAIASA%'")[0] > 500
     assert one(db, "SELECT language FROM legend WHERE type_id = 'ocre/ric.2.tr.147' AND side = 'obverse'") == ("la",)
 
 
@@ -179,3 +183,11 @@ def test_crro_categories(db):
     assert one(db, "SELECT category_id FROM type_category WHERE type_id = 'crro/rrc-480.1'") == ("roman-imperatorial",)
     assert one(db, "SELECT category_id FROM type_category WHERE type_id = 'crro/rrc-1.1'") == ("roman-republican",)
     assert one(db, "SELECT work_id, number FROM type_reference WHERE type_id = 'crro/rrc-414.1'") == ("rrc", "414/1")
+
+
+def test_workshop_mints_nest_under_their_city(db):
+    if not one(db, "SELECT COUNT(*) FROM mint WHERE id = 'seleuceia_ad_tigrim_ii_sco'")[0]:
+        pytest.skip("SCO not in this build")
+    parent, lat = one(db, "SELECT parent_id, lat FROM mint WHERE id = 'seleuceia_ad_tigrim_ii_sco'")
+    assert parent == "seleuceia_ad_tigrim"
+    assert one(db, "SELECT lat IS NOT NULL FROM mint WHERE id = ?", parent) == (1,)

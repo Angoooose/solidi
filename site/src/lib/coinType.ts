@@ -17,6 +17,17 @@ export type Link = { id: string; name: string }
 export type Person = Link & { role: string; years: string | null }
 export type Photo = { src: string; side: Side | "combined" }
 export type Credit = { holder: string; licence: Licence | null; url: string }
+/** A monogram, control mark or symbol in the field. */
+export type FieldMark = {
+  id: string
+  name: string
+  definition: string | null
+  /** SVG drawing, when the source has one. */
+  image: string | null
+  /** Letters the monogram is made of: "Κ Ν Ω". */
+  letters: string | null
+  uncertain: boolean
+}
 
 export type Specimen = {
   id: string
@@ -39,10 +50,10 @@ export type CoinType = {
   sourceUri: string
   /** The dataset the type comes from, for "View on OCRE". */
   source: { slug: string; name: string | null }
-  /** The type's own catalogue entry: 'RIC II' and '147' of 'RIC II Trajan 147'. */
-  catalogue: { label: string; volume: string | null; number: string | null } | null
-  /** Its primary collector category ('Roman Imperial'). */
-  category: Link | null
+  /** The type's own catalogue entry: 'RIC II' and '147' of 'RIC II Trajan 147'; `work` is the reference_work id. */
+  catalogue: { work: string; label: string; volume: string | null; number: string | null } | null
+  /** Its primary collector category with its ancestors, broadest first: Greek, Hellenistic, Seleucid Kingdom. */
+  categoryPath: Link[]
   date: string | null
   mint: (Link & { uncertain: boolean }) | null
   /** The source says the mint is uncertain but names none. */
@@ -50,6 +61,11 @@ export type CoinType = {
   denominations: Link[]
   materials: string[]
   authorities: Person[]
+  /**
+   * Rulers named on the coin who did not strike it: posthumous Alexanders, struck in his name by
+   * Ptolemy I, by cities, or by no one the catalogue records.
+   */
+  statedAuthorities: Person[]
   /** People shown on the coin who are not its issuer (an empress, a deified father). */
   portraits: Person[]
   organizations: Link[]
@@ -60,8 +76,12 @@ export type CoinType = {
   sides: {
     side: Side
     legend: string | null
+    /** legend.language: 'la', 'grc', 'pgd', 'phn', 'pra', or 'zxx' for a cataloguer's note. */
+    language: string | null
+    transliteration: string | null
     description: string | null
     segments: LegendSegment[] | null
+    marks: FieldMark[]
   }[]
   hero: Specimen | null
   /** Every specimen of the type, best first; the table sorts and filters them in the browser. */
@@ -83,11 +103,11 @@ type TypeRow = {
   source_uri: string
   dataset_slug: string
   dataset_name: string | null
+  ref_work: string | null
   ref_label: string | null
   ref_volume: string | null
   ref_number: string | null
   category_id: string | null
-  category_name: string | null
   parent_id: string | null
   replaced_by_id: string | null
   start_year: number | null
@@ -128,14 +148,13 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
   const t = await db
     .prepare(
       `SELECT t.*, m.name AS mint_name, d.slug AS dataset_slug, d.name AS dataset_name,
-         r.label AS ref_label, r.volume AS ref_volume, r.number AS ref_number,
-         c.id AS category_id, c.name AS category_name
+         r.work_id AS ref_work, r.label AS ref_label, r.volume AS ref_volume, r.number AS ref_number,
+         tc.category_id
        FROM coin_type t
        JOIN dataset d ON d.id = t.dataset_id
        LEFT JOIN mint m ON m.id = t.mint_id
        LEFT JOIN type_reference r ON r.type_id = t.id AND r.is_primary = 1
        LEFT JOIN type_category tc ON tc.type_id = t.id AND tc.is_primary = 1
-       LEFT JOIN category c ON c.id = tc.category_id
        WHERE t.id = ?`
     )
     .bind(id)
@@ -144,12 +163,12 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
   if (t.replaced_by_id) return { kind: "redirect", to: t.replaced_by_id }
 
   const q = (sql: string, ...args: unknown[]) => db.prepare(sql).bind(...args)
-  const [people, orgs, denoms, mats, subjects, legends, parent, variants, specimens, imageRows, related] =
+  const [people, orgs, denoms, mats, subjects, legends, marks, categories, parent, variants, specimens, imageRows, related] =
     await db.batch([
       q(
         `SELECT p.id, p.name, p.start_year, p.end_year, tp.role FROM type_person tp
          JOIN person p ON p.id = tp.person_id WHERE tp.type_id = ?
-         ORDER BY tp.role = 'authority' DESC, p.name`,
+         ORDER BY tp.role = 'authority' DESC, tp.role = 'issuer' DESC, p.name`,
         id
       ),
       q(
@@ -164,7 +183,21 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
          WHERE ts.type_id = ? ORDER BY ts.side DESC, ts.confidence DESC`,
         id
       ),
-      q(`SELECT side, legend, segments FROM legend WHERE type_id = ?`, id),
+      q(`SELECT side, language, legend, transliteration, segments FROM legend WHERE type_id = ? ORDER BY id`, id),
+      q(
+        `SELECT ts.side, s.id, s.name, s.definition, s.image_url, s.letters, ts.uncertain
+         FROM type_symbol ts JOIN symbol s ON s.id = ts.symbol_id WHERE ts.type_id = ? ORDER BY ts.side, s.id`,
+        id
+      ),
+      // The primary category and its ancestors, broadest first.
+      q(
+        `WITH RECURSIVE path(id, name, parent_id, depth) AS (
+           SELECT id, name, parent_id, 0 FROM category WHERE id = ?
+           UNION ALL SELECT c.id, c.name, c.parent_id, p.depth + 1 FROM category c JOIN path p ON c.id = p.parent_id
+         )
+         SELECT id, name FROM path ORDER BY depth DESC`,
+        t.category_id ?? ""
+      ),
       q(`SELECT id, title FROM coin_type WHERE id = ?`, t.parent_id ?? ""),
       q(`${CARD_SELECT} WHERE t.parent_id = ? AND t.replaced_by_id IS NULL ORDER BY t.id`, id),
       q(
@@ -182,12 +215,20 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
          JOIN specimen_type st ON st.specimen_id = i.specimen_id WHERE st.type_id = ? ORDER BY i.id`,
         id
       ),
-      // Same issuer and the same reverse legend (one issue), then the same issuer and denomination.
+      /*
+       * Same ruler and the same reverse legend (one issue), then the same ruler and denomination.
+       * The ruler is the type's authority, or failing that the ruler it names: a posthumous
+       * Alexander's neighbours are other coins in Alexander's name.
+       */
       q(
-        `${CARD_SELECT}
+        `WITH ruler AS (
+           SELECT role, person_id FROM type_person WHERE type_id = ?1
+             AND role = (SELECT role FROM type_person WHERE type_id = ?1 AND role IN ('authority', 'stated_authority')
+                         ORDER BY role = 'authority' DESC LIMIT 1)
+         )
+         ${CARD_SELECT}
          WHERE t.id != ?1 AND t.replaced_by_id IS NULL
-           AND t.id IN (SELECT type_id FROM type_person WHERE role = 'authority'
-                        AND person_id IN (SELECT person_id FROM type_person WHERE type_id = ?1 AND role = 'authority'))
+           AND t.id IN (SELECT tp.type_id FROM type_person tp JOIN ruler ON ruler.role = tp.role AND ruler.person_id = tp.person_id)
          ORDER BY t.rev_legend IS NOT ?2,
            t.id NOT IN (SELECT type_id FROM type_denomination
                         WHERE denomination_id IN (SELECT denomination_id FROM type_denomination WHERE type_id = ?1)),
@@ -252,13 +293,42 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
   })
   const authorityIds = new Set(peopleRows.filter((p) => p.role === "authority" || p.role === "issuer").map((p) => p.id))
   const authorities = [...new Map(peopleRows.filter((p) => authorityIds.has(p.id)).map((p) => [p.id, toPerson(p)])).values()]
+  const statedAuthorities = peopleRows.filter((p) => p.role === "stated_authority" && !authorityIds.has(p.id)).map(toPerson)
+  const named = new Set([...authorityIds, ...statedAuthorities.map((p) => p.id)])
   const portraits = [
     ...new Map(
-      peopleRows.filter((p) => p.role.startsWith("portrait") && !authorityIds.has(p.id)).map((p) => [p.id, toPerson(p)])
+      peopleRows.filter((p) => p.role.startsWith("portrait") && !named.has(p.id)).map((p) => [p.id, toPerson(p)])
     ).values(),
   ]
 
-  const legendRows = legends.results as { side: Side; legend: string; segments: string | null }[]
+  const markRows = marks.results as {
+    side: Side
+    id: string
+    name: string
+    definition: string | null
+    image_url: string | null
+    letters: string | null
+    uncertain: number
+  }[]
+  const marksOn = (side: Side): FieldMark[] =>
+    markRows
+      .filter((m) => m.side === side)
+      .map((m) => ({
+        id: m.id,
+        name: m.name,
+        definition: m.definition,
+        image: secure(m.image_url),
+        letters: m.letters,
+        uncertain: !!m.uncertain,
+      }))
+
+  const legendRows = legends.results as {
+    side: Side
+    language: string
+    legend: string
+    transliteration: string | null
+    segments: string | null
+  }[]
   const sideData = (side: Side) => {
     const row = legendRows.find((l) => l.side === side)
     let segments: LegendSegment[] | null = null
@@ -270,8 +340,11 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
     return {
       side,
       legend: row?.legend ?? (side === "obverse" ? t.obv_legend : t.rev_legend),
+      language: row?.language ?? null,
+      transliteration: row?.transliteration ?? null,
       description: side === "obverse" ? t.obv_description : t.rev_description,
       segments,
+      marks: marksOn(side),
     }
   }
 
@@ -293,21 +366,22 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
       reference: t.title ?? t.id,
       sourceUri: secure(t.source_uri) ?? t.source_uri,
       source: { slug: t.dataset_slug, name: t.dataset_name },
-      catalogue: t.ref_label ? { label: t.ref_label, volume: t.ref_volume, number: t.ref_number } : null,
-      category: t.category_id ? { id: t.category_id, name: t.category_name ?? t.category_id } : null,
+      catalogue: t.ref_label ? { work: t.ref_work ?? "", label: t.ref_label, volume: t.ref_volume, number: t.ref_number } : null,
+      categoryPath: categories.results as Link[],
       date: yearRange(t.start_year, t.end_year),
       mint: t.mint_id ? { id: t.mint_id, name: t.mint_name ?? t.mint_id, uncertain: !!t.mint_uncertain } : null,
       mintUnknown: !t.mint_id && !!t.mint_uncertain,
       denominations: denoms.results as Link[],
       materials: (mats.results as { name: string }[]).map((m) => m.name),
       authorities,
+      statedAuthorities,
       portraits,
       organizations: orgs.results as Link[],
       subjects: subjects.results as (Link & { side: Side })[],
       parent: parentRow ? { id: parentRow.id, reference: parentRow.title ?? parentRow.id } : null,
       variants: variantCards,
       variantCredits,
-      sides: [sideData("obverse"), sideData("reverse")].filter((s) => s.legend || s.description),
+      sides: [sideData("obverse"), sideData("reverse")].filter((s) => s.legend || s.description || s.marks.length),
       hero: heroRow ? toSpecimen(heroRow, 900) : null,
       specimens: specimenRows.map((s) => toSpecimen(s, 900)),
       specimenCount: specimenRows.length,

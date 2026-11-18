@@ -32,6 +32,14 @@ def wikidata_year(value: str | None) -> int | None:
     return year if year > 0 else -1
 
 
+def exact(row: dict, field: str) -> bool:
+    """A date precise to the year or better (Wikidata precision 9+): not '5th century' (7)."""
+    try:
+        return int(row.get(f"{field}_precision") or 0) >= 9
+    except ValueError:
+        return False
+
+
 def enrich(db: sqlite3.Connection, raw_dir: Path, refresh: bool = False, log=print) -> dict:
     stats: dict[str, int] = defaultdict(int)
 
@@ -76,8 +84,10 @@ def enrich(db: sqlite3.Connection, raw_dir: Path, refresh: bool = False, log=pri
     person_by_qid = {q: eid for (etype, eid), q in entity_qid.items() if etype == "person"}
     for q, pid in person_by_qid.items():
         f = facts.get(q, [])
-        births = [y for r in f if (y := wikidata_year(r.get("birth")))]
-        deaths = [y for r in f if (y := wikidata_year(r.get("death")))]
+        births = [y for r in f if exact(r, "birth") and (y := wikidata_year(r.get("birth")))]
+        deaths = [y for r in f if exact(r, "death") and (y := wikidata_year(r.get("death")))]
+        stats["vague life dates skipped"] += sum(1 for r in f for k in ("birth", "death")
+                                                 if r.get(k) and not exact(r, k))
         if births:
             n = db.execute("UPDATE person SET birth_year = ? WHERE id = ? AND birth_year IS NULL",
                            (min(births), pid)).rowcount

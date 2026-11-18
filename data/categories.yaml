@@ -9,6 +9,30 @@
 # Every condition given must hold.
 
 categories:
+  - id: greek
+    name: Greek
+    children:
+      - id: hellenistic
+        name: Hellenistic
+        description: Coinage of the kingdoms that followed Alexander, from Philip II of Macedon (359 BC) to the Roman conquest of the East.
+        children:
+          - id: macedonian-kings
+            name: Macedonian Kings
+            description: >-
+              The Argead kings Philip II, Alexander III and Philip III, with Lysimachus; includes
+              the coins struck in Alexander's and Philip's names for centuries after their deaths.
+          - id: antigonid
+            name: Antigonid Kingdom
+            description: Antigonus I, Demetrius Poliorcetes and their successors in Macedon.
+          - id: seleucid
+            name: Seleucid Kingdom
+            description: Seleucus I to the end of the dynasty in 64 BC, from the Aegean to Bactria.
+          - id: ptolemaic
+            name: Ptolemaic Kingdom
+            description: Ptolemy I to Cleopatra VII, Egypt and its overseas possessions.
+          - id: bactrian-indo-greek
+            name: Bactrian and Indo-Greek Kingdoms
+            description: The Greek kings of Bactria and north-west India, c. 250 BC to the 1st century AD.
   - id: roman
     name: Roman
     children:
@@ -25,6 +49,18 @@ categories:
         description: Coinage of the emperors, from Augustus (27 BC) to the end of the western empire.
 
 rules:
+  # Hellenistic: by catalogue. Posthumous Alexanders and Philips stay under Macedonian Kings,
+  # as Price files them; type_person marks them with role 'stated_authority'.
+  - category: macedonian-kings
+    dataset: pella
+  - category: antigonid
+    dataset: agco
+  - category: seleucid
+    dataset: sco
+  - category: ptolemaic
+    dataset: pco
+  - category: bactrian-indo-greek
+    dataset: bigr
   - category: roman-imperial
     dataset: ocre
   # Imperatorial follows the collector convention (Sear, Roman Coins and their Values; Sear,

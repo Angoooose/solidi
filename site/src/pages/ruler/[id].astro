@@ -19,8 +19,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { PAGE_SIZE, getRuler, parseQuery } from "@/lib/ruler"
-import { typePath } from "@/lib/format"
+import { IN_NAME, OWN, PAGE_SIZE, getRuler, parseQuery } from "@/lib/ruler"
+import { capitalise, typePath } from "@/lib/format"
 
 const id = Astro.params.id ?? ""
 const query = parseQuery(Astro.url.searchParams)
@@ -39,6 +39,7 @@ const link = (changes: Record<string, string | number | null>) => {
 
 const filters = ruler
   ? [
+      { label: "Struck", param: "struck", value: query.struck, options: ruler.struckFacet, available: ruler.available.struck },
       { label: "Portrait", param: "portrait", value: query.portrait, options: ruler.portraitFacet, available: ruler.available.portrait },
       { label: "Issued by", param: "issuer", value: query.issuer, options: ruler.issuerFacet, available: ruler.available.issuer },
       { label: "Denomination", param: "denomination", value: query.denomination, options: ruler.denominationFacet, available: ruler.available.denomination },
@@ -63,10 +64,14 @@ const filters = ruler
         <section class="flex flex-col gap-8 pt-10">
           <Breadcrumb>
             <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/">Roman Imperial</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
+              {ruler.categoryPath.map((c) => (
+                <>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink href={`/category/${c.id}`}>{c.name}</BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                </>
+              ))}
               <BreadcrumbItem>
                 <BreadcrumbLink href="/rulers">Rulers</BreadcrumbLink>
               </BreadcrumbItem>
@@ -81,7 +86,7 @@ const filters = ruler
             <div class="flex min-w-0 flex-[1_1_560px] flex-col gap-4">
               <div class="flex flex-wrap items-baseline gap-x-7 gap-y-2">
                 <h1 class="m-0 font-serif text-display font-normal">{ruler.name}</h1>
-                {(ruler.ruled ?? ruler.lived) && <span class="text-subtitle text-graphite">{ruler.ruled ?? ruler.lived}</span>}
+                {(ruler.ruled ?? ruler.lived) && <span class="text-subtitle text-graphite">{capitalise((ruler.ruled ?? ruler.lived)!)}</span>}
               </div>
               {ruler.lead && (
                 <p class="m-0 max-w-[56ch] font-serif text-reading text-pretty">
@@ -131,7 +136,7 @@ const filters = ruler
         {ruler.portraits.length >= 2 && (
           <section class="flex flex-col gap-8 border-t border-hairline pt-18 mt-16">
             <h2 class="m-0 font-serif text-heading font-normal">
-              {ruler.name}'s portrait{ruler.ruled && `, ${ruler.ruled.replace(/^AD /, "")}`}
+              {ruler.name}'s portrait{ruler.portraitSpan && `, ${ruler.portraitSpan.replace(/^AD /, "")}`}
             </h2>
             <div class="scroll-fade-x scrollbar-thin overflow-x-auto pb-2">
               <ol class="relative m-0 grid min-w-[880px] list-none grid-cols-6 gap-x-6 p-0">
@@ -164,7 +169,23 @@ const filters = ruler
 
         {/* Coinage */}
         <section id="coinage" class="flex scroll-mt-6 flex-col gap-8 pt-18 pb-24">
-          <h2 class="m-0 font-serif text-heading font-normal">Coinage</h2>
+          <div class="flex flex-col gap-3">
+            <h2 class="m-0 font-serif text-heading font-normal">Coinage</h2>
+            {ruler.inNameCount > 0 && (
+              <p class="m-0 max-w-[64ch] text-body text-graphite">
+                {ruler.inNameCount.toLocaleString("en")} {ruler.inNameCount === 1 ? "type names" : "types name"} {ruler.name} on the coin
+                but {ruler.inNameCount === 1 ? "was" : "were"} struck by others: later rulers, cities, magistrates, or issuers the
+                catalogue does not record.{" "}
+                <a
+                  data-keep-scroll
+                  href={link(query.struck === IN_NAME ? { struck: OWN, limit: null } : { struck: IN_NAME, limit: null })}
+                  class="whitespace-nowrap underline decoration-field underline-offset-4 hover:text-stone"
+                >
+                  {query.struck === IN_NAME ? "Show own issues" : "Show only these"}
+                </a>
+              </p>
+            )}
+          </div>
 
           <div class="border-b border-hairline pb-3">
             <CoinageFilters client:idle filters={filters} sort={query.sort} />

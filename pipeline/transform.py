@@ -22,6 +22,7 @@ PERSON = iri("foaf:Person")
 ORGANIZATION = iri("foaf:Organization")
 DEITY = iri("wordnet:Deity")
 REGION = iri("nmo:Region")
+MINT = iri("nmo:Mint")
 
 
 class Builder:
@@ -174,8 +175,15 @@ class Builder:
                                   lambda p: {**self._coords(p), "parent_id": self._parent_region(p)})
 
     def ensure_mint(self, uri: str) -> str | None:
-        return self.ensure_simple("mint", uri,
-                                  lambda p: {**self._coords(p), "region_id": self._parent_region(p)})
+        def extra(p: dict) -> dict:
+            parent = next((b for b in refs(p, "skos:broader") if MINT in self.classes(b)), None)
+            parent_id = self.ensure_mint(parent) if parent else None
+            region = self._parent_region(p)
+            if not region and parent_id:
+                row = self.db.execute("SELECT region_id FROM mint WHERE id = ?", (parent_id,)).fetchone()
+                region = row[0] if row else None        # None while a broader-loop is still resolving
+            return {**self._coords(p), "parent_id": parent_id, "region_id": region}
+        return self.ensure_simple("mint", uri, extra)
 
     def ensure_symbol(self, uri: str) -> str | None:
         """Monograms and control marks. Numishare describes them with CIDOC-CRM: the drawing via
@@ -299,12 +307,16 @@ class Builder:
                 if mid := self.ensure_simple("material", m):
                     mats.append((tid, mid))
 
+            start, end = parse_year(first(p, "nmo:hasStartDate")), parse_year(first(p, "nmo:hasEndDate"))
+            if start is not None and end is not None and start > end:
+                # SCO writes some BC ranges backwards (start 204 BC, end 210 BC): same interval.
+                self.warnings["type dates given end first, swapped"] += 1
+                start, end = end, start
             rows.append({
                 "id": tid, "source_uri": uri, "dataset_id": dataset_id, "title": title,
                 "parent_id": self.type_id(broader[0]) if broader else None,
                 "replaced_by_id": (self.type_id(replaced[0]) or replaced[0]) if replaced else None,
-                "start_year": parse_year(first(p, "nmo:hasStartDate")),
-                "end_year": parse_year(first(p, "nmo:hasEndDate")),
+                "start_year": start, "end_year": end,
                 "mint_id": mint_id, "mint_uncertain": int(uncertain),
                 "obv_legend": first(sides["obverse"], "nmo:hasLegend"),
                 "obv_description": label(sides["obverse"], "dcterms:description"),

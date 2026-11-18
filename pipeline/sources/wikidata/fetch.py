@@ -20,9 +20,11 @@ ENDPOINT = "https://query.wikidata.org/sparql"
 USER_AGENT = "solidi-pipeline/0.1 (https://github.com/Angoooose/solidi) python-httpx"
 HEADERS = {"Accept": "text/csv", "User-Agent": USER_AGENT}
 
+# Dates come with their precision (9 = year, 8 = decade, 7 = century...): Wikidata stores
+# '5th century' as the year 500, which must not be read as an exact year.
 FIELDS = """
-  OPTIONAL { ?item wdt:P569 ?birth }
-  OPTIONAL { ?item wdt:P570 ?death }
+  OPTIONAL { ?item p:P569/psv:P569 [ wikibase:timeValue ?birth ; wikibase:timePrecision ?birth_precision ] }
+  OPTIONAL { ?item p:P570/psv:P570 [ wikibase:timeValue ?death ; wikibase:timePrecision ?death_precision ] }
   OPTIONAL { ?item wdt:P22 ?father }
   OPTIONAL { ?item wdt:P25 ?mother }
   OPTIONAL { ?item wdt:P26 ?spouse }
@@ -30,8 +32,10 @@ FIELDS = """
   OPTIONAL { ?article schema:about ?item ; schema:isPartOf <https://en.wikipedia.org/> }
 """
 
-BY_NOMISMA = "SELECT ?item ?nm ?birth ?death ?father ?mother ?spouse ?child ?article WHERE { ?item wdt:P2950 ?nm ." + FIELDS + "}"
-BY_QID = "SELECT ?item ?birth ?death ?father ?mother ?spouse ?child ?article WHERE { VALUES ?item { %s }" + FIELDS + "}"
+COLUMNS = "?birth ?birth_precision ?death ?death_precision ?father ?mother ?spouse ?child ?article"
+BY_NOMISMA = "SELECT ?item ?nm " + COLUMNS + " WHERE { ?item wdt:P2950 ?nm ." + FIELDS + "}"
+BY_QID = "SELECT ?item " + COLUMNS + " WHERE { VALUES ?item { %s }" + FIELDS + "}"
+CACHE_VERSION = "v2"           # bump when the queries change, so cached answers are refetched
 
 
 def _query(query: str, retries: int = 4) -> list[dict[str, str]]:
@@ -64,7 +68,7 @@ def _cached(path: Path, query: str, refresh: bool) -> list[dict[str, str]]:
 
 
 def by_nomisma(raw_dir: Path, refresh: bool = False) -> list[dict[str, str]]:
-    return _cached(raw_dir / "wikidata" / "by_nomisma.csv", BY_NOMISMA, refresh)
+    return _cached(raw_dir / "wikidata" / f"by_nomisma-{CACHE_VERSION}.csv", BY_NOMISMA, refresh)
 
 
 def by_qids(raw_dir: Path, qids: list[str], refresh: bool = False) -> list[dict[str, str]]:
@@ -74,5 +78,5 @@ def by_qids(raw_dir: Path, qids: list[str], refresh: bool = False) -> list[dict[
         batch = qids[i:i + 200]
         key = hashlib.sha1(" ".join(batch).encode()).hexdigest()[:12]
         values = " ".join(f"wd:{q}" for q in batch)
-        rows += _cached(raw_dir / "wikidata" / f"by_qid-{key}.csv", BY_QID % values, refresh)
+        rows += _cached(raw_dir / "wikidata" / f"by_qid-{CACHE_VERSION}-{key}.csv", BY_QID % values, refresh)
     return rows
