@@ -225,3 +225,66 @@ def test_legion_or_legate(real):
     assert gloss("P CARISIVS LEG AVGVSTI", real)[2].english == "legate"
     segs = gloss("ANT AVG III VIR R P C LEG V", real)
     assert segs[-2].english == "legion" and segs[-1].number == 5
+
+
+GREEK = REAL.parent / "legend_greek.yaml"
+GANDHARI = REAL.parent / "legend_gandhari.yaml"
+
+
+def test_greek_royal_legends_gloss_and_link_rulers():
+    from pipeline.legends import normalise
+    d = Dictionary.load(GREEK)
+    persons = [("antiochus_iv", "Antiochus IV Epiphanes")]
+    segs = expand(normalise("BAΣΙΛΕΩΣ ANTIOXOY ΘΕΟΥ ΕΠΙΦΑΝΟΥΣ", "grc"), d, lang="grc", persons=persons)
+    assert [s.english for s in segs] == ["of King", "Antiochus", "God Manifest (Theos Epiphanes)"]
+    assert segs[1].person == segs[2].person == "antiochus_iv" and segs[0].person is None
+    # A legend that opens with the name reads '(coin) of ...'; a posthumous Alexander links to
+    # Alexander as the stated authority when the real authority is someone else.
+    segs = expand(normalise("ΑΛΕΞΑΝΔΡΟΥ", "grc"), d, lang="grc",
+                  persons=[("ptolemy_i", "Ptolemy I Soter"), ("alexander_iii", "Alexander III of Macedon")])
+    assert segs[0].english == "of Alexander" and segs[0].person == "alexander_iii"
+    assert coverage(expand(normalise("ΒΑΣΙΛΕΩΣ ΠΤΟΛΕΜΑΙΟΥ ΣΩΤΗΡΟΣ", "grc"), d, lang="grc")) == 1.0
+
+
+def test_gandhari_reverse_translates_the_greek():
+    d = Dictionary.load(GANDHARI)
+    segs = expand("maharajasa tratarasa menadrasa", d, lang="pgd", persons=[("menander_i_bactria", "Menander I")])
+    assert [s.english for s in segs] == ["of the Great King", "Soter (Saviour)", "Menander"]
+    assert segs[2].person == "menander_i_bactria"
+
+
+def test_truncated_greek_words():
+    d = Dictionary.load(GREEK)
+    assert expand("ΑΛΕΞ", d, lang="grc")[0].kind == "unknown"     # Alexander or the Alexandrians
+    assert expand("ΑΛΕΞ", d, lang="grc", persons=[("alexander_iii", "Alexander III")])[0].english == "of Alexander"
+    assert expand("ΒΑΣΙΛΕΩ ΣΕΛΕΥ", d, lang="grc", persons=[("seleucus_i", "Seleucus I Nicator")])[1].english == "Seleucus"
+    # ΑΝΤΙ could be Antiochus, Antimachus or Antialcidas: only the type's ruler decides.
+    assert expand("ΑΝΤΙ", d, lang="grc")[0].kind == "unknown"
+    assert expand("ΒΑΣΙ ΑΝΤΙ", d, lang="grc", persons=[("antiochus_iii", "Antiochus III")])[1].english == "Antiochus"
+
+
+def test_greek_person_links_from_review():
+    from pipeline.legends import normalise
+    d, g = Dictionary.load(GREEK), Dictionary.load(GANDHARI)
+    grc = lambda t, p: expand(normalise(t, "grc"), d, lang="grc", persons=p)
+    # Epithets before the name take the name's ruler.
+    segs = grc("ΒΑΣΙΛΕΩΣ ΣΩΤΗΡΟΣ ΜΕΝΑΝΔΡΟΥ", [("menander_i", "Menander I")])
+    assert segs[1].person == segs[2].person == "menander_i"
+    # The epithet picks its own king among the type's rulers.
+    segs = grc("ΠΤΟΛΕΜΑΙΟΥ ΣΩΤΗΡΟΣ", [("ptolemy_ii", "Ptolemy II Philadelphus"), ("ptolemy_i", "Ptolemy I Soter")])
+    assert segs[0].person == "ptolemy_i"
+    # The ruler named on the coin (stated authority, listed first) wins over who struck it.
+    assert grc("ΦΙΛΙΠΠΟΥ", [("philip_ii", "Philip II"), ("philip_iii", "Philip III Arrhidaeus")])[0].person == "philip_ii"
+    # A repeated name takes the next ruler of that name; 'and of' starts a new group.
+    strato = [("strato_ii", "Strato II"), ("strato_iii", "Strato III")]
+    segs = grc("ΒΑΣΙΛΕΩΣ ΣΩΤΗΡΟΣ ΣΤΡΑΤΩΝΟΣ ΚΑΙ ΦΙΛ ΣΤΡΑΤΩΝΟΣ", strato)
+    assert [s.person for s in segs if s.kind == "name"] == ["strato_ii", "strato_iii"]
+    segs = expand("maharajasa tratarasa stratasa putrasa casa priyapita stratasa", g, lang="pgd", persons=strato)
+    assert [s.person for s in segs if s.kind in ("name", "epithet")] == ["strato_ii", "strato_ii", "strato_iii", "strato_iii"]
+    # A posthumous Alexander with no Alexander among the type's people still links to him.
+    assert grc("ΑΛΕΞΑΝΔΡΟΥ", [("ptolemy_i", "Ptolemy I Soter")])[0].person == "alexander_iii"
+    # ΒΑΣΙΛΕΩΣ after the name reads 'King'; ΔΙΟΝΥΣΟΥ is plain Dionysus.
+    assert [s.english for s in grc("ΠΤΟΛΕΜΑΙΟΥ ΒΑΣΙΛΕΩΣ", [])] == ["of Ptolemy", "King"]
+    assert grc("ΑΝΤΙΟΧΟΥ ΕΠΙΦΑΝΟΥΣ ΔΙΟΝΥΣΟΥ", [])[-1].english == "Dionysus"
+    # No prefix guessing outside the Hellenistic corpora (ΘΕΩΦΙΛΕ ΝΙΚΑ is 'conquer!').
+    assert expand("ΝΙΚΑ", d, lang="grc", truncations=False)[0].kind == "unknown"

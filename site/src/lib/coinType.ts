@@ -79,6 +79,8 @@ export type CoinType = {
     /** legend.language: 'la', 'grc', 'pgd', 'phn', 'pra', or 'zxx' for a cataloguer's note. */
     language: string | null
     transliteration: string | null
+    /** People named in the segments who have a ruler page. */
+    rulers: string[]
     description: string | null
     segments: LegendSegment[] | null
     marks: FieldMark[]
@@ -183,7 +185,14 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
          WHERE ts.type_id = ? ORDER BY ts.side DESC, ts.confidence DESC`,
         id
       ),
-      q(`SELECT side, language, legend, transliteration, segments FROM legend WHERE type_id = ? ORDER BY id`, id),
+      // `rulers`: people the segments name who have a ruler page (every person row does; see lib/ruler.ts).
+      q(
+        `SELECT side, language, legend, transliteration, segments,
+           (SELECT json_group_array(p.id) FROM json_each(CASE WHEN json_valid(l.segments) THEN l.segments ELSE '[]' END) j
+            JOIN person p ON p.id = json_extract(j.value, '$.person')) AS rulers
+         FROM legend l WHERE type_id = ? ORDER BY id`,
+        id
+      ),
       q(
         `SELECT ts.side, s.id, s.name, s.definition, s.image_url, s.letters, ts.uncertain
          FROM type_symbol ts JOIN symbol s ON s.id = ts.symbol_id WHERE ts.type_id = ? ORDER BY ts.side, s.id`,
@@ -328,6 +337,7 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
     legend: string
     transliteration: string | null
     segments: string | null
+    rulers: string | null
   }[]
   const sideData = (side: Side) => {
     const row = legendRows.find((l) => l.side === side)
@@ -342,6 +352,13 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
       legend: row?.legend ?? (side === "obverse" ? t.obv_legend : t.rev_legend),
       language: row?.language ?? null,
       transliteration: row?.transliteration ?? null,
+      rulers: (() => {
+        try {
+          return JSON.parse(row?.rulers ?? "[]") as string[]
+        } catch {
+          return []
+        }
+      })(),
       description: side === "obverse" ? t.obv_description : t.rev_description,
       segments,
       marks: marksOn(side),

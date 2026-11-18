@@ -75,7 +75,8 @@ const anyMarks = type?.sides.some((s) => s.marks.length)
 const sideLabel = { obverse: "Obverse", reverse: "Reverse" } as const
 const sideHint = { obverse: "Front of the coin", reverse: "Back of the coin" } as const
 const sidePhoto = (side: "obverse" | "reverse") => type?.hero?.photos.find((p) => p.side === side)?.src ?? null
-const anyGloss = type?.sides.some((s) => s.segments?.length)
+/* The grey-letters note only applies to Latin glosses (abbreviations written out). */
+const anyGloss = type?.sides.some((s) => s.segments?.length && (s.language ?? "la") === "la")
 
 ---
 
@@ -263,7 +264,17 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
                     </div>
                   </div>
                   {s.segments?.length ? (
-                    <LegendGloss segments={s.segments} />
+                    <div class="flex flex-col gap-5">
+                      {/* Gandhari segments are transliterated: show the Kharoshthi original above them. */}
+                      {s.language === "pgd" && s.legend && <LegendText legend={s.legend} language={s.language} />}
+                      <LegendGloss segments={s.segments} language={s.language} rulers={new Set(s.rulers)} />
+                      {s.transliteration && (
+                        <p class="m-0 font-serif text-[18px] leading-snug text-stone italic">
+                          <span class="sr-only">Transliteration: </span>
+                          {s.transliteration}
+                        </p>
+                      )}
+                    </div>
                   ) : s.legend ? (
                     <LegendText legend={s.legend} language={s.language} transliteration={s.transliteration} />
                   ) : (

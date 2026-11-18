@@ -66,3 +66,23 @@ def test_bilingual_greek_phoenician_counts_as_greek():
     legend = "BAΣΙΛΕΩΣ ANTIOXOY\U00010913‬\U0001090C\U0001090B‬"
     assert language(legend, "grc") == "grc"
     assert normalise(legend, "grc").startswith("ΒΑΣΙΛΕΩΣ ΑΝΤΙΟΧΟΥ")
+
+
+def test_greek_cataloguer_notes_and_typing_slips():
+    from pipeline.legends import normalise
+    assert normalise("\u03a0\u03a4\u039f\u039b\u0395\u039c\u0391\u0399\u039f\u03a5 on l. \u0392\u0391\u03a3\u0399\u039b\u0395\u03a9\u03a3 on r.", "grc") == \
+        "\u03a0\u03a4\u039f\u039b\u0395\u039c\u0391\u0399\u039f\u03a5 \u0392\u0391\u03a3\u0399\u039b\u0395\u03a9\u03a3"
+    alexandrou = "\u0391\u039b\u0395\u039e\u0391\u039d\u0394\u03a1\u039f\u03a5"
+    assert normalise("ALEXAN\u0394POY", "grc") == alexandrou        # Latin L and X typed for \u039b, \u039e
+    assert normalise("\u0424\u0399\u039b", "grc") == "\u03a6\u0399\u039b"     # Cyrillic \u0424
+
+
+def test_latin_legend_with_greek_workshop_numeral_is_latin():
+    from pipeline.legends import language
+    assert language("CONCOR-DIA AVGGG\u03b8") == "la"
+    assert language("BA\u03a3\u0399\u039b\u0395\u03a9\u03a3 ANTIOXOV", "grc") == "grc"
+
+
+def test_greek_alternative_readings_keep_the_first():
+    from pipeline.legends import normalise
+    assert normalise("BAC\u0399 or BACI\u039b A\u039bE\u039e or A\u039bE\u039eA", "grc") == "\u0392\u0391\u03a3\u0399 \u0391\u039b\u0395\u039e"

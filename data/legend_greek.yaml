@@ -1,0 +1,203 @@
+# Greek coin legends: normalised legend word -> written-out Greek + short English gloss.
+#
+# Keys are legends as the pipeline normalises them: uppercase Greek, no accents, Latin
+# look-alikes folded (ANTIOXOY -> ΑΝΤΙΟΧΟΥ). Hellenistic royal legends are whole words in the
+# genitive: '(coin) of King Antiochus, God Manifest' = ΒΑΣΙΛΕΩΣ ΑΝΤΙΟΧΟΥ ΘΕΟΥ ΕΠΙΦΑΝΟΥΣ.
+# Epithets, not regnal numbers, tell same-named kings apart, so each epithet is glossed with
+# its Greek name and meaning; the pipeline links name and epithet to the type's own ruler.
+#
+#   full:     the written-out word (accented Greek)
+#   english:  short gloss; names are glossed by their English form
+#   kind:     title | name | epithet | ethnic | place | word | formula
+#   case:     gen on genitive names: a legend that opens with one reads '(coin) of ...'
+#   gender:   f on queens
+#
+# Licence: our own work.
+
+phrases:
+  "ΘΕΩΝ ΑΔΕΛΦΩΝ": {full: "Θεῶν Ἀδελφῶν", english: "of the Sibling Gods (Ptolemy II and Arsinoe II)", kind: epithet}
+  "ΑΔΕΛΦΩΝ ΘΕΩΝ": {full: "Ἀδελφῶν Θεῶν", english: "of the Sibling Gods (Ptolemy II and Arsinoe II)", kind: epithet}
+  "ΘΕΟΥ ΕΠΙΦΑΝΟΥΣ": {full: "Θεοῦ Ἐπιφανοῦς", english: "God Manifest (Theos Epiphanes)", kind: epithet}
+  "ΘΕΟΥ ΕΥΠΑΤΟΡΟΣ": {full: "Θεοῦ Εὐπάτορος", english: "God of a Noble Father (Theos Eupator)", kind: epithet}
+  "ΤΩΝ ΠΡΟΣ ΔΑΦΝΗΙ": {full: "τῶν πρὸς Δάφνῃ", english: "by Daphne", kind: place, note: "Antioch on the Orontes, by the sanctuary of Daphne"}
+  "ΤΩΝ ΕΝ ΠΙΕΡΙΑ": {full: "τῶν ἐν Πιερίᾳ", english: "in Pieria", kind: place, note: "Seleucia Pieria"}
+  "ΤΗΣ ΙΕΡΑΣ ΚΑΙ ΑΣΥΛΟΥ": {full: "τῆς ἱερᾶς καὶ ἀσύλου", english: "the sacred and inviolable", kind: formula}
+  "ΙΕΡΑΣ ΚΑΙ ΑΣΥΛΟΥ": {full: "ἱερᾶς καὶ ἀσύλου", english: "sacred and inviolable", kind: formula}
+  "ΙΕΡΑΣ ΑΣΥΛΟΥ": {full: "ἱερᾶς ἀσύλου", english: "sacred, inviolable", kind: formula}
+  "ΤΥΡ ΙΕΡ ΑΣΥ": {full: "Τύρου ἱερᾶς ἀσύλου", english: "of Tyre, sacred and inviolable", kind: formula}
+  "ΤΥΡΟΥ ΙΕΡΑΣ ΚΑΙ ΑΣΥΛΟΥ": {full: "Τύρου ἱερᾶς καὶ ἀσύλου", english: "of Tyre, sacred and inviolable", kind: formula}
+  "ΤΩΝ ΕΠΙ ΤΩΙ ΠΥΡΑΜΩΙ": {full: "τῶν ἐπὶ τῷ Πυράμῳ", english: "on the Pyramus", kind: place, note: "Antioch on the Pyramus (Mallus)"}
+  "ΤΩΝ ΠΡΟΣ ΤΩΙ ΠΥΡΑΜΩΙ": {full: "τῶν πρὸς τῷ Πυράμῳ", english: "on the Pyramus", kind: place}
+  "ΤΩΝ ΠΡΟΣ ΤΗΙ ΘΑΛΑΣΣΗΙ": {full: "τῶν πρὸς τῇ θαλάσσῃ", english: "by the sea", kind: place}
+  "ΤΩΝ ΠΡΟΣ ΘΑΛΑΣΣΗΙ": {full: "τῶν πρὸς θαλάσσῃ", english: "by the sea", kind: place}
+  "ΤΩΝ ΕΝ ΜΥΓΔΟΝΙΑΙ": {full: "τῶν ἐν Μυγδονίᾳ", english: "in Mygdonia", kind: place, note: "Antioch in Mygdonia (Nisibis)"}
+  "ΤΩΝ ΕΠΙ ΚΑΛΛΙΡΟΗΙ": {full: "τῶν ἐπὶ Καλλιρόῃ", english: "on the Callirhoe", kind: place, note: "Antioch on the Callirhoe (Edessa)"}
+  "ΤΩΝ ΠΡΟΣ ΤΩΙ ΑΞΙΩΙ": {full: "τῶν πρὸς τῷ Ἀξίῳ", english: "on the Axius", kind: place, note: "Apamea on the Axius"}
+  "ΑΛΕΞΑΝΔΡΟΥ ΤΟΥ ΦΙΛΙΠΠΟΥ": {full: "Ἀλεξάνδρου τοῦ Φιλίππου", english: "of Alexander, son of Philip", kind: name}
+  "ΚΑΙ ΦΙΛ ΣΤΡΑΤΩΝΟΣ": {full: "καὶ Φιλοπάτορος Στράτωνος", english: "and of Strato Philopator", kind: name, note: "Strato II with Strato I"}
+  "ΤΩΝ ΠΡΟΣ ΤΩΙ ΣΑΡΩΙ": {full: "τῶν πρὸς τῷ Σάρῳ", english: "on the Sarus", kind: place, note: "Antioch on the Sarus (Adana)"}
+  "ΠΡΟΣ ΤΩΝ ΣΑΡΩΙ": {full: "πρὸς τῷ Σάρῳ", english: "on the Sarus", kind: place, note: "Antioch on the Sarus (Adana); source word order"}
+  "ΒΑΣΙΛΕΩΣ ΒΑΣΙΛΕΩΝ": {full: "Βασιλέως Βασιλέων", english: "of the King of Kings", kind: title}
+  "ΤΩΝ ΕΜ ΠΙΕΡΙΑ": {full: "τῶν ἐμ Πιερίᾳ", english: "in Pieria", kind: place, note: "Seleucia Pieria"}
+  "ΤΩΝ ΕΝ ΠΙΕΡΙΑΙ": {full: "τῶν ἐν Πιερίᾳ", english: "in Pieria", kind: place}
+  "ΤΩΝ ΠΡΟΣ ΑΞΙΩΙ": {full: "τῶν πρὸς Ἀξίῳ", english: "on the Axius", kind: place, note: "Apamea on the Axius"}
+  "ΠΡΟΣ ΤΩΙ ΠΥΡΑΜΩΙ": {full: "πρὸς τῷ Πυράμῳ", english: "on the Pyramus", kind: place}
+  "ΤΩΝ ΠΡΟΣ ΤΩΙ ΤΙΓΡΕΙ": {full: "τῶν πρὸς τῷ Τίγρει", english: "on the Tigris", kind: place}
+  "ΤΩΝ ΕΝ ΠΤΟΛΕΜΑΙΔΙ": {full: "τῶν ἐν Πτολεμαΐδι", english: "in Ptolemais", kind: place, note: "Antioch in Ptolemais (Akko)"}
+
+words:
+  # --- Titles ---------------------------------------------------------------------------------
+  ΒΑΣΙΛΕΩΣ: {full: "Βασιλέως", english: "of King", kind: title}
+  ΒΑΣΙΛΕΥΣ: {full: "Βασιλεύς", english: "King", kind: title}
+  ΒΑΣΙΛΕΩΝ: {full: "Βασιλέων", english: "of Kings", kind: title}
+  ΒΑΣΙΛΕΥΟΝΤΟΣ: {full: "Βασιλεύοντος", english: "reigning", kind: title}
+  ΒΑΣΙΛΙΣΣΗΣ: {full: "Βασιλίσσης", english: "of Queen", kind: title, gender: f}
+  ΒΑΣΙΛΙΣΣΗΣΣ: {full: "Βασιλίσσης", english: "of Queen", kind: title, gender: f, note: "source spelling"}
+  ΒΑΣΙΛΙΣΣΑ: {full: "Βασίλισσα", english: "Queen", kind: title, gender: f}
+  ΒΑΣΙΛΕ: {full: "Βασιλέως", english: "of King", kind: title, note: "abbreviated"}
+  ΒΑΣΙΛ: {full: "Βασιλέως", english: "of King", kind: title, note: "abbreviated"}
+  ΒΑΣΙ: {full: "Βασιλέως", english: "of King", kind: title, note: "abbreviated"}
+  ΒΑΣ: {full: "Βασιλέως", english: "of King", kind: title, note: "abbreviated"}
+  ΒΑ: {full: "Βασιλέως", english: "of King", kind: title, note: "abbreviated, on small bronzes"}
+  ΑΥΤΟΚΡΑΤΟΡΟΣ: {full: "Αὐτοκράτορος", english: "Autokrator (absolute ruler)", kind: title, note: "Tryphon's title"}
+  ΜΕΓΑΛΟΥ: {full: "Μεγάλου", english: "the Great (Megas)", kind: epithet}
+  ΜΕΓΑΣ: {full: "Μέγας", english: "the Great (Megas)", kind: epithet}
+  ΘΕΟΥ: {full: "Θεοῦ", english: "God (Theos)", kind: epithet}
+  ΘΕΑΣ: {full: "Θεᾶς", english: "Goddess (Thea)", kind: epithet, gender: f}
+  ΘΕΩΝ: {full: "Θεῶν", english: "of the Gods", kind: epithet}
+  ΑΔΕΛΦΩΝ: {full: "Ἀδελφῶν", english: "Siblings (Adelphoi)", kind: epithet}
+
+  # --- Royal epithets (genitive) ----------------------------------------------------------------
+  ΣΩΤΗΡΟΣ: {full: "Σωτῆρος", english: "Soter (Saviour)", kind: epithet}
+  ΕΠΙΦΑΝΟΥΣ: {full: "Ἐπιφανοῦς", english: "Epiphanes (God Manifest)", kind: epithet}
+  ΕΥΕΡΓΕΤΟΥ: {full: "Εὐεργέτου", english: "Euergetes (Benefactor)", kind: epithet}
+  ΝΙΚΑΤΟΡΟΣ: {full: "Νικάτορος", english: "Nicator (Victor)", kind: epithet}
+  ΦΙΛΑΔΕΛΦΟΥ: {full: "Φιλαδέλφου", english: "Philadelphus (Sibling-loving)", kind: epithet}
+  ΦΙΛΟΠΑΤΟΡΟΣ: {full: "Φιλοπάτορος", english: "Philopator (Father-loving)", kind: epithet}
+  ΦΙΑΛΟΠΑΤΟΡΟΣ: {full: "Φιλοπάτορος", english: "Philopator (Father-loving)", kind: epithet, note: "source spelling"}
+  ΦΙΛΟΜΗΤΟΡΟΣ: {full: "Φιλομήτορος", english: "Philometor (Mother-loving)", kind: epithet}
+  ΔΙΚΑΙΟΥ: {full: "Δικαίου", english: "Dikaios (the Just)", kind: epithet}
+  ΝΙΚΗΦΟΡΟΥ: {full: "Νικηφόρου", english: "Nikephoros (Victory-bearer)", kind: epithet}
+  ΑΝΙΚΗΤΟΥ: {full: "Ἀνικήτου", english: "Aniketos (the Invincible)", kind: epithet}
+  ΔΙΟΝΥΣΟΥ: {full: "Διονύσου", english: "Dionysus", kind: epithet, note: "Antiochus VI and others; not Neos Dionysos (Ptolemy XII)"}
+  ΕΥΣΕΒΟΥΣ: {full: "Εὐσεβοῦς", english: "Eusebes (the Pious)", kind: epithet}
+  ΕΥΠΑΤΟΡΟΣ: {full: "Εὐπάτορος", english: "Eupator (of a Noble Father)", kind: epithet}
+  ΕΥΠΑΤ: {full: "Εὐπάτορος", english: "Eupator (of a Noble Father)", kind: epithet, note: "abbreviated"}
+  ΘΕΟΠΑΤΟΡΟΣ: {full: "Θεοπάτορος", english: "Theopator (of a Divine Father)", kind: epithet}
+  ΚΑΛΛΙΝΙΚΟΥ: {full: "Καλλινίκου", english: "Kallinikos (Gloriously Victorious)", kind: epithet}
+  ΘΕΟΦΙΛΟΥ: {full: "Θεοφίλου", english: "Theophilus", kind: name, case: gen, note: "the Indo-Greek king; the reverse reads theuphilasa"}
+  ΘΕΟΤΡΟΠΟΥ: {full: "Θεοτρόπου", english: "Theotropos (Godlike)", kind: epithet}
+  ΦΙΛΟΜΕΤΟΡΟΣ: {full: "Φιλομήτορος", english: "Philometor (Mother-loving)", kind: epithet, note: "spelled with E"}
+  ΕΥΕΤΗΡΙΑΣ: {full: "Εὐετηρίας", english: "Eueteria (of Plenty)", kind: epithet, gender: f, note: "Cleopatra Thea"}
+  ΣΕΛΗΝΗΣ: {full: "Σελήνης", english: "Selene", kind: epithet, gender: f, note: "Cleopatra Selene's second name"}
+  ΦΙΛΕΛΛΗΝΟΣ: {full: "Φιλέλληνος", english: "Philhellen (Friend of the Greeks)", kind: epithet}
+
+  # --- Kings and queens (genitive) ----------------------------------------------------------
+  ΑΛΕΞΑΝΔΡΟΥ: {full: "Ἀλεξάνδρου", english: "Alexander", kind: name, case: gen, default_person: alexander_iii, note: "Alexander types struck by later kings and cities"}
+  ΑΛΕ: {full: "Ἀλεξάνδρου", english: "Alexander", kind: name, case: gen, note: "abbreviated"}
+  ΑΝΤΙΟΧΟΥ: {full: "Ἀντιόχου", english: "Antiochus", kind: name, case: gen}
+  ΦΙΛΙΠΠΟΥ: {full: "Φιλίππου", english: "Philip", kind: name, case: gen}
+  ΦΙΛΙΠΠ: {full: "Φιλίππου", english: "Philip", kind: name, case: gen, note: "abbreviated"}
+  ΣΕΛΕΥΚΟΥ: {full: "Σελεύκου", english: "Seleucus", kind: name, case: gen}
+  ΔΗΜΗΤΡΙΟΥ: {full: "Δημητρίου", english: "Demetrius", kind: name, case: gen}
+  ΔΗΜΗΤΡΙΟΡΟΥ: {full: "Δημητρίου", english: "Demetrius", kind: name, case: gen, note: "source spelling"}
+  ΠΤΟΛΕΜΑΙΟΥ: {full: "Πτολεμαίου", english: "Ptolemy", kind: name, case: gen}
+  ΠΤΟΛ: {full: "Πτολεμαίου", english: "Ptolemy", kind: name, case: gen, note: "abbreviated"}
+  ΠΤΟ: {full: "Πτολεμαίου", english: "Ptolemy", kind: name, case: gen, note: "abbreviated"}
+  ΛΥΣΙΜΑΧΟΥ: {full: "Λυσιμάχου", english: "Lysimachus", kind: name, case: gen}
+  ΚΑΣΣΑΝΔΡΟΥ: {full: "Κασσάνδρου", english: "Cassander", kind: name, case: gen}
+  ΑΝΤΙΓΟΝΟΥ: {full: "Ἀντιγόνου", english: "Antigonus", kind: name, case: gen}
+  ΠΕΡΣΕΩΣ: {full: "Περσέως", english: "Perseus", kind: name, case: gen}
+  ΦΙΛΕΤΑΙΡΟΥ: {full: "Φιλεταίρου", english: "Philetaerus", kind: name, case: gen}
+  ΑΧΑΙΟΥ: {full: "Ἀχαιοῦ", english: "Achaeus", kind: name, case: gen}
+  ΜΟΛΩΝΟΣ: {full: "Μόλωνος", english: "Molon", kind: name, case: gen}
+  ΤΙΜΑΡΧΟΥ: {full: "Τιμάρχου", english: "Timarchus", kind: name, case: gen}
+  ΤΡΥΦΩΝΟΣ: {full: "Τρύφωνος", english: "Tryphon", kind: name, case: gen}
+  ΚΛΕΟΠΑΤΡΑΣ: {full: "Κλεοπάτρας", english: "Cleopatra", kind: name, case: gen, gender: f}
+  ΑΡΣΙΝΟΗΣ: {full: "Ἀρσινόης", english: "Arsinoe", kind: name, case: gen, gender: f}
+  ΑΡΥΙΝΟΗΣ: {full: "Ἀρσινόης", english: "Arsinoe", kind: name, case: gen, gender: f, note: "source spelling"}
+  ΑΡΣΙ: {full: "Ἀρσινόης", english: "Arsinoe", kind: name, case: gen, gender: f, note: "abbreviated"}
+  ΒΕΡΕΝΙΚΗΣ: {full: "Βερενίκης", english: "Berenice", kind: name, case: gen, gender: f}
+  ΛΑΟΔΙΚΗΣ: {full: "Λαοδίκης", english: "Laodice", kind: name, case: gen, gender: f}
+  ΑΓΑΘΟΚΛΕΙΑΣ: {full: "Ἀγαθοκλείας", english: "Agathocleia", kind: name, case: gen, gender: f}
+  ΚΑΛΛΙΟΠΗΣ: {full: "Καλλιόπης", english: "Calliope", kind: name, case: gen, gender: f}
+  # Bactrian and Indo-Greek kings
+  ΔΙΟΔΟΤΟΥ: {full: "Διοδότου", english: "Diodotus", kind: name, case: gen}
+  ΕΥΘΥΔΗΜΟΥ: {full: "Εὐθυδήμου", english: "Euthydemus", kind: name, case: gen}
+  ΕΥΚΡΑΤΙΔΟΥ: {full: "Εὐκρατίδου", english: "Eucratides", kind: name, case: gen}
+  ΕΥΚΡΑΤΙΔΗΣ: {full: "Εὐκρατίδης", english: "Eucratides", kind: name}
+  ΜΕΝΑΝΔΡΟΥ: {full: "Μενάνδρου", english: "Menander", kind: name, case: gen}
+  ΣΤΡΑΤΩΝΟΣ: {full: "Στράτωνος", english: "Strato", kind: name, case: gen}
+  ΕΡΜΑΙΟΥ: {full: "Ἑρμαίου", english: "Hermaeus", kind: name, case: gen}
+  ΑΠΟΛΛΟΔΟΤΟΥ: {full: "Ἀπολλοδότου", english: "Apollodotus", kind: name, case: gen}
+  ΗΛΙΟΚΛΕΟΥΣ: {full: "Ἡλιοκλέους", english: "Heliocles", kind: name, case: gen}
+  ΖΩΙΛΟΥ: {full: "Ζωΐλου", english: "Zoilus", kind: name, case: gen}
+  ΖΟΙΛΟΥ: {full: "Ζωΐλου", english: "Zoilus", kind: name, case: gen}
+  ΑΝΤΙΑΛΚΙΔΟΥ: {full: "Ἀντιαλκίδου", english: "Antialcidas", kind: name, case: gen}
+  ΦΙΛΟΞΕΝΟΥ: {full: "Φιλοξένου", english: "Philoxenus", kind: name, case: gen}
+  ΑΡΤΕΜΙΔΟΡΟΥ: {full: "Ἀρτεμιδώρου", english: "Artemidorus", kind: name, case: gen}
+  ΑΡΤΕΜΙΔΩΡΟΥ: {full: "Ἀρτεμιδώρου", english: "Artemidorus", kind: name, case: gen}
+  ΑΡΧΕΒΙΟΥ: {full: "Ἀρχεβίου", english: "Archebius", kind: name, case: gen}
+  ΑΓΑΘΟΚΛΕΟΥΣ: {full: "Ἀγαθοκλέους", english: "Agathocles", kind: name, case: gen}
+  ΑΜΥΝΤΟΥ: {full: "Ἀμύντου", english: "Amyntas", kind: name, case: gen}
+  ΙΠΠΟΣΤΡΑΤΟΥ: {full: "Ἱπποστράτου", english: "Hippostratus", kind: name, case: gen}
+  ΑΝΤΙΜΑΧΟΥ: {full: "Ἀντιμάχου", english: "Antimachus", kind: name, case: gen}
+  ΛΥΣΙΟΥ: {full: "Λυσίου", english: "Lysias", kind: name, case: gen}
+  ΔΙΟΜΗΔΟΥ: {full: "Διομήδου", english: "Diomedes", kind: name, case: gen}
+  ΝΙΚΙΟΥ: {full: "Νικίου", english: "Nicias", kind: name, case: gen}
+  ΔΙΟΝΥΣΙΟΥ: {full: "Διονυσίου", english: "Dionysius", kind: name, case: gen}
+  ΠΑΝΤΑΛΕΟΝΤΟΣ: {full: "Πανταλέοντος", english: "Pantaleon", kind: name, case: gen}
+  ΕΠΑΝΔΡΟΥ: {full: "Ἐπάνδρου", english: "Epander", kind: name, case: gen}
+  ΠΛΑΤΩΝΟΣ: {full: "Πλάτωνος", english: "Plato", kind: name, case: gen}
+  ΠΕΥΚΟΛΑΟΥ: {full: "Πευκολάου", english: "Peucolaus", kind: name, case: gen}
+  ΤΕΛΕΦΟΥ: {full: "Τηλέφου", english: "Telephus", kind: name, case: gen}
+  ΠΟΛΥΞΕΝΟΥ: {full: "Πολυξένου", english: "Polyxenus", kind: name, case: gen}
+  ΑΠΟΛΛΟΦΑΝΟΥ: {full: "Ἀπολλοφάνου", english: "Apollophanes", kind: name, case: gen}
+  ΗΕΡΜΑΙΟΥ: {full: "Ἑρμαίου", english: "Hermaeus", kind: name, case: gen, note: "H for the rough breathing"}
+  ΘΡΑΣΟΝΟΣ: {full: "Θράσωνος", english: "Thrason", kind: name, case: gen, note: "source spelling"}
+  ΑΝΤΙΧΟΥ: {full: "Ἀντιόχου", english: "Antiochus", kind: name, case: gen, note: "source spelling"}
+  ΜΑΓΑ: {full: "Μάγα", english: "Magas", kind: name, case: gen, note: "Magas of Cyrene; Doric genitive"}
+  ΠΤΟΛΕΜΑΙΩ: {full: "Πτολεμαίω", english: "Ptolemy", kind: name, case: gen, note: "Doric genitive (Cyrene)"}
+  ΛΝΤΙΟΧΟΥ: {full: "Ἀντιόχου", english: "Antiochus", kind: name, case: gen, note: "alpha without crossbar, typed Λ"}
+  ΘΡΑΣΩΝΟΣ: {full: "Θράσωνος", english: "Thrason", kind: name, case: gen}
+
+  # --- Cities and places ------------------------------------------------------------------------
+  ΑΝΤΙΟΧΕΩΝ: {full: "Ἀντιοχέων", english: "of the Antiochenes", kind: ethnic}
+  ΣΕΛΕΥΚΕΩΝ: {full: "Σελευκέων", english: "of the Seleucians", kind: ethnic}
+  ΑΠΑΜΕΩΝ: {full: "Ἀπαμέων", english: "of the Apameans", kind: ethnic}
+  ΛΑΟΔΙΚΕΩΝ: {full: "Λαοδικέων", english: "of the Laodiceans", kind: ethnic}
+  ΣΙΔΩΝΙΩΝ: {full: "Σιδωνίων", english: "of the Sidonians", kind: ethnic}
+  ΣΙΔΩΝΟΣ: {full: "Σιδῶνος", english: "of Sidon", kind: place}
+  ΣΙΔΩ: {full: "Σιδῶνος", english: "of Sidon", kind: place, note: "abbreviated"}
+  ΤΥΡΙΩΝ: {full: "Τυρίων", english: "of the Tyrians", kind: ethnic}
+  ΤΥΡΟΥ: {full: "Τύρου", english: "of Tyre", kind: place}
+  ΚΥΡΡΗΣΤΩΝ: {full: "Κυρρηστῶν", english: "of the Cyrrhestians", kind: ethnic}
+  ΑΙΓΕΑΙΩΝ: {full: "Αἰγεαίων", english: "of the people of Aegeae", kind: ethnic}
+  ΙΕΡΟΠΟΛΙΤΩΝ: {full: "Ἱεροπολιτῶν", english: "of the Hieropolitans", kind: ethnic}
+  ΤΡΙΠΟΛΙΤΩΝ: {full: "Τριπολιτῶν", english: "of the Tripolitans", kind: ethnic}
+  ΡΩΜΑΙΩΝ: {full: "Ῥωμαίων", english: "of the Romans", kind: ethnic}
+  ΤΕΛΜΗΣΣΕΩΝ: {full: "Τελμησσέων", english: "of the Telmessians", kind: ethnic}
+  ΑΛΕΞΑΝΔΡΕΩΝ: {full: "Ἀλεξανδρέων", english: "of the Alexandrians", kind: ethnic}
+  ΠΙΕΡΙΑΙ: {full: "Πιερίᾳ", english: "Pieria", kind: place}
+  ΠΤΟΛΕΜΑΙΔΙ: {full: "Πτολεμαΐδι", english: "Ptolemais", kind: place}
+  ΔΑΦΝΗΙ: {full: "Δάφνῃ", english: "Daphne", kind: place}
+  ΠΙΕΡΙΑ: {full: "Πιερίᾳ", english: "Pieria", kind: place}
+  ΜΥΓΔΟΝΙΑΙ: {full: "Μυγδονίᾳ", english: "Mygdonia", kind: place}
+  ΚΑΛΛΙΡΟΗΙ: {full: "Καλλιρόῃ", english: "Callirhoe", kind: place}
+  ΠΥΡΑΜΩΙ: {full: "Πυράμῳ", english: "the Pyramus", kind: place}
+  ΘΑΛΑΣΣΗΙ: {full: "θαλάσσῃ", english: "the sea", kind: place}
+  ΑΞΙΩΙ: {full: "Ἀξίῳ", english: "the Axius", kind: place}
+  ΙΕΡΑΣ: {full: "ἱερᾶς", english: "sacred", kind: word}
+  ΑΣΥΛΟΥ: {full: "ἀσύλου", english: "inviolable", kind: word}
+
+  # --- Small words ------------------------------------------------------------------------------
+  ΚΑΙ: {full: "καί", english: "and", kind: word}
+  ΤΩΝ: {full: "τῶν", english: "of the", kind: word}
+  ΤΗΣ: {full: "τῆς", english: "of the", kind: word}
+  ΤΩΙ: {full: "τῷ", english: "the", kind: word}
+  ΤΗΙ: {full: "τῇ", english: "the", kind: word}
+  ΠΡΟΣ: {full: "πρός", english: "by", kind: word}
+  ΕΝ: {full: "ἐν", english: "in", kind: word}
+  ΕΜ: {full: "ἐμ", english: "in", kind: word, note: "ἐν before Π (ΕΜ ΠΙΕΡΙΑ)"}
+  ΤΟΥ: {full: "τοῦ", english: "of the", kind: word}
+  ΕΠΙ: {full: "ἐπί", english: "on, under", kind: word}

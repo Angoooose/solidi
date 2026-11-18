@@ -67,6 +67,7 @@ class Segment:
     english: str | None
     kind: str                 # dictionary kind, 'numeral' or 'unknown'
     number: int | None = None
+    person: str | None = None  # the type's ruler this name or epithet refers to (Greek legends)
 
 
 # OCRE's own editorial markers inside legend text: not words on the coin.
@@ -255,17 +256,106 @@ def apply_republic(segments: list[Segment]) -> list[Segment]:
     return segments
 
 
+def _base_name(english: str | None) -> str:
+    """'and of Strato Philopator' -> 'strato'; 'of Alexander, son of Philip' -> 'alexander'."""
+    text = (english or "").lower()
+    for prefix in ("and of ", "of "):
+        text = text.removeprefix(prefix)
+    return text.split(",")[0].split(" ")[0] if text else ""
+
+
+def _epithet_word(english: str | None) -> str:
+    """'Soter (Saviour)' -> 'soter': the epithet as it appears in rulers' names."""
+    return (english or "").split(" (")[0].split(" ")[0].lower()
+
+
+def apply_greek(segments: list[Segment], dictionary: Dictionary,
+                persons: list[tuple[str, str]] | None = None, truncations: bool = True) -> list[Segment]:
+    """Greek and Gandhari royal legends.
+
+    - Truncated words (ΑΛΕΞ, ΑΝΤΙΟΧ) read as the dictionary word they begin, if all candidates
+      agree or exactly one names the type's ruler (`truncations`: Hellenistic corpora only).
+    - A legend that opens with a genitive name reads '(coin) of …'; ΒΑΣΙΛΕΩΣ after the name
+      is then 'King' (ΠΤΟΛΕΜΑΙΟΥ ΒΑΣΙΛΕΩΣ = of Ptolemy, King).
+    - Names link to the type's own rulers, and epithets to the name they qualify, before or
+      after it (ΒΑΣΙΛΕΩΣ ΣΩΤΗΡΟΣ ΜΕΝΑΝΔΡΟΥ). `persons` is (id, name), stated authority first:
+      the ruler named on the coin, then authority, issuer, portrait. A ruler whose name holds
+      the legend's epithet wins (ΠΤΟΛΕΜΑΙΟΥ ΣΩΤΗΡΟΣ = Ptolemy I Soter), and a name repeated in
+      one legend takes the next ruler of that name (Strato II and his grandson Strato III).
+    """
+    persons = persons or []
+    rulers = [name.lower() for _, name in persons]
+    if truncations:
+        for seg in segments:
+            if seg.kind != "unknown" or len(seg.text) < 3 or not seg.text.isalpha():
+                continue
+            found = [e for k, e in dictionary.words.items() if k.startswith(seg.text) and k != seg.text]
+            meanings = {e.get("english") for e in found}
+            if len(meanings) > 1:
+                found = [e for e in found if e.get("kind") == "name"
+                         and any(_base_name(e.get("english")) in r.split() for r in rulers)]
+                meanings = {e.get("english") for e in found}
+            if len(meanings) == 1:
+                e = found[0]
+                seg.latin, seg.english, seg.kind = e.get("full"), e.get("english"), e.get("kind", "word")
+                seg.number = None
+
+    if segments and segments[0].kind == "name":
+        entry = dictionary.lookup_word(segments[0].text) or {}
+        if not entry and segments[0].latin:      # a truncated name: genitive like its full form
+            entry = {"case": "gen"}
+        if entry.get("case") == "gen" and segments[0].english and not segments[0].english.startswith(("of ", "and ")):
+            segments[0].english = f"of {segments[0].english}"
+        nxt = segments[1] if len(segments) > 1 else None
+        if nxt and nxt.kind == "title" and nxt.english in ("of King", "of Queen"):
+            nxt.english = nxt.english.removeprefix("of ")
+
+    # Groups: a name with the epithets around it, split at titles and at 'and'.
+    groups: list[list[Segment]] = [[]]
+    for seg in segments:
+        if seg.kind == "title" or seg.english in ("and", "and of") or (seg.english or "").startswith("and of"):
+            groups.append([])
+        if seg.kind in ("name", "epithet"):
+            groups[-1].append(seg)
+    used: list[str] = []
+    for group in groups:
+        names = [g for g in group if g.kind == "name"]
+        epithets = {_epithet_word(g.english) for g in group if g.kind == "epithet"}
+        for name in names:
+            base = _base_name(name.english)
+            candidates = [(pid, n.lower()) for pid, n in persons if base and base in n.lower().replace(",", "").split()]
+            if candidates:
+                # The ruler whose name carries this legend's epithet, then one not yet used here.
+                candidates.sort(key=lambda c: (not (epithets & set(c[1].split())), c[0] in used))
+                name.person = candidates[0][0]
+                used.append(name.person)
+            else:
+                entry = dictionary.lookup_word(name.text) or {}
+                name.person = entry.get("default_person")
+        # Epithets take the name after them if they come first, else the name before them.
+        current = names[0].person if names else None
+        for seg in group:
+            if seg.kind == "name":
+                current = seg.person
+            else:
+                seg.person = current
+    return segments
+
+
 def expand(normalised: str, dictionary: Dictionary, names: list[str] | None = None,
-           republic: bool = False) -> list[Segment]:
-    """`republic`: the coin was struck before 27 BC (pass the Republican dictionary too)."""
+           republic: bool = False, lang: str = "la",
+           persons: list[tuple[str, str]] | None = None, truncations: bool = True) -> list[Segment]:
+    """`republic`: the coin was struck before 27 BC (pass the Republican dictionary too).
+    `lang`: 'la', or 'grc'/'pgd' for Greek and Gandhari (transliterated) legends."""
     tokens = normalised.split()
     out: list[Segment] = []
     i = 0
     while i < len(tokens):
         size, entry = dictionary.lookup(tokens, i)
         if entry:
-            seg = Segment(" ".join(tokens[i:i + size]), entry.get("latin"), entry.get("english"),
-                          entry.get("kind", "word"))
+            # 'latin' in the Latin dictionary; 'full' (written-out Greek) in the others.
+            seg = Segment(" ".join(tokens[i:i + size]), entry.get("latin") or entry.get("full"),
+                          entry.get("english"), entry.get("kind", "word"))
             i += size
             numbered = entry.get("numbered")
             # III VIR is 'triumvir', not a third acclamation (C CAESAR IMP III VIR R P C).
@@ -284,6 +374,8 @@ def expand(normalised: str, dictionary: Dictionary, names: list[str] | None = No
         else:
             out.append(Segment(tokens[i], None, None, "unknown"))
             i += 1
+    if lang != "la":
+        return apply_greek(out, dictionary, persons, truncations)
     if names:
         apply_names(out, names, dictionary, override=republic)
     out = apply_filiation(out)

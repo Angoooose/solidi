@@ -24,12 +24,23 @@ LETTER_MAP = {
 }
 _EDITORIAL = re.compile(r"\([^)]*[a-z.][^)]*\)")      # '(rev.N)' and similar notes
 _WORD_BREAK = re.compile(r"(?<=[\w\]])[-_](?=[\w\[])")   # HONORI-VS -> HONORIVS, NOS-[TRIS] -> NOS[TRIS]
-_SEPARATORS = re.compile(r"[\s\-_/|•·˙.:●*,?…()← ]+")
+_SEPARATORS = re.compile(r"[\s\-_/|•·˙.:●*,?…()←' ]+")
 GAP = re.compile(r"\s*(?:\.\.\.+|…|\*)\s*")             # what a user types for unreadable stretches
 
 
 _LOOKALIKE_ONLY = re.compile(r"^[ABEZHIKMNOPTYXCVW\s\W\d]+$")
 _PROSE = re.compile(r"[a-z]{3,}")
+
+
+_LATIN_ONLY = set("DFGJLQRSUVW")       # Latin capitals with no Greek look-alike
+
+
+def _mostly_latin(text: str) -> bool:
+    """Late Roman legends end in a Greek workshop numeral (CONCORDIA AVGGGθ, VICTORIA AVGGGΓ):
+    Latin with a Greek letter, not Greek."""
+    latin = sum(ch in _LATIN_ONLY for ch in text)
+    greek_letters = sum(greek.is_greek(ch) for ch in text)
+    return latin > 2 * greek_letters
 
 
 def language(legend: str, default: str = "la") -> str:
@@ -38,7 +49,7 @@ def language(legend: str, default: str = "la") -> str:
     capitals is Greek (ANTIOX), and lowercase prose is a cataloguer's note, not a legend
     ('Illegible inscription', 'anepigraphic'): 'zxx', kept but not searched or glossed."""
     text = _EDITORIAL.sub("", legend)
-    if greek.is_greek(text):
+    if greek.is_greek(text) and not _mostly_latin(text):
         return "grc"          # bilingual Greek-Phoenician legends (Tyre, Sidon) count as Greek
     if lang := scripts.script_language(text):
         return lang
@@ -102,11 +113,18 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
     if dictionary:
         overlay = Path(__file__).resolve().parent.parent / "data" / "legend_abbreviations_republic.yaml"
         republic = dictionary.with_overlay(yaml.safe_load(overlay.read_text(encoding="utf-8")) or {})
+    data = Path(__file__).resolve().parent.parent / "data"
+    others = {lang: Dictionary.load(data / f"legend_{name}.yaml")
+              for lang, name in (("grc", "greek"), ("pgd", "gandhari")) if (data / f"legend_{name}.yaml").exists()}
     names: dict[str, list[str]] = {}
-    for type_id, name in db.execute("""SELECT tp.type_id, p.name FROM type_person tp JOIN person p ON p.id = tp.person_id
-                                       WHERE tp.role IN ('issuer', 'authority', 'stated_authority')
-                                       ORDER BY tp.type_id, tp.role, p.id"""):
-        names.setdefault(type_id, []).append(name)
+    persons: dict[str, list[tuple[str, str]]] = {}
+    for type_id, pid, name, role in db.execute(
+            """SELECT tp.type_id, p.id, p.name, tp.role FROM type_person tp JOIN person p ON p.id = tp.person_id
+               ORDER BY tp.type_id, CASE tp.role WHEN 'stated_authority' THEN 0 WHEN 'authority' THEN 1
+                                    WHEN 'issuer' THEN 2 ELSE 3 END, p.id"""):
+        if role in ("issuer", "authority", "stated_authority"):
+            names.setdefault(type_id, []).append(name)
+        persons.setdefault(type_id, []).append((pid, name))
     rows = []
     # Coins struck before 27 BC, when Octavian became Augustus, are read with Republican senses.
     for type_id, obv, rev, year, slug in db.execute(
@@ -118,8 +136,15 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
             lang = language(legend, languages.get(slug, "la")) if legend else "la"
             if legend and (norm := normalise(legend, lang)):
                 latin = english = segments = cov = None
+                segs = None
                 if dictionary and lang == "la":
                     segs = expand(norm, republic if early else dictionary, names.get(type_id), early)
+                elif lang in others:
+                    # Gandhari is glossed from its transliteration, the form its dictionary uses.
+                    text = transliterate(norm, lang) if lang == "pgd" else norm
+                    segs = expand(text, others[lang], lang=lang, persons=persons.get(type_id),
+                                  truncations=languages.get(slug) == "grc")
+                if segs:
                     segments = json.dumps(as_rows(segs), ensure_ascii=False)
                     latin = " ".join(s.latin or s.text for s in segs)
                     english = " · ".join(s.english or f"[{s.text}]" for s in segs)

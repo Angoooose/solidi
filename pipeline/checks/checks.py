@@ -140,6 +140,11 @@ def run(db: sqlite3.Connection) -> Result:
             """SELECT SUM(gloss_coverage * (LENGTH(normalised) - LENGTH(REPLACE(normalised, ' ', '')) + 1))
                       / SUM(LENGTH(normalised) - LENGTH(REPLACE(normalised, ' ', '')) + 1)
                FROM legend WHERE gloss_coverage IS NOT NULL""").fetchone()[0] or 0), 1),
+        "legend_words_glossed_pct_by_language": {lang: round(100 * (v or 0), 1) for lang, v in db.execute(
+            """SELECT language, SUM(gloss_coverage * (LENGTH(normalised) - LENGTH(REPLACE(normalised, ' ', '')) + 1))
+                      / SUM(LENGTH(normalised) - LENGTH(REPLACE(normalised, ' ', '')) + 1)
+               FROM legend WHERE gloss_coverage IS NOT NULL GROUP BY language""")},
+        "legends_linked_to_ruler": _one(db, """SELECT COUNT(*) FROM legend WHERE segments LIKE '%"person"%'"""),
         "legends_fully_glossed_pct": _pct(_one(db, "SELECT COUNT(*) FROM legend WHERE gloss_coverage = 1"),
                                           _one(db, "SELECT COUNT(*) FROM legend")),
         "mints": _one(db, "SELECT COUNT(*) FROM mint"),

@@ -1,0 +1,67 @@
+# Gandhari (Kharoshthi script) legends on Indo-Greek coins: transliterated word -> gloss.
+#
+# Keys are the pipeline's transliteration ('maharajasa tratarasa menadrasa'). The reverse
+# legend translates the Greek obverse: maharajasa tratarasa = ΒΑΣΙΛΕΩΣ ΣΩΤΗΡΟΣ. Words end in
+# the genitive -sa ('of'). `full` gives the Greek equivalent where there is one.
+#
+# Licence: our own work.
+
+phrases:
+  "kavisiye nagara devata": {full: "kaviśiye nagaradevata", english: "the city deity of Kapisi", kind: formula}
+  "putrasa casa": {full: "potrasa ca sa", english: "and of his grandson", kind: word, note: "Strato II with his grandson Strato III; read potrasa (Bopearachchi), the source writes pu-"}
+
+words:
+  # Titles and epithets
+  maharajasa: {full: "mahārājasa = Βασιλέως", english: "of the Great King", kind: title}
+  rajasa: {full: "rājasa", english: "of King", kind: title}
+  rajatirajasa: {full: "rājātirājasa = Βασιλέως Βασιλέων", english: "of the King of Kings", kind: title}
+  mahatasa: {full: "mahatasa = Μεγάλου", english: "the Great (Megas)", kind: epithet}
+  mahatakasa: {full: "mahatakasa = Μεγάλου", english: "the Great (Megas)", kind: epithet}
+  tratarasa: {full: "trātārasa = Σωτῆρος", english: "Soter (Saviour)", kind: epithet}
+  dhramikasa: {full: "dhramikasa = Δικαίου", english: "Dikaios (the Just)", kind: epithet}
+  jayadharasa: {full: "jayadharasa = Νικηφόρου", english: "Nikephoros (Victory-bearer)", kind: epithet}
+  jayamtasa: {full: "jayaṃtasa = Νικάτορος", english: "Nicator (Victor)", kind: epithet}
+  apadihatasa: {full: "apaḍihatasa = Ἀνικήτου", english: "Aniketos (the Invincible)", kind: epithet}
+  aparajitasa: {full: "aparājitasa = Ἀνικήτου", english: "Aniketos (the Unconquered)", kind: epithet}
+  pracachasa: {full: "pracachasa = Ἐπιφανοῦς", english: "Epiphanes (Manifest)", kind: epithet}
+  kalanakramasa: {full: "kalanakramasa = Εὐεργέτου", english: "Euergetes (Benefactor)", kind: epithet}
+  priyapita: {full: "priyapita = Φιλοπάτωρ", english: "Philopator (Father-loving)", kind: epithet}
+  putrasa: {full: "putrasa", english: "of the son", kind: word}
+  casa: {full: "ca sa", english: "and of", kind: word}
+  # Kings and queens
+  menadrasa: {full: "Menaṃdrasa", english: "Menander", kind: name, case: gen}
+  stratasa: {full: "Stratasa", english: "Strato", kind: name, case: gen}
+  heramayasa: {full: "Heramayasa", english: "Hermaeus", kind: name, case: gen}
+  apaladatasa: {full: "Apaladatasa", english: "Apollodotus", kind: name, case: gen}
+  zoilasa: {full: "Zoilasa", english: "Zoilus", kind: name, case: gen}
+  philasinasa: {full: "Philasinasa", english: "Philoxenus", kind: name, case: gen}
+  palasinasa: {full: "Palasinasa", english: "Polyxenus", kind: name, case: gen}
+  amtialikitasa: {full: "Aṃtialikitasa", english: "Antialcidas", kind: name, case: gen}
+  artemitorasa: {full: "Artemitorasa", english: "Artemidorus", kind: name, case: gen}
+  artemidorasa: {full: "Artemidorasa", english: "Artemidorus", kind: name, case: gen}
+  arkhebiyasa: {full: "Arkhebiyasa", english: "Archebius", kind: name, case: gen}
+  evukratitasa: {full: "Evukratidasa", english: "Eucratides", kind: name, case: gen}
+  hipustratasa: {full: "Hipustratasa", english: "Hippostratus", kind: name, case: gen}
+  amitasa: {full: "Amitasa", english: "Amyntas", kind: name, case: gen}
+  diyumetasa: {full: "Diyumedasa", english: "Diomedes", kind: name, case: gen}
+  heliyakreyasa: {full: "Heliyakreyasa", english: "Heliocles", kind: name, case: gen}
+  heliyakreasa: {full: "Heliyakreasa", english: "Heliocles", kind: name, case: gen}
+  heliyakresasa: {full: "Heliyakresasa", english: "Heliocles", kind: name, case: gen}
+  heliyakresa: {full: "Heliyakresa", english: "Heliocles", kind: name, case: gen}
+  heliyakrea: {full: "Heliyakrea", english: "Heliocles", kind: name, case: gen}
+  nikiasa: {full: "Nikiasa", english: "Nicias", kind: name, case: gen}
+  diunisiyasa: {full: "Diunisiyasa", english: "Dionysius", kind: name, case: gen}
+  lisikasa: {full: "Lisikasa", english: "Lysias", kind: name, case: gen}
+  lisiasa: {full: "Lisiasa", english: "Lysias", kind: name, case: gen}
+  amtimakhasa: {full: "Aṃtimakhasa", english: "Antimachus", kind: name, case: gen}
+  epadrasa: {full: "Epadrasa", english: "Epander", kind: name, case: gen}
+  piukulaasa: {full: "Piukulaasa", english: "Peucolaus", kind: name, case: gen}
+  theuphilasa: {full: "Theuphilasa", english: "Theophilus", kind: name, case: gen}
+  teliphasa: {full: "Teliphasa", english: "Telephus", kind: name, case: gen}
+  dimeriyasa: {full: "Dimeriyasa", english: "Demetrius", kind: name, case: gen}
+  apulaphanasa: {full: "Apulaphanasa", english: "Apollophanes", kind: name, case: gen}
+  trasasa: {full: "Trasasa", english: "Thrason", kind: name, case: gen}
+  akathukreyasa: {full: "Akathukreyasa", english: "Agathocles", kind: name, case: gen}
+  agathukriyae: {full: "Agathukriyae", english: "of Agathocleia", kind: name, gender: f}
+  kaliyapaya: {full: "Kaliyapaya", english: "of Calliope", kind: name, gender: f}
+  hiranasame: {full: "Hiraṇasame", english: "at Hiranyasama", kind: place}
