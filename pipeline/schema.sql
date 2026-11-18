@@ -94,6 +94,20 @@ CREATE TABLE wikipedia_link (
   PRIMARY KEY (entity_type, entity_id)
 );
 
+-- Encyclopedic text about an entity. Wikipedia text is CC BY-SA: show title, link and licence.
+CREATE TABLE article (
+  entity_type  TEXT NOT NULL,
+  entity_id    TEXT NOT NULL,
+  source       TEXT NOT NULL,              -- 'wikipedia_en' (later: our own writing)
+  title        TEXT NOT NULL,
+  url          TEXT NOT NULL,
+  extract      TEXT NOT NULL,
+  revision     TEXT,
+  retrieved_at TEXT,                       -- the article revision's timestamp
+  licence      TEXT NOT NULL,
+  PRIMARY KEY (entity_type, entity_id, source)
+);
+
 -- The centre.
 CREATE TABLE coin_type (
   id              TEXT PRIMARY KEY,        -- 'ric.2.tr.147'

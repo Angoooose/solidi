@@ -94,3 +94,10 @@ def test_wikidata_enrichment(db):
     # Trajan's father is on coins too, so the family link is kept.
     assert one(db, """SELECT COUNT(*) FROM person_relation
                       WHERE person_id='trajan' AND relation='father' AND related_person_id='marcus_ulpius_traianus'""")[0] == 1
+
+
+def test_wikipedia_articles(db):
+    title, url, extract, licence = one(db, """SELECT title, url, extract, licence FROM article
+                                              WHERE entity_type='person' AND entity_id='trajan'""")
+    assert title == "Trajan" and url.startswith("https://en.wikipedia.org/wiki/")
+    assert "emperor" in extract.lower() and licence == "CC BY-SA 4.0"

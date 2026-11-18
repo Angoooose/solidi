@@ -13,7 +13,7 @@ import yaml
 
 from pipeline import stage, transform
 from pipeline.checks import checks
-from pipeline.link import wikidata
+from pipeline.link import wikidata, wikipedia
 from pipeline.sources.nomisma import fetch as nomisma_fetch
 from pipeline.sources.numishare import fetch as numishare_fetch
 
@@ -42,6 +42,8 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
 
     print("enrich: wikidata")
     wikidata.enrich(db, raw, refresh=refresh)
+    print("enrich: wikipedia")
+    wikipedia.enrich(db, raw, refresh=refresh)
 
     print("check")
     result = checks.run(db)

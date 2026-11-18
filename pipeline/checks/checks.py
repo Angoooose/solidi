@@ -105,6 +105,9 @@ def run(db: sqlite3.Connection) -> Result:
                                          _one(db, "SELECT COUNT(*) FROM person")),
         "family_relations": _one(db, "SELECT COUNT(*) FROM person_relation"),
         "entities_with_wikipedia": _one(db, "SELECT COUNT(*) FROM wikipedia_link"),
+        "articles": {t: _pct(_one(db, f"SELECT COUNT(*) FROM article WHERE entity_type='{t}'"),
+                             _one(db, f"SELECT COUNT(*) FROM {t}"))
+                     for t in ("person", "mint", "denomination", "subject", "organization")},
         "mints": _one(db, "SELECT COUNT(*) FROM mint"),
         "mints_with_pleiades_pct": _pct(_one(db, """SELECT COUNT(DISTINCT entity_id) FROM external_id
                                        WHERE entity_type='mint' AND system='pleiades'"""),
