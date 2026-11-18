@@ -12,6 +12,7 @@ from pathlib import Path
 import yaml
 
 from pipeline import legends, stage, transform
+from pipeline.legend_expand import Dictionary
 from pipeline.checks import checks
 from pipeline.link import wikidata, wikipedia
 from pipeline.sources.nomisma import fetch as nomisma_fetch
@@ -45,7 +46,9 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
     print("enrich: wikipedia")
     wikipedia.enrich(db, raw, refresh=refresh)
 
-    print(f"index legends: {legends.build_index(db)}")
+    abbreviations = ROOT / "data" / "legend_abbreviations.yaml"
+    dictionary = Dictionary.load(abbreviations) if abbreviations.exists() else None
+    print(f"index legends: {legends.build_index(db, dictionary)}")
 
     print("check")
     result = checks.run(db)

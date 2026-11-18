@@ -113,3 +113,12 @@ def test_legend_search(db):
     assert "ric.2.tr.147" in {t for t, _, _ in search(db, "OPTIMO PRINC", side="reverse")}
     assert search(db, "OPTIMO PRINC", side="obverse") == [] or all(
         s == "obverse" for _, s, _ in search(db, "OPTIMO PRINC", side="obverse"))
+
+
+def test_licence_overrides_apply_regardless_of_trailing_slash(db):
+    row = one(db, "SELECT commercial_ok FROM dataset WHERE id LIKE 'https://ikmk.smb.museum%'")
+    assert row == (0,)
+
+
+def test_unknown_legend_words_stay_visible(db):
+    assert one(db, "SELECT COUNT(*) FROM legend WHERE gloss_coverage < 1 AND english NOT LIKE '%[%'")[0] == 0

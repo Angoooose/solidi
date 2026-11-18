@@ -1,0 +1,976 @@
+# Roman Imperial coin legend abbreviations: normalised legend segment -> full Latin + short English gloss.
+#
+# Used by the deterministic legend expander. Legends are normalised first (uppercase, single
+# spaces, U->V, J->I). The expander matches `phrases` greedily (longest first) before `words`.
+# Roman numerals are handled in code, not here; `numbered` says what a following numeral means.
+#   kind:     title | name | epithet | formula | deity | personification | virtue | place | office | word
+#   numbered: times (COS III) | year (TR P VII) | acclamation (IMP VI)
+#   latin:    the written-out form the coin implies; the nominative where the abbreviation is ambiguous
+#   lemma:    dictionary form when `latin` is inflected
+#   note:     why an ambiguous abbreviation got this default
+#   gender:   f on women's names; the expander then reads AVG as Augusta and F as filia
+#
+# Licence: our own work. Seeded with evidence from ocre-texts (Neel Smith), whose expanded OCRE
+# legends are published under the ODbL; thanks to Neel Smith.
+# Editorial tokens in OCRE (OR between variant legends, VNCLEAR LEGEND) are not legend words
+# and are deliberately absent.
+
+phrases:
+  # --- Senate, people, titles ------------------------------------------------------------------
+  "S P Q R": {latin: "Senatus Populusque Romanus", english: "the Senate and People of Rome", kind: formula}
+  "P Q": {latin: "Populusque", english: "and the People", kind: formula}
+  "POP Q": {latin: "Populusque", english: "and the People", kind: formula}
+  "S C": {latin: "Senatus Consulto", english: "by decree of the Senate", kind: formula}
+  "EX S C": {latin: "Ex Senatus Consulto", english: "by decree of the Senate", kind: formula}
+  "EX SC": {latin: "Ex Senatus Consulto", english: "by decree of the Senate", kind: formula}
+  "P R": {latin: "Populi Romani", english: "of the Roman People", kind: formula, lemma: "Populus Romanus"}
+  "P P": {latin: "Pater Patriae", english: "Father of his Country", kind: title}
+  "P M": {latin: "Pontifex Maximus", english: "chief priest", kind: title}
+  "PON M": {latin: "Pontifex Maximus", english: "chief priest", kind: title}
+  "PONT MAX": {latin: "Pontifex Maximus", english: "chief priest", kind: title}
+  "PONT MAXIM": {latin: "Pontifex Maximus", english: "chief priest", kind: title}
+  "PONTIF MAX": {latin: "Pontifex Maximus", english: "chief priest", kind: title}
+  "PONTIF MAXIM": {latin: "Pontifex Maximus", english: "chief priest", kind: title}
+  "PON MAX": {latin: "Pontifex Maximus", english: "chief priest", kind: title}
+  "TR P": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TR PO": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TR POT": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TR POTEST": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TRI POT": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TRIB POT": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TRIB POTEST": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TRIBVN POT": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TRIBVN POTEST": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TRIBVNIC POT": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "TRIBVNIC POTEST": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "P M T P": {latin: "Pontifex Maximus Tribunicia Potestate", english: "chief priest, holding tribunician power", kind: title, numbered: year}
+  "COS DES": {latin: "Consul Designatus", english: "consul designate", kind: title, numbered: times}
+  "COS DESIG": {latin: "Consul Designatus", english: "consul designate", kind: title, numbered: times}
+  "CENS PER": {latin: "Censor Perpetuus", english: "censor for life", kind: title}
+  "CENS POT": {latin: "Censoria Potestate", english: "holding censorial power", kind: title}
+  "CENS POTES": {latin: "Censoria Potestate", english: "holding censorial power", kind: title}
+  "LEG PRO PR": {latin: "Legatus pro Praetore", english: "propraetorian legate", kind: office}
+  "IIIVIR A A A F F": {latin: "Triumvir Aere Argento Auro Flando Feriundo", english: "moneyer for bronze, silver and gold", kind: office}
+  "A A A F F": {latin: "Aere Argento Auro Flando Feriundo", english: "for minting bronze, silver and gold", kind: formula}
+  "IMP C": {latin: "Imperator Caesar", english: "Emperor Caesar", kind: title}
+  "IMP CAE": {latin: "Imperator Caesar", english: "Emperor Caesar", kind: title}
+  "IMP CAES": {latin: "Imperator Caesar", english: "Emperor Caesar", kind: title}
+  "IMP CAESAR": {latin: "Imperator Caesar", english: "Emperor Caesar", kind: title}
+  "D N": {latin: "Dominus Noster", english: "our Lord", kind: title}
+  "DD NN": {latin: "Dominorum Nostrorum", english: "of our Lords", kind: title, lemma: "Dominus Noster", note: "usually genitive in reverse legends (VICTORIAE DD NN AVGG)"}
+  "N C": {latin: "Nobilissimus Caesar", english: "most noble Caesar", kind: title}
+  "NOB C": {latin: "Nobilissimus Caesar", english: "most noble Caesar", kind: title}
+  "NOB CAES": {latin: "Nobilissimus Caesar", english: "most noble Caesar", kind: title}
+  "NOB CS": {latin: "Nobilissimus Caesar", english: "most noble Caesar", kind: title}
+  "NOBIL CAES": {latin: "Nobilissimus Caesar", english: "most noble Caesar", kind: title}
+  "AVG N": {latin: "Augustus Noster", english: "our emperor", kind: title, note: "genitive Augusti Nostri when it follows a reverse type (COMITI AVG N)"}
+  "P F": {latin: "Pius Felix", english: "dutiful and fortunate", kind: epithet}
+  "P F AVG": {latin: "Pius Felix Augustus", english: "dutiful and fortunate Augustus", kind: epithet}
+  "P F INV AVG": {latin: "Pius Felix Invictus Augustus", english: "dutiful, fortunate, unconquered Augustus", kind: epithet}
+  "DIVI F": {latin: "Divi Filius", english: "son of the deified", kind: title}
+  "DIVI AVG N": {latin: "Divi Augusti Nepos", english: "grandson of the deified Augustus", kind: title}
+  "PRINC IVVENT": {latin: "Princeps Iuventutis", english: "Prince of Youth", kind: title}
+  "PRINC IVVENTVT": {latin: "Princeps Iuventutis", english: "Prince of Youth", kind: title}
+  "PRINCEPS IVVENTVTIS": {latin: "Princeps Iuventutis", english: "Prince of Youth", kind: title}
+  "PRINCIPI IVVENT": {latin: "Principi Iuventutis", english: "to the Prince of Youth", kind: title, lemma: "Princeps Iuventutis"}
+  "PRINCIPI IVVENTVTIS": {latin: "Principi Iuventutis", english: "to the Prince of Youth", kind: title, lemma: "Princeps Iuventutis"}
+  "OPTIMO PRINC": {latin: "Optimo Principi", english: "to the best of rulers", kind: title, lemma: "Optimus Princeps"}
+  "OPTIMO PRINCIPI": {latin: "Optimo Principi", english: "to the best of rulers", kind: title, lemma: "Optimus Princeps"}
+  "PARENT CONS SVO": {latin: "Parenti Conservatori Suo", english: "to its father and preserver", kind: formula}
+
+  # --- Names that need their neighbours ----------------------------------------------------------
+  "C CAES": {latin: "Gaius Caesar", english: "Gaius Caesar", kind: name}
+  "C CAESAR": {latin: "Gaius Caesar", english: "Gaius Caesar", kind: name}
+  "C L CAESARES": {latin: "Gaius et Lucius Caesares", english: "Gaius and Lucius Caesar", kind: name}
+  "P LIC": {latin: "Publius Licinius", english: "Publius Licinius", kind: name}
+  "L DOM": {latin: "Lucius Domitius", english: "Lucius Domitius", kind: name}
+  "D CLOD": {latin: "Decimus Clodius", english: "Decimus Clodius", kind: name}
+  "D CLO": {latin: "Decimus Clodius", english: "Decimus Clodius", kind: name}
+  "COR SAL": {latin: "Cornelius Saloninus", english: "Cornelius Saloninus", kind: name}
+  "SEV PER": {latin: "Severus Pertinax", english: "Severus Pertinax", kind: name}
+  "SEVERVS PER": {latin: "Severus Pertinax", english: "Severus Pertinax", kind: name}
+  "PIA VICTORINVS": {latin: "Piavonius Victorinus", english: "Victorinus", kind: name}
+  "VALENSP F AVG": {latin: "Valens Pius Felix Augustus", english: "Valens, dutiful and fortunate Augustus", kind: name, note: "run-together VALENS P F AVG"}
+
+  "P FEL": {latin: "Pius Felix", english: "dutiful and fortunate", kind: epithet}
+  "P AVG": {latin: "Pius Augustus", english: "dutiful Augustus", kind: epithet}
+  "P F S AVG": {latin: "Pius Felix Senior Augustus", english: "dutiful, fortunate senior Augustus", kind: epithet}
+  "CENS P P P": {latin: "Censor Perpetuus Pater Patriae", english: "perpetual censor, Father of Country", kind: title}
+  "P FELIX": {latin: "Pius Felix", english: "dutiful and fortunate", kind: epithet}
+  "P MAX": {latin: "Pontifex Maximus", english: "chief priest", kind: title}
+  "P SEPT": {latin: "Publius Septimius", english: "Publius Septimius", kind: name}
+  "P SEPTIMIVS": {latin: "Publius Septimius", english: "Publius Septimius", kind: name}
+  "A VITELLIVS": {latin: "Aulus Vitellius", english: "Aulus Vitellius", kind: name}
+  "M A": {latin: "Marcus Aurelius", english: "Marcus Aurelius", kind: name}
+  "M Q": {latin: "Messius Quintus", english: "Messius Quintus", kind: name, note: "Trajan Decius: IMP C M Q TRAIANVS DECIVS"}
+  "D CL": {latin: "Decimus Clodius", english: "Decimus Clodius", kind: name}
+  "D CAEL": {latin: "Decimus Caelius", english: "Decimus Caelius", kind: name}
+  "IMP M": {latin: "Imperator Marcus", english: "Emperor Marcus", kind: title, note: "M is the praenomen, not a numeral (IMP M IVL PHILIPPVS AVG)"}
+  "IMP M ANN": {latin: "Imperator Marcus Annius", english: "Emperor Marcus Annius", kind: title, note: "Florian"}
+  "M ANN": {latin: "Marcus Annius", english: "Marcus Annius", kind: name, note: "Florian: C M ANN FLORIANVS"}
+  "IMP L": {latin: "Imperator Lucius", english: "Emperor Lucius", kind: title, note: "L is the praenomen, not a numeral (IMP L VERVS AVG)"}
+  "IMP CM": {latin: "Imperator Caesar Marcus", english: "Emperor Caesar Marcus", kind: title, note: "not a numeral (IMP CM OPEL SEV MACRINVS AVG)"}
+  "IMP CL": {latin: "Imperator Claudius", english: "Emperor Claudius", kind: title, note: "not a numeral (IMP CL TACITVS AVG)"}
+  "IMP CC": {latin: "Imperator Caesar Gaius", english: "Emperor Caesar Gaius", kind: title, note: "Tetricus I: IMP CC P ESV TETRICVS AVG"}
+  "IMP D": {latin: "Imperator Domitianus", english: "Emperor Domitian", kind: title, note: "Domitian's restorations: IMP D CAES DIVI VESP F AVG REST"}
+  "IM C": {latin: "Imperator Caesar", english: "Emperor Caesar", kind: title, note: "not a numeral (IM C M AVR ANTONINVS AVG)"}
+  "NOBIL C": {latin: "Nobilissimus Caesar", english: "most noble Caesar", kind: title}
+  "P C L": {latin: "Publius Cornelius Licinius", english: "Publius Cornelius Licinius", kind: name, note: "Valerian II: P C L VALERIANVS NOB CAES"}
+  "SAL VALERIANVS": {latin: "Saloninus Valerianus", english: "Saloninus Valerianus", kind: name}
+  "TRA DEC": {latin: "Traianus Decius", english: "Trajan Decius", kind: name, note: "CAE TRA DEC AVG"}
+  "PIVS F AVG": {latin: "Pius Felix Augustus", english: "dutiful and fortunate Augustus", kind: epithet}
+  "PERP F AVG": {latin: "Perpetuus Felix Augustus", english: "everlasting, fortunate Augustus", kind: epithet}
+  "PER F AVG": {latin: "Perpetuus Felix Augustus", english: "everlasting, fortunate Augustus", kind: epithet}
+  "VALENSPER F AVG": {latin: "Valens Perpetuus Felix Augustus", english: "Valens, everlasting, fortunate Augustus", kind: name, note: "run-together VALENS PER F AVG"}
+  "DIVI AVG F": {latin: "Divi Augusti Filius", english: "son of the deified Augustus", kind: title}
+  "DIVI AVGVSTI F": {latin: "Divi Augusti Filius", english: "son of the deified Augustus", kind: title}
+  "DIVI AVG VESP F": {latin: "Divi Augusti Vespasiani Filius", english: "son of the deified Vespasian", kind: title}
+  "DIVI VESP F": {latin: "Divi Vespasiani Filius", english: "son of the deified Vespasian", kind: title}
+  "DIVI VES F": {latin: "Divi Vespasiani Filius", english: "son of the deified Vespasian", kind: title}
+  "DIVI VESPAS F": {latin: "Divi Vespasiani Filius", english: "son of the deified Vespasian", kind: title}
+  "DIVI CLAVD F": {latin: "Divi Claudii Filius", english: "son of the deified Claudius", kind: title}
+  "DIVI TRAIAN AVG F": {latin: "Divi Traiani Augusti Filius", english: "son of the deified Trajan", kind: title}
+  "DIVI TRA PARTH F": {latin: "Divi Traiani Parthici Filius", english: "son of the deified Trajan Parthicus", kind: title}
+  "DIVI TRA PART F": {latin: "Divi Traiani Parthici Filius", english: "son of the deified Trajan Parthicus", kind: title}
+  "DIVI NER NEP": {latin: "Divi Nervae Nepos", english: "grandson of the deified Nerva", kind: title}
+  "AVG PII AVG FIL": {latin: "Augusta Pii Augusti Filia", english: "Augusta, daughter of Pius Augustus", kind: title, note: "Faustina II; SEVERI PII AVG FIL is a son, so the phrase starts at her AVG"}
+  "AVG PII AVG F": {latin: "Augusta Pii Augusti Filia", english: "Augusta, daughter of Pius Augustus", kind: title}
+  "AVGVSTA PII AVG FIL": {latin: "Augusta Pii Augusti Filia", english: "Augusta, daughter of Pius Augustus", kind: title}
+  "NERVAE TRAIANO": {latin: "Nervae Traiano", english: "Nerva Trajan", kind: name, lemma: "Nerva Traianus", note: "dative; a phrase so the -ae name is not read as a woman's (IMP CAES NERVAE TRAIANO AVG)"}
+  "GALBAE AVG": {latin: "Galbae Augusti", english: "of Galba Augustus", kind: name, note: "VICTORIA GALBAE AVG; GALBAE is male"}
+  "AF GAL": {latin: "Afinius Gallus", english: "Afinius Gallus", kind: name, note: "Volusian: IMP C V AF GAL VEND VOLVSIANO AVG; GAL alone is Galerius"}
+  "TEMPL DIVI AVG REST": {latin: "Templum Divi Augusti Restitutum", english: "the temple of the deified Augustus restored", kind: formula}
+  "TEMPL DIV AVG REST": {latin: "Templum Divi Augusti Restitutum", english: "the temple of the deified Augustus restored", kind: formula}
+  "TEMPLVM DIVI AVG REST": {latin: "Templum Divi Augusti Restitutum", english: "the temple of the deified Augustus restored", kind: formula}
+  "TEMPLVM DIV AVG REST": {latin: "Templum Divi Augusti Restitutum", english: "the temple of the deified Augustus restored", kind: formula}
+  "N CAES": {latin: "Nobilissimus Caesar", english: "most noble Caesar", kind: title}
+  "AVGVSTI N": {latin: "Augusti Nostri", english: "of our emperor", kind: title, lemma: "Augustus Noster"}
+  "PT AVGG": {latin: "Pater Augustorum", english: "father of the emperors", kind: title}
+  "TR POTES": {latin: "Tribunicia Potestate", english: "holding tribunician power", kind: title, numbered: year}
+  "POP ROM": {latin: "Populi Romani", english: "of the Roman People", kind: formula, lemma: "Populus Romanus"}
+  "DAT POP": {latin: "Datum Populo", english: "given to the people", kind: formula}
+  "MONETA S AVGG": {latin: "Moneta Sacra Augustorum", english: "sacred mint of the emperors", kind: formula}
+
+  # --- Religious and reverse formulas -------------------------------------------------------------
+  "I O M": {latin: "Iuppiter Optimus Maximus", english: "Jupiter Best and Greatest", kind: deity}
+  "SOLI INVICTO COMITI": {latin: "Soli Invicto Comiti", english: "to the Unconquered Sun, companion", kind: deity, lemma: "Sol Invictus Comes"}
+  "GENIO POPVLI ROMANI": {latin: "Genio Populi Romani", english: "to the Roman People's Genius", kind: deity}
+  "FEL TEMP REPARATIO": {latin: "Felicium Temporum Reparatio", english: "restoration of happy times", kind: formula}
+  "REI PVBLICAE": {latin: "Rei Publicae", english: "of the State", kind: word, lemma: "Res Publica"}
+  "REI PVBLICE": {latin: "Rei Publicae", english: "of the State", kind: word, lemma: "Res Publica"}
+  "REI PVBL": {latin: "Rei Publicae", english: "of the State", kind: word, lemma: "Res Publica"}
+  "REI PVB": {latin: "Rei Publicae", english: "of the State", kind: word, lemma: "Res Publica"}
+  "FORT RED": {latin: "Fortuna Redux", english: "Fortune who brings (the emperor) home", kind: personification}
+  "BONI EVENTVS": {latin: "Boni Eventus", english: "of Good Outcome", kind: personification, lemma: "Bonus Eventus"}
+  "BON EVENT": {latin: "Bonus Eventus", english: "Good Outcome", kind: personification}
+  "GEN HVMANI": {latin: "Generis Humani", english: "of the human race", kind: word, lemma: "Genus Humanum"}
+  "VOT P SVSC": {latin: "Vota Publica Suscepta", english: "public vows undertaken", kind: formula}
+  "PRO SAL ET RED": {latin: "Pro Salute et Reditu", english: "for the safety and return", kind: formula}
+  "PRO SALVT ET RED": {latin: "Pro Salute et Reditu", english: "for the safety and return", kind: formula}
+  "NEP RED": {latin: "Neptuno Reduci", english: "to Neptune who brings (the emperor) home", kind: deity, note: "Hadrian: COS III NEP RED S C"}
+  "CONS AVG": {latin: "Conservatori Augusti", english: "to the preserver of the Emperor", kind: formula, note: "Gallienus zoo series (DIANAE CONS AVG); Conservatrici with goddesses. AVG CONS (Probus) stays consul"}
+  "CONS CAES": {latin: "Conservatori Caesaris", english: "to the preserver of the Caesar", kind: formula}
+  "CONS D N": {latin: "Conservatori Domini Nostri", english: "to the preserver of our Lord", kind: formula}
+  "LIBERO P": {latin: "Libero Patri", english: "to Liber Pater", kind: deity}
+  "M SACRA": {latin: "Moneta Sacra", english: "sacred mint", kind: formula, note: "M SACRA AVGG ET CAESS NN"}
+  "P VI F": {latin: "Pia VI Fidelis", english: "loyal and faithful (6th time)", kind: epithet, note: "legion titles under Gallienus: LEG XI CL VI P VI F"}
+  "P VII F": {latin: "Pia VII Fidelis", english: "loyal and faithful (7th time)", kind: epithet}
+  "VOTA SOL DEC": {latin: "Vota Soluta Decennalia", english: "ten-year vows fulfilled", kind: formula}
+  "VOTA SOL DECENN": {latin: "Vota Soluta Decennalia", english: "ten-year vows fulfilled", kind: formula}
+  "VOT SOL DEC": {latin: "Vota Soluta Decennalia", english: "ten-year vows fulfilled", kind: formula}
+  "LVD SAEC FEC": {latin: "Ludos Saeculares Fecit", english: "held the Secular Games", kind: formula}
+  "CER QVINQ ROM CO": {latin: "Certamen Quinquennale Romae Constitutum", english: "five-yearly contest established at Rome", kind: formula}
+  "CER QVINQ ROM CON": {latin: "Certamen Quinquennale Romae Constitutum", english: "five-yearly contest established at Rome", kind: formula}
+  "CERT QVINQ ROM CON": {latin: "Certamen Quinquennale Romae Constitutum", english: "five-yearly contest established at Rome", kind: formula}
+  "CER QVINQ ROMAE CONS": {latin: "Certamen Quinquennale Romae Constitutum", english: "five-yearly contest established at Rome", kind: formula}
+  "NAT VRB": {latin: "Natali Urbis", english: "on the City's birthday", kind: formula}
+  "P CIR CON": {latin: "Primum Circenses Constituti", english: "circus games first established", kind: formula}
+  "SAC MON VRB": {latin: "Sacra Moneta Urbis", english: "sacred mint of the City", kind: formula}
+  "FEL PROCESS CONS": {latin: "Felix Processus Consulatus", english: "happy consular procession", kind: formula, numbered: times}
+  "I O MAX": {latin: "Iuppiter Optimus Maximus", english: "Jupiter Best and Greatest", kind: deity}
+  "O B CIV SER": {latin: "Ob Cives Servatos", english: "for saving the citizens", kind: formula}
+  "B R P NAT": {latin: "Bono Rei Publicae Nato", english: "born for the State's good", kind: formula}
+  "ALIM ITAL": {latin: "Alimenta Italiae", english: "food support for Italy", kind: formula}
+  "HOC SIGNO VICTOR ERIS": {latin: "Hoc Signo Victor Eris", english: "in this sign you will conquer", kind: formula}
+  "REQVIES OPTIMOR MERIT": {latin: "Requies Optimorum Meritorum", english: "rest for the most deserving", kind: formula}
+  "TELLVS STABIL": {latin: "Tellus Stabilita", english: "the Earth made secure", kind: personification}
+  "VN MR": {latin: "Venerandae Memoriae", english: "of revered memory", kind: formula}
+  "MAR VLT": {latin: "Mars Ultor", english: "Mars the Avenger", kind: deity}
+  "TERRA MARIQ": {latin: "Terra Marique", english: "on land and sea", kind: formula}
+  "IANVM CLVSIT": {latin: "Ianum Clusit", english: "closed (the temple of) Janus", kind: formula}
+  "OB CIVIS SERVATOS": {latin: "Ob Cives Servatos", english: "for saving the citizens", kind: formula}
+  "OB CIVES SERVATOS": {latin: "Ob Cives Servatos", english: "for saving the citizens", kind: formula}
+  "OB CIV SER": {latin: "Ob Cives Servatos", english: "for saving the citizens", kind: formula}
+  "OB C S": {latin: "Ob Cives Servatos", english: "for saving the citizens", kind: formula}
+  "OB CS": {latin: "Ob Cives Servatos", english: "for saving the citizens", kind: formula}
+  "A PART": {latin: "a Parthis", english: "from the Parthians", kind: formula}
+  "DE GERM": {latin: "de Germanis", english: "over the Germans", kind: formula}
+  "DE SARM": {latin: "de Sarmatis", english: "over the Sarmatians", kind: formula}
+
+words:
+  # --- Imperial titles and offices --------------------------------------------------------------
+  AVG: {latin: "Augustus", english: "Augustus (emperor)", kind: title, note: "often genitive Augusti in reverse legends (VICTORIA AVG)"}
+  AV: {latin: "Augustus", english: "Augustus (emperor)", kind: title}
+  AG: {latin: "Augustus", english: "Augustus (emperor)", kind: title}
+  AVGVS: {latin: "Augustus", english: "Augustus (emperor)", kind: title}
+  AVGVST: {latin: "Augustus", english: "Augustus (emperor)", kind: title, note: "also Augusti / Augusta by context"}
+  AVGVSTVS: {latin: "Augustus", english: "Augustus (emperor)", kind: title}
+  AVGVSTI: {latin: "Augusti", english: "of the Augustus (emperor)", kind: title, lemma: "Augustus"}
+  AVGVSTO: {latin: "Augusto", english: "to the Augustus (emperor)", kind: title, lemma: "Augustus"}
+  AVGVSTA: {latin: "Augusta", english: "Augusta (empress)", kind: title}
+  AVGVSTAE: {latin: "Augustae", english: "of the Augusta (empress)", kind: title, lemma: "Augusta"}
+  AVGG: {latin: "Augustorum", english: "of the (two) emperors", kind: title, lemma: "Augustus", note: "doubled letter = two emperors; nominative Augusti after a list of names"}
+  AVGGG: {latin: "Augustorum", english: "of the (three) emperors", kind: title, lemma: "Augustus"}
+  AAVGGG: {latin: "Augustorum", english: "of the (three) emperors", kind: title, lemma: "Augustus"}
+  AVGGQ: {latin: "Augustorumque", english: "and of the emperors", kind: title, lemma: "Augustus"}
+  AVGVSTORVM: {latin: "Augustorum", english: "of the emperors", kind: title, lemma: "Augustus"}
+  AVGVSTOR: {latin: "Augustorum", english: "of the emperors", kind: title, lemma: "Augustus"}
+  IMP: {latin: "Imperator", english: "Emperor", kind: title, numbered: acclamation}
+  IM: {latin: "Imperator", english: "Emperor", kind: title, numbered: acclamation}
+  IMPERATOR: {latin: "Imperator", english: "Emperor", kind: title, numbered: acclamation}
+  IMPERAT: {latin: "Imperator", english: "Emperor", kind: title, numbered: acclamation}
+  IMPERATORIS: {latin: "Imperatoris", english: "of the Emperor", kind: title, lemma: "Imperator"}
+  IMPERI: {latin: "Imperii", english: "of the Empire", kind: word, lemma: "Imperium"}
+  IMPERII: {latin: "Imperii", english: "of the Empire", kind: word, lemma: "Imperium"}
+  CAES: {latin: "Caesar", english: "Caesar", kind: title}
+  CAE: {latin: "Caesar", english: "Caesar", kind: title}
+  CAESAR: {latin: "Caesar", english: "Caesar", kind: title}
+  CAESARI: {latin: "Caesari", english: "to Caesar", kind: title, lemma: "Caesar"}
+  CAESARIS: {latin: "Caesaris", english: "of Caesar", kind: title, lemma: "Caesar"}
+  CAESS: {latin: "Caesarum", english: "of the Caesars", kind: title, lemma: "Caesar"}
+  CAESARVM: {latin: "Caesarum", english: "of the Caesars", kind: title, lemma: "Caesar"}
+  CM: {latin: "Caesar Marcus", english: "Caesar Marcus", kind: title, note: "run-together C M (IMP CM OPEL SEV MACRINVS)"}
+  COS: {latin: "Consul", english: "consul", kind: title, numbered: times}
+  CONSVL: {latin: "Consul", english: "consul", kind: title, numbered: times}
+  CONS: {latin: "Consul", english: "consul", kind: title, numbered: times, note: "also Conservator / Constitutum in set phrases"}
+  PROCOS: {latin: "Proconsul", english: "proconsul", kind: title}
+  DES: {latin: "Designatus", english: "designate", kind: title, numbered: times}
+  DESIG: {latin: "Designatus", english: "designate", kind: title, numbered: times}
+  DESIGN: {latin: "Designatus", english: "designate", kind: title, numbered: times}
+  ITER: {latin: "Iterum", english: "for the second time", kind: word}
+  PP: {latin: "Pater Patriae", english: "Father of his Country", kind: title}
+  PM: {latin: "Pontifex Maximus", english: "chief priest", kind: title}
+  SC: {latin: "Senatus Consulto", english: "by decree of the Senate", kind: formula}
+  PON: {latin: "Pontifex", english: "priest", kind: title}
+  PONT: {latin: "Pontifex", english: "priest", kind: title}
+  PONTIF: {latin: "Pontifex", english: "priest", kind: title}
+  PONTIFEX: {latin: "Pontifex", english: "priest", kind: title}
+  MAX: {latin: "Maximus", english: "greatest", kind: epithet, note: "after a victory title = 'the greatest'; CONSTANTINVS MAX AVG = 'the Great'"}
+  MAXIM: {latin: "Maximus", english: "greatest", kind: epithet}
+  TRIB: {latin: "Tribunicia", english: "tribunician", kind: title}
+  TRIBVNIC: {latin: "Tribunicia", english: "tribunician", kind: title}
+  TRI: {latin: "Tribunicia", english: "tribunician", kind: title}
+  POT: {latin: "Potestate", english: "power", kind: title, lemma: "potestas"}
+  POTEST: {latin: "Potestate", english: "power", kind: title, lemma: "potestas"}
+  CENS: {latin: "Censor", english: "censor", kind: title}
+  CENSOR: {latin: "Censor", english: "censor", kind: title}
+  IIIVIR: {latin: "Triumvir", english: "moneyer (one of three)", kind: office}
+  LEG: {latin: "Legio", english: "legion", kind: word, note: "Legatus (legate) in LEG PRO PR and moneyer legends"}
+  NOB: {latin: "Nobilissimus", english: "most noble", kind: epithet}
+  NOBIL: {latin: "Nobilissimus", english: "most noble", kind: epithet}
+  PRINC: {latin: "Princeps", english: "prince, first citizen", kind: title, note: "Principi after OPTIMO; Principes for two heirs"}
+  PRINCEPS: {latin: "Princeps", english: "prince, first citizen", kind: title}
+  PRIN: {latin: "Princeps", english: "prince, first citizen", kind: title}
+  REX: {latin: "Rex", english: "king", kind: title}
+  RECTOR: {latin: "Rector", english: "ruler", kind: title}
+  PACATOR: {latin: "Pacator", english: "pacifier", kind: epithet}
+  CASTRORVM: {latin: "Castrorum", english: "of the (army) camps", kind: word, lemma: "Castra"}
+  LIBERI: {latin: "Liberi", english: "children", kind: word, lemma: "Liberi"}
+  DOMINO: {latin: "Domino", english: "to the Lord", kind: title, lemma: "Dominus"}
+  PRINCIPI: {latin: "Principi", english: "to the prince", kind: title, lemma: "Princeps"}
+  IVVENTVTIS: {latin: "Iuventutis", english: "of Youth", kind: word, lemma: "Iuventus"}
+  IVVENT: {latin: "Iuventutis", english: "of Youth", kind: word, lemma: "Iuventus"}
+  IVVENTVT: {latin: "Iuventutis", english: "of Youth", kind: word, lemma: "Iuventus"}
+  DD: {latin: "Dominorum", english: "of the Lords", kind: title, lemma: "Dominus", note: "doubled for two rulers; usually with NN"}
+  DOMINOR: {latin: "Dominorum", english: "of the Lords", kind: title, lemma: "Dominus"}
+  DIVI: {latin: "Divi", english: "of the deified", kind: title, lemma: "Divus"}
+  DIV: {latin: "Divi", english: "of the deified", kind: title, lemma: "Divus", note: "not the numeral 504 (TEMPL DIV AVG)"}
+  DI: {latin: "Divi", english: "of the deified", kind: title, lemma: "Divus", note: "not the numeral 501 (DI NER NEP)"}
+  DIVO: {latin: "Divo", english: "to the deified", kind: title, lemma: "Divus"}
+  DIVVS: {latin: "Divus", english: "the deified", kind: title}
+  DV: {latin: "Divus", english: "the deified", kind: title}
+  DIVA: {latin: "Diva", english: "the deified (empress)", kind: title}
+  DIVAE: {latin: "Divae", english: "of the deified (empress)", kind: title, lemma: "Diva"}
+  F: {latin: "Filius", english: "son", kind: word, note: "after a name or DIVI/AVG; inside P F it is Felix, in A A A F F flando feriundo"}
+  FIL: {latin: "Filius", english: "son", kind: word, note: "Filia (daughter) for empresses"}
+  NEP: {latin: "Nepos", english: "grandson", kind: word, note: "NEP RED = Neptuno Reduci"}
+  PATER: {latin: "Pater", english: "father", kind: word}
+  PATRI: {latin: "Patri", english: "to the father", kind: word, lemma: "Pater"}
+  PATRIAE: {latin: "Patriae", english: "of his Country", kind: word, lemma: "Patria"}
+  MATER: {latin: "Mater", english: "mother", kind: word}
+  MAT: {latin: "Mater", english: "mother", kind: word}
+  MATRI: {latin: "Matri", english: "to the mother", kind: word, lemma: "Mater"}
+  SENATVS: {latin: "Senatus", english: "the Senate", kind: word}
+  POPVLI: {latin: "Populi", english: "of the People", kind: word, lemma: "Populus"}
+  POPVLVSQVE: {latin: "Populusque", english: "and the People", kind: word, lemma: "Populus"}
+
+  # --- Epithets ---------------------------------------------------------------------------------
+  PIVS: {latin: "Pius", english: "dutiful", kind: epithet}
+  PIV: {latin: "Pius", english: "dutiful", kind: epithet, note: "in Tetricus' name PIV ESV = Pius Esuvius"}
+  PII: {latin: "Pii", english: "of Pius (the dutiful)", kind: epithet, lemma: "Pius"}
+  PIO: {latin: "Pio", english: "to Pius (the dutiful)", kind: epithet, lemma: "Pius"}
+  PIA: {latin: "Pia", english: "dutiful", kind: epithet, note: "IMP C PIA VICTORINVS = Piavonius"}
+  FEL: {latin: "Felix", english: "fortunate", kind: epithet}
+  FELIX: {latin: "Felix", english: "fortunate", kind: epithet}
+  FELICI: {latin: "Felici", english: "fortunate", kind: epithet, lemma: "Felix"}
+  FELICISSIMO: {latin: "Felicissimo", english: "most fortunate", kind: epithet, lemma: "Felicissimus"}
+  BAEATISSIMO: {latin: "Beatissimo", english: "most blessed", kind: epithet, lemma: "Beatissimus"}
+  BEATA: {latin: "Beata", english: "blessed", kind: epithet}
+  SEN: {latin: "Senior", english: "senior (retired emperor)", kind: title, note: "Seniori after BEATISSIMO; also Senatus in MAT SEN"}
+  IVN: {latin: "Iunior", english: "the Younger", kind: epithet}
+  INVICTVS: {latin: "Invictus", english: "unconquered", kind: epithet}
+  INVICTO: {latin: "Invicto", english: "unconquered", kind: epithet, lemma: "Invictus"}
+  INVICTI: {latin: "Invicti", english: "of the unconquered", kind: epithet, lemma: "Invictus"}
+  INVICT: {latin: "Invictus", english: "unconquered", kind: epithet}
+  INV: {latin: "Invictus", english: "unconquered", kind: epithet}
+  OPTIMO: {latin: "Optimo", english: "best", kind: epithet, lemma: "Optimus"}
+  OPTIM: {latin: "Optimus", english: "the best", kind: epithet}
+  OPT: {latin: "Optimus", english: "the best", kind: epithet}
+  PERP: {latin: "Perpetuus", english: "everlasting", kind: epithet}
+  PERPET: {latin: "Perpetuus", english: "everlasting", kind: epithet}
+  PE: {latin: "Perpetuus", english: "everlasting", kind: epithet}
+  PER: {latin: "Perpetuus", english: "everlasting", kind: epithet, note: "Pertinax in Septimius Severus' name (SEV PER); 'per' in long formulas"}
+  PERPETVA: {latin: "Perpetua", english: "everlasting", kind: epithet, lemma: "Perpetuus"}
+  PERPETVAE: {latin: "Perpetuae", english: "everlasting", kind: epithet, lemma: "Perpetuus"}
+  AETERNA: {latin: "Aeterna", english: "eternal", kind: epithet, lemma: "Aeternus"}
+  AETERNAE: {latin: "Aeternae", english: "eternal", kind: epithet, lemma: "Aeternus"}
+  AETERN: {latin: "Aeternae", english: "eternal", kind: epithet, lemma: "Aeternus"}
+  AETER: {latin: "Aeternae", english: "eternal", kind: epithet, lemma: "Aeternus"}
+  VICTOR: {latin: "Victor", english: "victorious", kind: epithet}
+  VICTORI: {latin: "Victori", english: "victorious", kind: epithet, lemma: "Victor"}
+  VICTRIX: {latin: "Victrix", english: "victorious", kind: epithet}
+  VICTRICI: {latin: "Victrici", english: "victorious", kind: epithet, lemma: "Victrix"}
+  VLTOR: {latin: "Ultor", english: "the Avenger", kind: epithet}
+  VLTORI: {latin: "Ultori", english: "the Avenger", kind: epithet, lemma: "Ultor"}
+  CONSERVATOR: {latin: "Conservator", english: "preserver", kind: epithet}
+  CONSERVATORI: {latin: "Conservatori", english: "to the preserver", kind: epithet, lemma: "Conservator"}
+  CONSERVATORES: {latin: "Conservatores", english: "preservers", kind: epithet, lemma: "Conservator"}
+  CONSERVAT: {latin: "Conservatori", english: "to the preserver", kind: epithet, lemma: "Conservator"}
+  CONSERVA: {latin: "Conservatori", english: "to the preserver", kind: epithet, lemma: "Conservator"}
+  CONSERV: {latin: "Conservatori", english: "to the preserver", kind: epithet, lemma: "Conservator", note: "nominative Conservator after IVPPITER"}
+  CONSER: {latin: "Conservatori", english: "to the preserver", kind: epithet, lemma: "Conservator"}
+  COMITI: {latin: "Comiti", english: "to the companion", kind: epithet, lemma: "Comes"}
+  COMES: {latin: "Comes", english: "companion", kind: epithet}
+  STATOR: {latin: "Stator", english: "the Stayer (of rout)", kind: epithet}
+  PACIFER: {latin: "Pacifer", english: "the Peace-bringer", kind: epithet}
+  PROPVG: {latin: "Propugnator", english: "the Defender", kind: epithet}
+  CAELESTIS: {latin: "Caelestis", english: "heavenly", kind: epithet}
+  LVCIF: {latin: "Lucifera", english: "the Light-bringer", kind: epithet}
+  MARTIALIS: {latin: "Martialis", english: "of war", kind: epithet}
+  FRVGIFERO: {latin: "Frugifero", english: "fruitful", kind: epithet, lemma: "Frugifer"}
+  VICTORES: {latin: "Victores", english: "victorious", kind: epithet, lemma: "Victor"}
+  STATORI: {latin: "Statori", english: "the Stayer (of rout)", kind: epithet, lemma: "Stator"}
+  PACIFERO: {latin: "Pacifero", english: "the Peace-bringer", kind: epithet, lemma: "Pacifer"}
+  PACIF: {latin: "Pacifero", english: "the Peace-bringer", kind: epithet, lemma: "Pacifer"}
+  PROPVGNATORI: {latin: "Propugnatori", english: "to the Defender", kind: epithet, lemma: "Propugnator"}
+  PROPVGNAT: {latin: "Propugnator", english: "the Defender", kind: epithet}
+  GENETRIX: {latin: "Genetrix", english: "the Mother (of Rome)", kind: epithet}
+  GENETRICI: {latin: "Genetrici", english: "the Mother (of Rome)", kind: epithet, lemma: "Genetrix"}
+  LVCIFERA: {latin: "Lucifera", english: "the Light-bringer", kind: epithet}
+  REGINA: {latin: "Regina", english: "Queen", kind: epithet}
+  REGINAE: {latin: "Reginae", english: "Queen", kind: epithet, lemma: "Regina"}
+  MARTIALI: {latin: "Martiali", english: "of war", kind: epithet, lemma: "Martialis"}
+  REDVX: {latin: "Redux", english: "who brings (the emperor) home", kind: epithet}
+  REDVCI: {latin: "Reduci", english: "who brings (the emperor) home", kind: epithet, lemma: "Redux"}
+  REDVC: {latin: "Reduci", english: "who brings (the emperor) home", kind: epithet, lemma: "Redux"}
+  RED: {latin: "Redux", english: "who brings (the emperor) home", kind: epithet, note: "Reditu (return) in PRO SAL ET RED"}
+  TRIVMFATOR: {latin: "Triumfator", english: "triumphant", kind: epithet}
+  RESTITVTOR: {latin: "Restitutor", english: "restorer", kind: epithet}
+  RESTITVT: {latin: "Restitutor", english: "restorer", kind: epithet, note: "Restitutis / Restitutum in some legends"}
+  RESTIT: {latin: "Restitutor", english: "restorer", kind: epithet, note: "Restitutum in CAPIT RESTIT"}
+  RESTITVTORI: {latin: "Restitutori", english: "to the restorer", kind: epithet, lemma: "Restitutor"}
+
+  # --- Victory titles -----------------------------------------------------------------------------
+  GER: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
+  GERM: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
+  GERMA: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
+  GERMAN: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
+  GERMANIC: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
+  GERMANICVS: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title, note: "also the personal name of Germanicus Caesar and Caligula"}
+  DAC: {latin: "Dacicus", english: "Dacicus (victor over the Dacians)", kind: title}
+  DACICVS: {latin: "Dacicus", english: "Dacicus (victor over the Dacians)", kind: title}
+  PARTH: {latin: "Parthicus", english: "Parthicus (victor over the Parthians)", kind: title}
+  PART: {latin: "Parthicus", english: "Parthicus (victor over the Parthians)", kind: title}
+  PARTHICO: {latin: "Parthico", english: "Parthicus (victor over the Parthians)", kind: title, lemma: "Parthicus"}
+  PARTHIC: {latin: "Parthici", english: "Parthicus (victor over the Parthians)", kind: title, lemma: "Parthicus", note: "PARTHIC DIVI TRAIAN = son of the deified Trajan Parthicus"}
+  BRIT: {latin: "Britannicus", english: "Britannicus (victor over the Britons)", kind: title}
+  ARM: {latin: "Armeniacus", english: "Armeniacus (victor over the Armenians)", kind: title}
+  ARMENIACVS: {latin: "Armeniacus", english: "Armeniacus (victor over the Armenians)", kind: title}
+  SARM: {latin: "Sarmaticus", english: "Sarmaticus (victor over the Sarmatians)", kind: title}
+  SARMAT: {latin: "Sarmaticus", english: "Sarmaticus (victor over the Sarmatians)", kind: title, note: "VICTORIA SARMAT = Sarmatica"}
+  ARAB: {latin: "Arabicus", english: "Arabicus (victor over the Arabs)", kind: title, note: "ARAB ADQ = Arabia adquisita"}
+  GERMANICA: {latin: "Germanica", english: "German (victory)", kind: word, lemma: "Germanicus"}
+
+  # --- Praenomina and family names ----------------------------------------------------------------
+  C: {latin: "Gaius", english: "Gaius", kind: name, note: "praenomen; S C, IMP C, NOB C and N C are phrases"}
+  M: {latin: "Marcus", english: "Marcus", kind: name, note: "praenomen; P M and I O M are phrases"}
+  L: {latin: "Lucius", english: "Lucius", kind: name}
+  Q: {latin: "Quintus", english: "Quintus", kind: name, note: "praenomen; S P Q R and P Q are phrases"}
+  T: {latin: "Titus", english: "Titus", kind: name, note: "praenomen; T P after P M = tribunicia potestate"}
+  CN: {latin: "Gnaeus", english: "Gnaeus", kind: name}
+  TI: {latin: "Tiberius", english: "Tiberius", kind: name}
+  SER: {latin: "Servius", english: "Servius", kind: name}
+  AVR: {latin: "Aurelius", english: "Aurelius", kind: name}
+  AVREL: {latin: "Aurelius", english: "Aurelius", kind: name}
+  AVRELIVS: {latin: "Aurelius", english: "Aurelius", kind: name}
+  VAL: {latin: "Valerius", english: "Valerius", kind: name}
+  FL: {latin: "Flavius", english: "Flavius", kind: name}
+  FLAV: {latin: "Flavius", english: "Flavius", kind: name, note: "Flavia for women (FLAV MAX FAVSTA)"}
+  IVL: {latin: "Iulius", english: "Julius", kind: name}
+  IVLIVS: {latin: "Iulius", english: "Julius", kind: name}
+  SEPT: {latin: "Septimius", english: "Septimius", kind: name}
+  SEP: {latin: "Septimius", english: "Septimius", kind: name}
+  SEPTIMIVS: {latin: "Septimius", english: "Septimius", kind: name}
+  LIC: {latin: "Licinius", english: "Licinius", kind: name}
+  LICIN: {latin: "Licinius", english: "Licinius", kind: name}
+  CL: {latin: "Claudius", english: "Claudius", kind: name, note: "S P Q R CL V = clipeum votivum"}
+  CLA: {latin: "Claudius", english: "Claudius", kind: name}
+  CLAVD: {latin: "Claudius", english: "Claudius", kind: name}
+  CLAVDIVS: {latin: "Claudius", english: "Claudius", kind: name}
+  CLAVDIO: {latin: "Claudio", english: "Claudius", kind: name, lemma: "Claudius"}
+  AEL: {latin: "Aelius", english: "Aelius", kind: name, note: "Aelia for empresses"}
+  AELIVS: {latin: "Aelius", english: "Aelius", kind: name}
+  GAL: {latin: "Galerius", english: "Galerius", kind: name, note: "Gallus in Volusian's name (AF GAL VEND)"}
+  VIB: {latin: "Vibius", english: "Vibius", kind: name}
+  VIBIVS: {latin: "Vibius", english: "Vibius", kind: name}
+  COR: {latin: "Cornelius", english: "Cornelius", kind: name, note: "Cornelia for empresses (COR SALONINA)"}
+  CLOD: {latin: "Clodius", english: "Clodius", kind: name}
+  CLO: {latin: "Clodius", english: "Clodius", kind: name}
+  CLODI: {latin: "Clodii", english: "Clodius", kind: name, lemma: "Clodius"}
+  CAEL: {latin: "Caelius", english: "Caelius", kind: name}
+  DID: {latin: "Didius", english: "Didius", kind: name}
+  HELV: {latin: "Helvius", english: "Helvius", kind: name}
+  SVLP: {latin: "Sulpicius", english: "Sulpicius", kind: name}
+  SVLPI: {latin: "Sulpicius", english: "Sulpicius", kind: name}
+  OPEL: {latin: "Opellius", english: "Opellius", kind: name}
+  PESC: {latin: "Pescennius", english: "Pescennius", kind: name}
+  CASS: {latin: "Cassianius", english: "Cassianius", kind: name}
+  LAT: {latin: "Latinius", english: "Latinius", kind: name}
+  ESV: {latin: "Esuvius", english: "Esuvius", kind: name}
+  FVL: {latin: "Fulvius", english: "Fulvius", kind: name}
+  MES: {latin: "Messius", english: "Messius", kind: name}
+  MESS: {latin: "Messius", english: "Messius", kind: name}
+  HER: {latin: "Herennius", english: "Herennius", kind: name}
+  ETR: {latin: "Etruscus", english: "Etruscus", kind: name}
+  AF: {latin: "Afinius", english: "Afinius", kind: name}
+  VEND: {latin: "Veldumnianus", english: "Veldumnianus", kind: name}
+  TREB: {latin: "Trebonianus", english: "Trebonianus", kind: name}
+  HOSTIL: {latin: "Hostilianus", english: "Hostilian", kind: name}
+  OSTIL: {latin: "Hostilianus", english: "Hostilian", kind: name, note: "variant spelling on the coins"}
+  HOS: {latin: "Hostilianus", english: "Hostilian", kind: name}
+  QVINTVS: {latin: "Quintus", english: "Quintus", kind: name}
+  COVINTVS: {latin: "Quintus", english: "Quintus", kind: name, note: "variant spelling on the coins"}
+  AN: {latin: "Annius", english: "Annius", kind: name}
+  CORN: {latin: "Cornelia", english: "Cornelia", kind: name, gender: f}
+  PLA: {latin: "Placidius", english: "Placidius", kind: name}
+  LIBIVS: {latin: "Libius", english: "Libius", kind: name}
+  IVST: {latin: "Iustus", english: "Justus (the just)", kind: name, note: "Iusta in D N IVST GRAT HONORIA"}
+  IVS: {latin: "Iustus", english: "Justus (the just)", kind: name}
+  AFR: {latin: "Africanus", english: "Africanus", kind: name}
+  MAG: {latin: "Magnus", english: "Magnus (the Great)", kind: name, note: "Magnia in MAG VRBICA"}
+  NER: {latin: "Nerva", english: "Nerva", kind: name, note: "Nervae after DIVI and in Trajan's dative legends"}
+  PESCEN: {latin: "Pescennius", english: "Pescennius", kind: name}
+  PESCE: {latin: "Pescennius", english: "Pescennius", kind: name}
+  PERT: {latin: "Pertinax", english: "Pertinax", kind: name, note: "late 5th-century D N ... PERT AVG = perpetuus"}
+  PERTIN: {latin: "Pertinax", english: "Pertinax", kind: name}
+  SEV: {latin: "Severus", english: "Severus", kind: name}
+  SEVER: {latin: "Severus", english: "Severus", kind: name}
+  ANT: {latin: "Antoninus", english: "Antoninus", kind: name}
+  ANTON: {latin: "Antoninus", english: "Antoninus", kind: name}
+  COMM: {latin: "Commodus", english: "Commodus", kind: name}
+  COMMOD: {latin: "Commodus", english: "Commodus", kind: name}
+  DOMIT: {latin: "Domitianus", english: "Domitian", kind: name}
+  DOMITIAN: {latin: "Domitianus", english: "Domitian", kind: name}
+  DOM: {latin: "Domitianus", english: "Domitian", kind: name, note: "Domitius in Aurelian's name (L DOM AVRELIANVS)"}
+  VESP: {latin: "Vespasianus", english: "Vespasian", kind: name, note: "Vespasiani in DIVI VESP F"}
+  VESPAS: {latin: "Vespasianus", english: "Vespasian", kind: name}
+  VESPASIAN: {latin: "Vespasianus", english: "Vespasian", kind: name}
+  TRAIAN: {latin: "Traianus", english: "Trajan", kind: name, note: "also in the names of Hadrian and Trajan Decius"}
+  TRA: {latin: "Traianus", english: "Trajan", kind: name}
+  TRAI: {latin: "Traianus", english: "Trajan", kind: name}
+  HADR: {latin: "Hadrianus", english: "Hadrian", kind: name, note: "in Antoninus Pius' adoptive name"}
+  HADRI: {latin: "Hadrianus", english: "Hadrian", kind: name}
+  HADRIAN: {latin: "Hadrianus", english: "Hadrian", kind: name}
+  ALEXAND: {latin: "Alexander", english: "Alexander", kind: name}
+  ALB: {latin: "Albinus", english: "Albinus", kind: name}
+  ALBIN: {latin: "Albinus", english: "Albinus", kind: name}
+  IVLIAN: {latin: "Iulianus", english: "Julian", kind: name}
+  OTACIL: {latin: "Otacilia", english: "Otacilia", kind: name, gender: f}
+
+  # --- Emperors and family: full names (each form as found) -------------------------------------
+  TRAIANI: {latin: "Traiani", english: "Trajan", kind: name, lemma: "Traianus"}
+  POSTVMI: {latin: "Postumi", english: "Postumus", kind: name, lemma: "Postumus"}
+  CONSTANTIS: {latin: "Constantis", english: "Constans", kind: name, lemma: "Constans"}
+  DIADVMENIANVS: {latin: "Diadumenianus", english: "Diadumenian", kind: name}
+  LICINNIANVS: {latin: "Licinianus", english: "Licinianus", kind: name, note: "Licinius II; variant spelling on the coins"}
+  IOVINVS: {latin: "Iovinus", english: "Jovinus", kind: name}
+  IOHANNES: {latin: "Iohannes", english: "Johannes", kind: name}
+  BASILISCVS: {latin: "Basiliscus", english: "Basiliscus", kind: name}
+  ROMVLVS: {latin: "Romulus", english: "Romulus (Augustulus)", kind: name}
+  ATTALVS: {latin: "Attalus", english: "Attalus", kind: name}
+  AGRIPPINA: {latin: "Agrippina", english: "Agrippina", kind: name, gender: f}
+  DOMITIA: {latin: "Domitia", english: "Domitia", kind: name, gender: f}
+  PLOTINA: {latin: "Plotina", english: "Plotina", kind: name, gender: f}
+  MATIDIA: {latin: "Matidia", english: "Matidia", kind: name, gender: f}
+  LVCILLA: {latin: "Lucilla", english: "Lucilla", kind: name, gender: f}
+  PLAVTILLA: {latin: "Plautilla", english: "Plautilla", kind: name, gender: f}
+  AQVILIA: {latin: "Aquilia", english: "Aquilia", kind: name, gender: f}
+  SEVERINA: {latin: "Severina", english: "Severina", kind: name, gender: f}
+  GALLIENVS: {latin: "Gallienus", english: "Gallienus", kind: name}
+  GALLIENI: {latin: "Gallieni", english: "Gallienus", kind: name, lemma: "Gallienus"}
+  ANTONINVS: {latin: "Antoninus", english: "Antoninus", kind: name}
+  ANTONINI: {latin: "Antonini", english: "Antoninus", kind: name, lemma: "Antoninus"}
+  CONSTANTINVS: {latin: "Constantinus", english: "Constantine", kind: name}
+  CONSTANTINI: {latin: "Constantini", english: "Constantine", kind: name, lemma: "Constantinus"}
+  CONSTANTINO: {latin: "Constantino", english: "Constantine", kind: name, lemma: "Constantinus"}
+  CONSTANTIVS: {latin: "Constantius", english: "Constantius", kind: name}
+  CONSTANTI: {latin: "Constantii", english: "Constantius", kind: name, lemma: "Constantius"}
+  CONSTANTIO: {latin: "Constantio", english: "Constantius", kind: name, lemma: "Constantius"}
+  CONSTANS: {latin: "Constans", english: "Constans", kind: name}
+  HADRIANVS: {latin: "Hadrianus", english: "Hadrian", kind: name}
+  HADRIANO: {latin: "Hadriano", english: "Hadrian", kind: name, lemma: "Hadrianus"}
+  HADRIANI: {latin: "Hadriani", english: "Hadrian", kind: name, lemma: "Hadrianus"}
+  VALENTINIANVS: {latin: "Valentinianus", english: "Valentinian", kind: name}
+  MAXIMIANVS: {latin: "Maximianus", english: "Maximian", kind: name, note: "GAL VAL MAXIMIANVS is Galerius"}
+  MAXIMIANO: {latin: "Maximiano", english: "Maximian", kind: name, lemma: "Maximianus"}
+  MAXIMINVS: {latin: "Maximinus", english: "Maximinus", kind: name}
+  MAXIMVS: {latin: "Maximus", english: "Maximus", kind: name}
+  MAXENTIVS: {latin: "Maxentius", english: "Maxentius", kind: name}
+  TRAIANVS: {latin: "Traianus", english: "Trajan", kind: name}
+  TRAIANO: {latin: "Traiano", english: "Trajan", kind: name, lemma: "Traianus"}
+  NERVA: {latin: "Nerva", english: "Nerva", kind: name}
+  NERVAE: {latin: "Nervae", english: "Nerva", kind: name, lemma: "Nerva"}
+  NERO: {latin: "Nero", english: "Nero", kind: name}
+  TITI: {latin: "Titi", english: "of Titus", kind: name, lemma: "Titus"}
+  DRVSVS: {latin: "Drusus", english: "Drusus", kind: name}
+  CLAVDIA: {latin: "Claudia", english: "Claudia", kind: name, gender: f}
+  VESPASIANVS: {latin: "Vespasianus", english: "Vespasian", kind: name}
+  TITVS: {latin: "Titus", english: "Titus", kind: name}
+  DOMITIANVS: {latin: "Domitianus", english: "Domitian", kind: name}
+  GALBA: {latin: "Galba", english: "Galba", kind: name}
+  OTHO: {latin: "Otho", english: "Otho", kind: name}
+  VITELLIVS: {latin: "Vitellius", english: "Vitellius", kind: name}
+  COMMODVS: {latin: "Commodus", english: "Commodus", kind: name}
+  COMMODO: {latin: "Commodo", english: "Commodus", kind: name, lemma: "Commodus"}
+  VERVS: {latin: "Verus", english: "Verus", kind: name}
+  PERTINAX: {latin: "Pertinax", english: "Pertinax", kind: name}
+  NIGER: {latin: "Niger", english: "Niger", kind: name}
+  SEVERVS: {latin: "Severus", english: "Severus", kind: name}
+  SEVERA: {latin: "Severa", english: "Severa", kind: name, gender: f}
+  GETA: {latin: "Geta", english: "Geta", kind: name}
+  MACRINVS: {latin: "Macrinus", english: "Macrinus", kind: name}
+  ALEXANDER: {latin: "Alexander", english: "Alexander", kind: name}
+  GORDIANVS: {latin: "Gordianus", english: "Gordian", kind: name}
+  BALBINVS: {latin: "Balbinus", english: "Balbinus", kind: name}
+  PVPIENVS: {latin: "Pupienus", english: "Pupienus", kind: name}
+  PHILIPPVS: {latin: "Philippus", english: "Philip", kind: name}
+  DECIVS: {latin: "Decius", english: "Decius", kind: name}
+  DECIO: {latin: "Decio", english: "Decius", kind: name, lemma: "Decius"}
+  TREBONIANVS: {latin: "Trebonianus", english: "Trebonianus", kind: name}
+  GALLVS: {latin: "Gallus", english: "Gallus", kind: name}
+  VOLVSIANVS: {latin: "Volusianus", english: "Volusian", kind: name}
+  VOLVSIANO: {latin: "Volusiano", english: "Volusian", kind: name, lemma: "Volusianus"}
+  AEMILIANVS: {latin: "Aemilianus", english: "Aemilian", kind: name}
+  VALERIANVS: {latin: "Valerianus", english: "Valerian", kind: name}
+  VALERIANO: {latin: "Valeriano", english: "Valerian", kind: name, lemma: "Valerianus"}
+  POSTVMVS: {latin: "Postumus", english: "Postumus", kind: name}
+  VICTORINVS: {latin: "Victorinus", english: "Victorinus", kind: name}
+  TETRICVS: {latin: "Tetricus", english: "Tetricus", kind: name}
+  QVINTILLVS: {latin: "Quintillus", english: "Quintillus", kind: name}
+  AVRELIANVS: {latin: "Aurelianus", english: "Aurelian", kind: name}
+  TACITVS: {latin: "Tacitus", english: "Tacitus", kind: name}
+  FLORIANVS: {latin: "Florianus", english: "Florian", kind: name}
+  PROBVS: {latin: "Probus", english: "Probus", kind: name}
+  PROBI: {latin: "Probi", english: "Probus", kind: name, lemma: "Probus"}
+  CARO: {latin: "Caro", english: "Carus", kind: name, lemma: "Carus"}
+  CARVS: {latin: "Carus", english: "Carus", kind: name}
+  CARINVS: {latin: "Carinus", english: "Carinus", kind: name}
+  NVMERIANVS: {latin: "Numerianus", english: "Numerian", kind: name}
+  DIOCLETIANVS: {latin: "Diocletianus", english: "Diocletian", kind: name}
+  DIOCLETIANO: {latin: "Diocletiano", english: "Diocletian", kind: name, lemma: "Diocletianus"}
+  CARAVSIVS: {latin: "Carausius", english: "Carausius", kind: name}
+  CARAVSI: {latin: "Carausii", english: "Carausius", kind: name, lemma: "Carausius"}
+  ALLECTVS: {latin: "Allectus", english: "Allectus", kind: name}
+  LICINIVS: {latin: "Licinius", english: "Licinius", kind: name}
+  LICINNIVS: {latin: "Licinius", english: "Licinius", kind: name, note: "variant spelling on the coins"}
+  LICINI: {latin: "Licinii", english: "Licinius", kind: name, lemma: "Licinius"}
+  CRISPVS: {latin: "Crispus", english: "Crispus", kind: name}
+  CRISPO: {latin: "Crispo", english: "Crispus", kind: name, lemma: "Crispus"}
+  DELMATIVS: {latin: "Delmatius", english: "Dalmatius", kind: name}
+  MAGNENTIVS: {latin: "Magnentius", english: "Magnentius", kind: name}
+  DECENTIVS: {latin: "Decentius", english: "Decentius", kind: name}
+  VETRANIO: {latin: "Vetranio", english: "Vetranio", kind: name}
+  IVLIANVS: {latin: "Iulianus", english: "Julian", kind: name}
+  IOVIANVS: {latin: "Iovianus", english: "Jovian", kind: name}
+  VALENS: {latin: "Valens", english: "Valens", kind: name}
+  VALENSPER: {latin: "Valens Perpetuus", english: "Valens, everlasting", kind: name, note: "run-together VALENS PER"}
+  PROCOPIVS: {latin: "Procopius", english: "Procopius", kind: name}
+  GRATIANVS: {latin: "Gratianus", english: "Gratian", kind: name}
+  THEODOSIVS: {latin: "Theodosius", english: "Theodosius", kind: name}
+  ARCADIVS: {latin: "Arcadius", english: "Arcadius", kind: name}
+  HONORIVS: {latin: "Honorius", english: "Honorius", kind: name}
+  EVGENIVS: {latin: "Eugenius", english: "Eugenius", kind: name}
+  MARCIANVS: {latin: "Marcianus", english: "Marcian", kind: name}
+  LEO: {latin: "Leo", english: "Leo", kind: name}
+  ZENO: {latin: "Zeno", english: "Zeno", kind: name}
+  ANTHEMIVS: {latin: "Anthemius", english: "Anthemius", kind: name}
+  MAIORIANVS: {latin: "Maiorianus", english: "Majorian", kind: name}
+  NEPOS: {latin: "Nepos", english: "Nepos", kind: name}
+  IVLIA: {latin: "Iulia", english: "Julia", kind: name, gender: f}
+  FAVSTINA: {latin: "Faustina", english: "Faustina", kind: name, gender: f}
+  FAVSTINAE: {latin: "Faustinae", english: "Faustina", kind: name, lemma: "Faustina", gender: f}
+  LVCILLAE: {latin: "Lucillae", english: "Lucilla", kind: name, lemma: "Lucilla", gender: f}
+  CRISPINA: {latin: "Crispina", english: "Crispina", kind: name, gender: f}
+  SABINA: {latin: "Sabina", english: "Sabina", kind: name, gender: f}
+  DOMNA: {latin: "Domna", english: "Domna", kind: name, gender: f}
+  MAESA: {latin: "Maesa", english: "Maesa", kind: name, gender: f}
+  SOAEMIAS: {latin: "Soaemias", english: "Soaemias", kind: name}
+  MAMAEA: {latin: "Mamaea", english: "Mamaea", kind: name, gender: f}
+  PAVLA: {latin: "Paula", english: "Paula", kind: name, gender: f}
+  MARCIA: {latin: "Marcia", english: "Marcia", kind: name, gender: f}
+  ETRVSCILLA: {latin: "Etruscilla", english: "Etruscilla", kind: name, gender: f}
+  CORNELIA: {latin: "Cornelia", english: "Cornelia", kind: name, gender: f}
+  SALONINA: {latin: "Salonina", english: "Salonina", kind: name, gender: f}
+  HELENA: {latin: "Helena", english: "Helena", kind: name, gender: f}
+  FAVSTA: {latin: "Fausta", english: "Fausta", kind: name, gender: f}
+  VALERIA: {latin: "Valeria", english: "Valeria", kind: name, gender: f}
+  FLACCILLA: {latin: "Flaccilla", english: "Flaccilla", kind: name, gender: f}
+  EVDOXIA: {latin: "Eudoxia", english: "Eudoxia", kind: name, gender: f}
+  PVLCHERIA: {latin: "Pulcheria", english: "Pulcheria", kind: name, gender: f}
+  GALLA: {latin: "Galla", english: "Galla", kind: name, gender: f}
+  PLACIDIA: {latin: "Placidia", english: "Placidia", kind: name, gender: f}
+  MACRI: {latin: "Macri", english: "Macer", kind: name, lemma: "Macer"}
+  CARISIVS: {latin: "Carisius", english: "Carisius", kind: name}
+  MARIVS: {latin: "Marius", english: "Marius", kind: name}
+
+  # --- Deities -------------------------------------------------------------------------------------
+  IOVI: {latin: "Iovi", english: "to Jupiter", kind: deity, lemma: "Iuppiter"}
+  IOVIS: {latin: "Iovis", english: "of Jupiter", kind: deity, lemma: "Iuppiter"}
+  IVPPITER: {latin: "Iuppiter", english: "Jupiter", kind: deity}
+  SOLI: {latin: "Soli", english: "to Sol (the Sun god)", kind: deity, lemma: "Sol"}
+  ORIENS: {latin: "Oriens", english: "the rising Sun", kind: deity}
+  MARS: {latin: "Mars", english: "Mars", kind: deity}
+  MARTI: {latin: "Marti", english: "to Mars", kind: deity, lemma: "Mars"}
+  HERCVLI: {latin: "Herculi", english: "to Hercules", kind: deity, lemma: "Hercules"}
+  HERC: {latin: "Hercules", english: "Hercules", kind: deity}
+  VENVS: {latin: "Venus", english: "Venus", kind: deity}
+  VENERI: {latin: "Veneri", english: "to Venus", kind: deity, lemma: "Venus"}
+  NEPTVNO: {latin: "Neptuno", english: "to Neptune", kind: deity, lemma: "Neptunus"}
+  VENER: {latin: "Venus", english: "Venus", kind: deity}
+  MIN: {latin: "Minerva", english: "Minerva", kind: deity, note: "Minervia in legion names (LEG I MIN)"}
+  DEVM: {latin: "Deum", english: "of the gods", kind: deity, lemma: "Deus"}
+  IVNO: {latin: "Iuno", english: "Juno", kind: deity}
+  IVNONI: {latin: "Iunoni", english: "to Juno", kind: deity, lemma: "Iuno"}
+  MINERVA: {latin: "Minerva", english: "Minerva", kind: deity}
+  MINER: {latin: "Minerva", english: "Minerva", kind: deity}
+  APOLLO: {latin: "Apollo", english: "Apollo", kind: deity}
+  APOLLINI: {latin: "Apollini", english: "to Apollo", kind: deity, lemma: "Apollo"}
+  APOLINI: {latin: "Apollini", english: "to Apollo", kind: deity, lemma: "Apollo"}
+  DIANA: {latin: "Diana", english: "Diana", kind: deity}
+  DIANAE: {latin: "Dianae", english: "to Diana", kind: deity, lemma: "Diana"}
+  VESTA: {latin: "Vesta", english: "Vesta", kind: deity}
+  CERES: {latin: "Ceres", english: "Ceres", kind: deity}
+  LIBERO: {latin: "Libero", english: "to Liber (Bacchus)", kind: deity, lemma: "Liber"}
+  LVNA: {latin: "Luna", english: "Luna (the Moon)", kind: deity}
+  NILVS: {latin: "Nilus", english: "the Nile (river god)", kind: deity}
+  ROMVLO: {latin: "Romulo", english: "to Romulus", kind: deity, lemma: "Romulus"}
+  ROMA: {latin: "Roma", english: "Roma (goddess of Rome)", kind: deity, note: "the city itself in VRBS ROMA"}
+  GENIO: {latin: "Genio", english: "to the Genius (guardian spirit)", kind: deity, lemma: "Genius"}
+  GENIVS: {latin: "Genius", english: "Genius (guardian spirit)", kind: deity}
+  GENIV: {latin: "Genius", english: "Genius (guardian spirit)", kind: deity}
+  DEO: {latin: "Deo", english: "to the god", kind: deity, lemma: "Deus"}
+  DEORVM: {latin: "Deorum", english: "of the gods", kind: deity, lemma: "Deus"}
+  DEOR: {latin: "Deorum", english: "of the gods", kind: deity, lemma: "Deus"}
+
+  # --- Personifications and virtues ------------------------------------------------------------------
+  VICTORIA: {latin: "Victoria", english: "Victory", kind: personification}
+  VICTORIAE: {latin: "Victoriae", english: "of Victory", kind: personification, lemma: "Victoria"}
+  VICTORAE: {latin: "Victoriae", english: "of Victory", kind: personification, lemma: "Victoria", note: "misspelling on the coins"}
+  VICT: {latin: "Victoria", english: "Victory", kind: personification}
+  VIC: {latin: "Victoria", english: "Victory", kind: personification}
+  VIRTVS: {latin: "Virtus", english: "Courage", kind: virtue}
+  VIRTVTI: {latin: "Virtuti", english: "to Courage", kind: virtue, lemma: "Virtus"}
+  VIRT: {latin: "Virtus", english: "Courage", kind: virtue}
+  GLORIA: {latin: "Gloria", english: "Glory", kind: personification}
+  GLOR: {latin: "Gloria", english: "Glory", kind: personification}
+  PAX: {latin: "Pax", english: "Peace", kind: personification}
+  PACI: {latin: "Paci", english: "to Peace", kind: personification, lemma: "Pax"}
+  PACE: {latin: "Pace", english: "with peace (secured)", kind: personification, lemma: "Pax"}
+  PACIS: {latin: "Pacis", english: "of Peace", kind: personification, lemma: "Pax"}
+  CONCORDIA: {latin: "Concordia", english: "Harmony", kind: personification}
+  CONCORDIAE: {latin: "Concordiae", english: "to Harmony", kind: personification, lemma: "Concordia"}
+  CONCORD: {latin: "Concordia", english: "Harmony", kind: personification}
+  CONCOR: {latin: "Concordia", english: "Harmony", kind: personification}
+  PERPETVITAS: {latin: "Perpetuitas", english: "Permanence", kind: personification}
+  CONSENSVS: {latin: "Consensus", english: "Agreement", kind: personification}
+  LIBERTATIS: {latin: "Libertatis", english: "of Liberty", kind: personification, lemma: "Libertas"}
+  LAETITIAE: {latin: "Laetitiae", english: "to Joy", kind: personification, lemma: "Laetitia"}
+  AEQVITATI: {latin: "Aequitati", english: "to Fairness", kind: virtue, lemma: "Aequitas"}
+  BONAE: {latin: "Bonae", english: "good", kind: word, lemma: "Bonus"}
+  FORTVN: {latin: "Fortuna", english: "Fortune", kind: personification}
+  CONC: {latin: "Concordia", english: "Harmony", kind: personification}
+  FIDES: {latin: "Fides", english: "Loyalty", kind: virtue}
+  FIDEI: {latin: "Fidei", english: "of Loyalty", kind: virtue, lemma: "Fides"}
+  FID: {latin: "Fides", english: "Loyalty", kind: virtue}
+  SALVS: {latin: "Salus", english: "Health, Welfare", kind: personification}
+  SALVTI: {latin: "Saluti", english: "to Health, Welfare", kind: personification, lemma: "Salus"}
+  SAL: {latin: "Salus", english: "Health, Welfare", kind: personification, note: "Salute in PRO SAL"}
+  SALVIS: {latin: "Salvis", english: "with ... safe", kind: word, lemma: "Salvus"}
+  FELICITAS: {latin: "Felicitas", english: "Prosperity", kind: personification}
+  FELICITATI: {latin: "Felicitati", english: "to Prosperity", kind: personification, lemma: "Felicitas"}
+  FELICIT: {latin: "Felicitas", english: "Prosperity", kind: personification}
+  FELIC: {latin: "Felicitas", english: "Prosperity", kind: personification}
+  PIETAS: {latin: "Pietas", english: "Piety", kind: virtue}
+  PIETATI: {latin: "Pietati", english: "to Piety", kind: virtue, lemma: "Pietas"}
+  SECVRITAS: {latin: "Securitas", english: "Security", kind: personification}
+  SECVRIT: {latin: "Securitas", english: "Security", kind: personification}
+  SPES: {latin: "Spes", english: "Hope", kind: personification}
+  SPEI: {latin: "Spei", english: "to Hope", kind: personification, lemma: "Spes"}
+  LIBERALITAS: {latin: "Liberalitas", english: "Generosity (largesse)", kind: virtue}
+  LIBERAL: {latin: "Liberalitas", english: "Generosity (largesse)", kind: virtue}
+  LIB: {latin: "Liberalitas", english: "Generosity (largesse)", kind: virtue, note: "Libertas in LIB AVG of some reigns; check the type"}
+  LIBERTAS: {latin: "Libertas", english: "Liberty", kind: personification}
+  LIBERT: {latin: "Libertas", english: "Liberty", kind: personification}
+  PROVIDENTIA: {latin: "Providentia", english: "Foresight", kind: virtue}
+  PROVIDENTIAE: {latin: "Providentiae", english: "to Foresight", kind: virtue, lemma: "Providentia"}
+  PROVIDENT: {latin: "Providentia", english: "Foresight", kind: virtue}
+  PROVIDEN: {latin: "Providentia", english: "Foresight", kind: virtue}
+  PROVIDE: {latin: "Providentia", english: "Foresight", kind: virtue}
+  PROVID: {latin: "Providentia", english: "Foresight", kind: virtue}
+  PROVI: {latin: "Providentia", english: "Foresight", kind: virtue}
+  PROV: {latin: "Providentia", english: "Foresight", kind: virtue}
+  FORTVNA: {latin: "Fortuna", english: "Fortune", kind: personification}
+  FORTVNAE: {latin: "Fortunae", english: "to Fortune", kind: personification, lemma: "Fortuna"}
+  FORT: {latin: "Fortuna", english: "Fortune", kind: personification}
+  AEQVITAS: {latin: "Aequitas", english: "Fairness", kind: virtue}
+  AEQVIT: {latin: "Aequitas", english: "Fairness", kind: virtue}
+  AEQVTAS: {latin: "Aequitas", english: "Fairness", kind: virtue, note: "misspelling on the coins"}
+  MONETA: {latin: "Moneta", english: "Moneta (the mint)", kind: personification}
+  MONET: {latin: "Moneta", english: "Moneta (the mint)", kind: personification}
+  MON: {latin: "Moneta", english: "Moneta (the mint)", kind: personification}
+  LAETITIA: {latin: "Laetitia", english: "Joy", kind: personification}
+  LAETIT: {latin: "Laetitia", english: "Joy", kind: personification}
+  LAETITI: {latin: "Laetitia", english: "Joy", kind: personification}
+  LAET: {latin: "Laetitia", english: "Joy", kind: personification, note: "Laetae after VICTORIAE"}
+  LAETAE: {latin: "Laetae", english: "joyful", kind: epithet, lemma: "Laetus"}
+  AETERNITAS: {latin: "Aeternitas", english: "Eternity", kind: personification}
+  AETERNITATI: {latin: "Aeternitati", english: "to Eternity", kind: personification, lemma: "Aeternitas"}
+  AETERNIT: {latin: "Aeternitas", english: "Eternity", kind: personification}
+  AET: {latin: "Aeternitas", english: "Eternity", kind: personification, note: "Aeterna after ROMA / PAX"}
+  ANNONA: {latin: "Annona", english: "the grain supply", kind: personification}
+  ANN: {latin: "Annona", english: "the grain supply", kind: personification, note: "Anno (in the year) before a date"}
+  TRANQVILLITAS: {latin: "Tranquillitas", english: "Tranquillity", kind: personification}
+  TRANQLITAS: {latin: "Tranquillitas", english: "Tranquillity", kind: personification, note: "misspelling on the coins"}
+  HILARITAS: {latin: "Hilaritas", english: "Rejoicing", kind: personification}
+  CLEMENTIA: {latin: "Clementia", english: "Clemency", kind: virtue}
+  CLEM: {latin: "Clementia", english: "Clemency", kind: virtue}
+  IVSTITIA: {latin: "Iustitia", english: "Justice", kind: virtue}
+  PVDICITIA: {latin: "Pudicitia", english: "Modesty", kind: virtue}
+  INDVLGENTIA: {latin: "Indulgentia", english: "Indulgence (benevolence)", kind: virtue}
+  CLARITAS: {latin: "Claritas", english: "Brightness (renown)", kind: personification}
+  FECVNDITAS: {latin: "Fecunditas", english: "Fertility", kind: personification}
+  ABVNDANTIA: {latin: "Abundantia", english: "Abundance", kind: personification}
+  VBERITAS: {latin: "Uberitas", english: "Plenty", kind: personification}
+  VBERTAS: {latin: "Ubertas", english: "Plenty", kind: personification}
+  QVIES: {latin: "Quies", english: "Rest (retirement)", kind: personification}
+  REQVIES: {latin: "Requies", english: "Rest", kind: personification}
+  GAVDIVM: {latin: "Gaudium", english: "Joy", kind: personification}
+  HONOS: {latin: "Honos", english: "Honour", kind: personification}
+  TVTELA: {latin: "Tutela", english: "Protection", kind: personification}
+  NOBILITAS: {latin: "Nobilitas", english: "Nobility", kind: virtue}
+  MEMORIA: {latin: "Memoria", english: "Memory", kind: word}
+  MEMORIAE: {latin: "Memoriae", english: "to the memory", kind: word, lemma: "Memoria"}
+  CONSECRATIO: {latin: "Consecratio", english: "deification", kind: word}
+  ADVENTVS: {latin: "Adventus", english: "arrival", kind: word}
+  ADVENTVI: {latin: "Adventui", english: "to the arrival", kind: word, lemma: "Adventus"}
+  ADVENT: {latin: "Adventus", english: "arrival", kind: word}
+  PROFECTIO: {latin: "Profectio", english: "departure (on campaign)", kind: word}
+  ADLOCVTIO: {latin: "Adlocutio", english: "address (to the troops)", kind: word}
+  ADLOCVT: {latin: "Adlocutio", english: "address (to the troops)", kind: word}
+  DECVRSIO: {latin: "Decursio", english: "military parade", kind: word}
+  CONG: {latin: "Congiarium", english: "gift of largesse", kind: word}
+  REPARATIO: {latin: "Reparatio", english: "restoration", kind: word}
+
+  # --- Run-together legends --------------------------------------------------------------------------
+  SECVRITASREIPVBLICAE: {latin: "Securitas Rei Publicae", english: "the security of the State", kind: formula}
+  RESTITVTORREIPVBLICAE: {latin: "Restitutor Rei Publicae", english: "restorer of the State", kind: formula}
+  REPARATIOREIPVB: {latin: "Reparatio Rei Publicae", english: "restoration of the State", kind: formula}
+  GLORIAROMANORVM: {latin: "Gloria Romanorum", english: "the glory of the Romans", kind: formula}
+  VIRTVSEXERCITVS: {latin: "Virtus Exercitus", english: "the courage of the army", kind: formula}
+  VICTORIAAVGVSTORVM: {latin: "Victoria Augustorum", english: "the victory of the emperors", kind: formula}
+  VRBSROMA: {latin: "Urbs Roma", english: "the City of Rome", kind: formula}
+
+  # --- State, army, people ------------------------------------------------------------------------
+  REI: {latin: "Rei", english: "of the (State)", kind: word, lemma: "Res"}
+  REIPVBLICAE: {latin: "Rei Publicae", english: "of the State", kind: word, lemma: "Res Publica"}
+  REIPVBLICE: {latin: "Rei Publicae", english: "of the State", kind: word, lemma: "Res Publica"}
+  REIP: {latin: "Rei Publicae", english: "of the State", kind: word, lemma: "Res Publica"}
+  PVBLICAE: {latin: "Publicae", english: "public", kind: word, lemma: "Publicus"}
+  PVBLICE: {latin: "Publicae", english: "public", kind: word, lemma: "Publicus"}
+  PVBLICA: {latin: "Publica", english: "public", kind: word, lemma: "Publicus"}
+  PVBLIC: {latin: "Publica", english: "public", kind: word, lemma: "Publicus"}
+  PVBL: {latin: "Publica", english: "public", kind: word, lemma: "Publicus"}
+  PVB: {latin: "Publica", english: "public", kind: word, lemma: "Publicus"}
+  ROMANI: {latin: "Romani", english: "Roman", kind: word, lemma: "Romanus"}
+  ROMANO: {latin: "Romano", english: "Roman", kind: word, lemma: "Romanus"}
+  ROMANVS: {latin: "Romanus", english: "Roman", kind: word}
+  ROMANORVM: {latin: "Romanorum", english: "of the Romans", kind: word, lemma: "Romanus"}
+  ROMANOR: {latin: "Romanorum", english: "of the Romans", kind: word, lemma: "Romanus"}
+  EXERCITVS: {latin: "Exercitus", english: "of the army", kind: word}
+  EXERCITI: {latin: "Exercitus", english: "of the army", kind: word, note: "late spelling of exercitus"}
+  EXERCIT: {latin: "Exercitus", english: "of the army", kind: word}
+  EXERC: {latin: "Exercitus", english: "of the army", kind: word}
+  EXERCITVVM: {latin: "Exercituum", english: "of the armies", kind: word, lemma: "Exercitus"}
+  EXERCITVM: {latin: "Exercitus", english: "of the army", kind: word, note: "misspelling of exercitus / exercituum"}
+  PROVINCIARVM: {latin: "Provinciarum", english: "of the provinces", kind: word, lemma: "Provincia"}
+  MILITVM: {latin: "Militum", english: "of the soldiers", kind: word, lemma: "Miles"}
+  MILIT: {latin: "Militum", english: "of the soldiers", kind: word, lemma: "Miles", note: "Militaribus in SIGN MILIT"}
+  MILI: {latin: "Militum", english: "of the soldiers", kind: word, lemma: "Miles"}
+  MIL: {latin: "Militum", english: "of the soldiers", kind: word, lemma: "Miles"}
+  PRAET: {latin: "Praetoriae", english: "praetorian", kind: word, lemma: "Praetorius"}
+  COH: {latin: "Cohortium", english: "of the cohorts", kind: word, lemma: "Cohors"}
+  CIVIS: {latin: "Cives", english: "citizens", kind: word, lemma: "Civis"}
+  CIVES: {latin: "Cives", english: "citizens", kind: word, lemma: "Civis"}
+  CIV: {latin: "Cives", english: "citizens", kind: word, lemma: "Civis"}
+  SERVATOS: {latin: "Servatos", english: "saved", kind: word, lemma: "Servo"}
+  GENTIVM: {latin: "Gentium", english: "of the peoples", kind: word, lemma: "Gens"}
+  OMNIVM: {latin: "Omnium", english: "of all", kind: word, lemma: "Omnis"}
+  BARBARARVM: {latin: "Barbararum", english: "barbarian", kind: word, lemma: "Barbarus"}
+  HVMANI: {latin: "Humani", english: "human", kind: word, lemma: "Humanus"}
+  ILLVRICIANI: {latin: "Illyriciani", english: "Illyrian", kind: word, lemma: "Illyricianus"}
+  NOSTER: {latin: "Noster", english: "our", kind: word}
+  NOSTRI: {latin: "Nostri", english: "our", kind: word, lemma: "Noster"}
+  NOSTRORVM: {latin: "Nostrorum", english: "our", kind: word, lemma: "Noster"}
+  NOSTROR: {latin: "Nostrorum", english: "our", kind: word, lemma: "Noster"}
+  NN: {latin: "Nostrorum", english: "our", kind: word, lemma: "Noster", note: "doubled for two rulers; Nostri when nominative (DD NN)"}
+  SVAE: {latin: "Suae", english: "his own", kind: word, lemma: "Suus"}
+
+  # --- Places ---------------------------------------------------------------------------------------
+  ROMAE: {latin: "Romae", english: "of Rome", kind: place, lemma: "Roma"}
+  ROM: {latin: "Roma", english: "Rome", kind: place, note: "Romae / Romano by context"}
+  VRBS: {latin: "Urbs", english: "the City", kind: place}
+  VRBIS: {latin: "Urbis", english: "of the City", kind: place, lemma: "Urbs"}
+  VRB: {latin: "Urbis", english: "of the City", kind: place, lemma: "Urbs"}
+  ORBIS: {latin: "Orbis", english: "of the world", kind: place, lemma: "Orbis"}
+  ORB: {latin: "Orbis", english: "of the world", kind: place, lemma: "Orbis"}
+  TERRA: {latin: "Terra", english: "land", kind: word}
+  MARIQ: {latin: "Marique", english: "and sea", kind: word, lemma: "Mare"}
+  ORIENTIS: {latin: "Orientis", english: "of the East", kind: place, lemma: "Oriens"}
+  CONSTANTINOPOLIS: {latin: "Constantinopolis", english: "Constantinople", kind: place}
+  CONSTANTINOPOLI: {latin: "Constantinopoli", english: "Constantinople", kind: place, lemma: "Constantinopolis"}
+  AFRICA: {latin: "Africa", english: "Africa", kind: place}
+  AFRICAE: {latin: "Africae", english: "of Africa", kind: place, lemma: "Africa"}
+  HISPANIA: {latin: "Hispania", english: "Spain", kind: place}
+  HISPANIAE: {latin: "Hispaniae", english: "of Spain", kind: place, lemma: "Hispania"}
+  ITALIA: {latin: "Italia", english: "Italy", kind: place}
+  ITALIAE: {latin: "Italiae", english: "of Italy", kind: place, lemma: "Italia"}
+  GALLIAE: {latin: "Galliae", english: "the Gallic provinces", kind: place, lemma: "Gallia"}
+  GALLIAR: {latin: "Galliarum", english: "of the Gallic provinces", kind: place, lemma: "Gallia"}
+  GERMANIA: {latin: "Germania", english: "Germany", kind: place}
+  DACIA: {latin: "Dacia", english: "Dacia", kind: place}
+  IVDAEA: {latin: "Iudaea", english: "Judaea", kind: place}
+  AEGYPTOS: {latin: "Aegyptos", english: "Egypt", kind: place}
+  MAVRETANIA: {latin: "Mauretania", english: "Mauretania", kind: place}
+  PANNONIAE: {latin: "Pannoniae", english: "the Pannonian provinces", kind: place, lemma: "Pannonia"}
+  ALEXANDRIA: {latin: "Alexandria", english: "Alexandria", kind: place}
+  SICILIA: {latin: "Sicilia", english: "Sicily", kind: place}
+  BITHYNIAE: {latin: "Bithyniae", english: "of Bithynia", kind: place, lemma: "Bithynia"}
+  ILLVRICI: {latin: "Illyrici", english: "of Illyricum", kind: place, lemma: "Illyricum"}
+  ARMEN: {latin: "Armenia", english: "Armenia", kind: place}
+  KART: {latin: "Karthago", english: "Carthage", kind: place}
+  CARTH: {latin: "Carthago", english: "Carthage", kind: place}
+
+  # --- Vows, games, events ------------------------------------------------------------------------
+  VOTA: {latin: "Vota", english: "vows", kind: word}
+  VOT: {latin: "Vota", english: "vows", kind: word}
+  VOTIS: {latin: "Votis", english: "with vows", kind: word, lemma: "Votum"}
+  MVLTIS: {latin: "Multis", english: "for many (more)", kind: word, lemma: "Multus"}
+  MVLT: {latin: "Multis", english: "for many (more)", kind: word, lemma: "Multus"}
+  SVSCEPTA: {latin: "Suscepta", english: "undertaken", kind: word, lemma: "Suscipio"}
+  SVSC: {latin: "Suscepta", english: "undertaken", kind: word, lemma: "Suscipio"}
+  DECENNALIBVS: {latin: "Decennalibus", english: "for the tenth anniversary", kind: word, lemma: "Decennalia"}
+  DECENN: {latin: "Decennalia", english: "tenth anniversary", kind: word}
+  DECEN: {latin: "Decennalia", english: "tenth anniversary", kind: word}
+  DEC: {latin: "Decennalia", english: "tenth anniversary", kind: word, note: "in vota legends; rarely Decius"}
+  PRIMI: {latin: "Primi", english: "first", kind: word, lemma: "Primus"}
+  DECENNALES: {latin: "Decennales", english: "of the tenth anniversary", kind: word, lemma: "Decennalis"}
+  SVSCEP: {latin: "Suscepta", english: "undertaken", kind: word, lemma: "Suscipio"}
+  SAECVLO: {latin: "Saeculo", english: "to the age", kind: word, lemma: "Saeculum"}
+  EXPED: {latin: "Expeditio", english: "expedition", kind: word}
+  SVBACTA: {latin: "Subacta", english: "subdued", kind: word, lemma: "Subigo"}
+  VBIQ: {latin: "Ubique", english: "everywhere", kind: word}
+  REIPVB: {latin: "Rei Publicae", english: "of the State", kind: word, lemma: "Res Publica"}
+  SACRA: {latin: "Sacra", english: "sacred", kind: word, lemma: "Sacer"}
+  SAC: {latin: "Sacra", english: "sacred", kind: word, lemma: "Sacer"}
+  SACR: {latin: "Sacrum", english: "sacred (offering)", kind: word, lemma: "Sacer"}
+  SAECVLI: {latin: "Saeculi", english: "of the age", kind: word, lemma: "Saeculum"}
+  SAECVLVM: {latin: "Saeculum", english: "age", kind: word}
+  SAEC: {latin: "Saeculi", english: "of the age", kind: word, lemma: "Saeculum", note: "Saeculares in LVD SAEC"}
+  SAECVLARES: {latin: "Saeculares", english: "secular (centennial games)", kind: word}
+  NOVVM: {latin: "Novum", english: "new", kind: word, lemma: "Novus"}
+  TEMPORVM: {latin: "Temporum", english: "of the times", kind: word, lemma: "Tempus"}
+  TEMPOR: {latin: "Temporum", english: "of the times", kind: word, lemma: "Tempus"}
+  TEMP: {latin: "Temporum", english: "of the times", kind: word, lemma: "Tempus"}
+  EVENTVS: {latin: "Eventus", english: "Outcome", kind: personification}
+  BONO: {latin: "Bono", english: "good", kind: word, lemma: "Bonus"}
+  GEM: {latin: "Gemina", english: "Gemina (twin legion)", kind: word}
+  BONI: {latin: "Boni", english: "good", kind: word, lemma: "Bonus"}
+  QVINQ: {latin: "Quinquennale", english: "five-yearly", kind: word, lemma: "Quinquennalis"}
+  NAVALIS: {latin: "Navalis", english: "naval", kind: word}
+  CAPTA: {latin: "Capta", english: "captured", kind: word, lemma: "Capio"}
+  DEVICTA: {latin: "Devicta", english: "conquered", kind: word, lemma: "Devinco"}
+  PARTA: {latin: "Parta", english: "won", kind: word, lemma: "Pario"}
+  IANVM: {latin: "Ianum", english: "Janus (his temple)", kind: word, lemma: "Ianus"}
+  CLVSIT: {latin: "Clusit", english: "closed", kind: word, lemma: "Cludo"}
+  SIGNIS: {latin: "Signis", english: "standards", kind: word, lemma: "Signum"}
+  RECEPTIS: {latin: "Receptis", english: "recovered", kind: word, lemma: "Recipio"}
+  RESTITVTA: {latin: "Restituta", english: "restored", kind: word, lemma: "Restituo"}
+  RESTITVIT: {latin: "Restituit", english: "restored (this coin)", kind: word, lemma: "Restituo"}
+  REST: {latin: "Restituit", english: "restored (this coin)", kind: word, lemma: "Restituo", note: "on restoration issues; Restitutori in REST ITAL"}
+  LVD: {latin: "Ludos", english: "games", kind: word, lemma: "Ludus"}
+  FEC: {latin: "Fecit", english: "held, made", kind: word, lemma: "Facio"}
+  DAT: {latin: "Datum", english: "given", kind: word, lemma: "Do"}
+  FVNDATA: {latin: "Fundata", english: "founded", kind: word, lemma: "Fundo"}
+  VBIQVE: {latin: "Ubique", english: "everywhere", kind: word}
+
+  # --- Small words -------------------------------------------------------------------------------
+  ET: {latin: "et", english: "and", kind: word}
+  OB: {latin: "ob", english: "for, on account of", kind: word}
+  EX: {latin: "ex", english: "by, from", kind: word}
+  DE: {latin: "de", english: "over, from", kind: word}
+  IN: {latin: "in", english: "in, into", kind: word}
+  PRO: {latin: "pro", english: "for, on behalf of", kind: word}
+
+  # --- Added after review: frequent unknowns before AVG ----------------------------------------
+  AGRIPP: {latin: "Agrippina", english: "Agrippina", kind: name, gender: f}
+  SVPERA: {latin: "Supera", english: "Supera", kind: name, gender: f}
+  VRBICA: {latin: "Urbica", english: "Urbica", kind: name, gender: f}
+  AVFEMIAE: {latin: "Euphemiae", english: "Euphemia", kind: name, lemma: "Euphemia", gender: f}
+  IVLIAE: {latin: "Iuliae", english: "Julia", kind: name, lemma: "Iulia", gender: f}
+  DOMITIAE: {latin: "Domitiae", english: "Domitia", kind: name, lemma: "Domitia", gender: f}
+  GALBAE: {latin: "Galbae", english: "Galba", kind: name, lemma: "Galba"}
+  PROBO: {latin: "Probo", english: "Probus", kind: name, lemma: "Probus"}
+  KARVS: {latin: "Carus", english: "Carus", kind: name}
+  COMMODI: {latin: "Commodi", english: "Commodus", kind: name, lemma: "Commodus"}
+  HONORI: {latin: "Honorius", english: "Honorius", kind: name, note: "abbreviated Honorius"}
+  SEMPER: {latin: "semper", english: "ever", kind: word}
+  MVNIFICENTIA: {latin: "Munificentia", english: "Munificence", kind: virtue}
+  RELIG: {latin: "Religio", english: "Religion, Piety", kind: virtue}
+  NOBILIT: {latin: "Nobilitas", english: "Nobility", kind: virtue}
+  FECVND: {latin: "Fecunditas", english: "Fertility", kind: personification}
+  ABVNDANT: {latin: "Abundantia", english: "Abundance", kind: personification}
+  DISCIPLINA: {latin: "Disciplina", english: "Discipline", kind: virtue}
+  DISCIPLIN: {latin: "Disciplina", english: "Discipline", kind: virtue}
+  PIET: {latin: "Pietas", english: "Piety", kind: virtue}
+  HILAR: {latin: "Hilaritas", english: "Rejoicing", kind: personification}
+  HILARIT: {latin: "Hilaritas", english: "Rejoicing", kind: personification}
+  VIRTVT: {latin: "Virtus", english: "Courage", kind: virtue}
+  INVIC: {latin: "Invictus", english: "unconquered", kind: epithet}
+  SACERDOS: {latin: "Sacerdos", english: "priest", kind: title}
+  FE: {latin: "Felix", english: "fortunate", kind: epithet}
+  PLOTINAE: {latin: "Plotinae", english: "Plotina", kind: name, lemma: "Plotina", gender: f}
+  VERINA: {latin: "Verina", english: "Verina", kind: name, gender: f}
+  EVDOCIA: {latin: "Eudocia", english: "Eudocia", kind: name, gender: f}
+  ARIADNE: {latin: "Ariadne", english: "Ariadne", kind: name, gender: f}
+  ARIAVNE: {latin: "Ariadne", english: "Ariadne", kind: name, gender: f, note: "OCRE spelling"}
+  ARIANE: {latin: "Ariadne", english: "Ariadne", kind: name, gender: f, note: "OCRE spelling"}

@@ -8,8 +8,11 @@ with inconsistent spacing, so search compares a space-free 'compact' form.
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
+
+from pipeline.legend_expand import Dictionary, as_rows, coverage, expand
 
 LETTER_MAP = {
     "Ꜹ": "AV", "∈": "E", "Ϥ": "V", "Ʈ": "T", "Λ": "L",
@@ -36,17 +39,44 @@ def compact(legend: str) -> str:
     return normalise(legend).replace(" ", "")
 
 
-def build_index(db: sqlite3.Connection) -> int:
+def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None) -> int:
     rows = []
     for type_id, obv, rev in db.execute("SELECT id, obv_legend, rev_legend FROM coin_type"):
         for side, legend in (("obverse", obv), ("reverse", rev)):
             if legend and (norm := normalise(legend)):
-                rows.append((type_id, side, legend, norm, norm.replace(" ", "")))
-    db.executemany("""INSERT INTO legend (type_id, side, legend, normalised, compact)
-                      VALUES (?, ?, ?, ?, ?)""", rows)
+                latin = english = segments = cov = None
+                if dictionary:
+                    segs = expand(norm, dictionary)
+                    segments = json.dumps(as_rows(segs), ensure_ascii=False)
+                    latin = " ".join(s.latin or s.text for s in segs)
+                    english = " · ".join(s.english or f"[{s.text}]" for s in segs)
+                    cov = round(coverage(segs), 3)
+                rows.append((type_id, side, legend, norm, norm.replace(" ", ""),
+                             segments, latin, english, cov))
+    db.executemany("""INSERT INTO legend (type_id, side, legend, normalised, compact,
+                                          segments, expanded_latin, english, gloss_coverage)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", rows)
     db.execute("INSERT INTO legend_fts (rowid, compact) SELECT id, compact FROM legend")
+    db.execute("""INSERT INTO legend_meaning_fts (rowid, expanded_latin, english)
+                  SELECT id, expanded_latin, english FROM legend WHERE english IS NOT NULL""")
     db.commit()
     return len(rows)
+
+
+def search_meaning(db: sqlite3.Connection, text: str, include_retired: bool = False,
+                   limit: int = 200) -> list[tuple[str, str, str, str]]:
+    """Search expanded Latin and English glosses: 'father of his country', 'Germanicus'.
+    Returns (type_id, side, legend, english)."""
+    words = re.findall(r"\w+", text)
+    if not words:
+        return []
+    match = " ".join(f'"{w}"' for w in words)
+    retired = "" if include_retired else "AND t.replaced_by_id IS NULL"
+    return db.execute(f"""
+        SELECT l.type_id, l.side, l.legend, l.english FROM legend_meaning_fts f
+        JOIN legend l ON l.id = f.rowid JOIN coin_type t ON t.id = l.type_id
+        WHERE legend_meaning_fts MATCH ? {retired}
+        ORDER BY l.type_id, l.side LIMIT ?""", (match, limit)).fetchall()
 
 
 def _pattern(query: str) -> tuple[str, list[str]]:

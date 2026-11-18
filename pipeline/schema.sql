@@ -171,12 +171,20 @@ CREATE TABLE legend (
   side       TEXT NOT NULL,                -- 'obverse', 'reverse'
   legend     TEXT NOT NULL,                -- as written by the source
   normalised TEXT NOT NULL,                -- 'D N HONORIVS P F AVG'
-  compact    TEXT NOT NULL                 -- 'DNHONORIVSPFAVG'
+  compact    TEXT NOT NULL,                -- 'DNHONORIVSPFAVG'
+  segments   TEXT,                         -- JSON: [{text, latin, english, kind, number?}, ...]
+  expanded_latin TEXT,                     -- 'Dominus Noster Honorius Pius Felix Augustus'
+  english    TEXT,                         -- 'Our Lord · Honorius · dutiful and fortunate · Augustus'
+  gloss_coverage REAL                      -- share of words the dictionary explained (0-1)
 );
 CREATE INDEX idx_legend_type ON legend(type_id);
 
 -- Trigram index: fast spacing-insensitive fragment search with LIKE.
 CREATE VIRTUAL TABLE legend_fts USING fts5(compact, content='legend', content_rowid='id', tokenize='trigram');
+
+-- Word index over the expansion and glosses: search legends by meaning.
+CREATE VIRTUAL TABLE legend_meaning_fts USING fts5(expanded_latin, english, content='legend',
+                                                   content_rowid='id', tokenize='unicode61 remove_diacritics 2');
 
 -- Evidence.
 CREATE TABLE institution (

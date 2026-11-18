@@ -110,6 +110,12 @@ def run(db: sqlite3.Connection) -> Result:
                      for t in ("person", "mint", "denomination", "subject", "organization")},
         "active_types_with_searchable_legend_pct": _pct(_one(db, f"""SELECT COUNT(DISTINCT type_id) FROM legend
                                          JOIN coin_type ON coin_type.id = type_id AND {ACTIVE}"""), active),
+        "legend_words_glossed_pct": round(100 * (db.execute(
+            """SELECT SUM(gloss_coverage * (LENGTH(normalised) - LENGTH(REPLACE(normalised, ' ', '')) + 1))
+                      / SUM(LENGTH(normalised) - LENGTH(REPLACE(normalised, ' ', '')) + 1)
+               FROM legend WHERE gloss_coverage IS NOT NULL""").fetchone()[0] or 0), 1),
+        "legends_fully_glossed_pct": _pct(_one(db, "SELECT COUNT(*) FROM legend WHERE gloss_coverage = 1"),
+                                          _one(db, "SELECT COUNT(*) FROM legend")),
         "mints": _one(db, "SELECT COUNT(*) FROM mint"),
         "mints_with_pleiades_pct": _pct(_one(db, """SELECT COUNT(DISTINCT entity_id) FROM external_id
                                        WHERE entity_type='mint' AND system='pleiades'"""),
