@@ -10,7 +10,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "generate-types": "wrangler types"
+    "generate-types": "wrangler types",
+    "db:local": "wrangler d1 execute solidi --local --yes --file=../build/trajan/solidi.sql",
+    "db:local:full": "wrangler d1 execute solidi --local --yes --file=../build/solidi.sql"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.8",

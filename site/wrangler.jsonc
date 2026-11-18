@@ -8,6 +8,15 @@
 		"directory": "./dist",
 		"binding": "ASSETS"
 	},
+	// The built dataset (pipeline: `uv run solidi export-d1`). database_id is a placeholder until
+	// the remote database is created with `wrangler d1 create solidi`; local dev doesn't need it.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "solidi",
+			"database_id": "00000000-0000-0000-0000-000000000000"
+		}
+	],
 	"observability": {
 		"enabled": true
 	}

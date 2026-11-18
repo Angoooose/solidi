@@ -71,9 +71,16 @@ def main() -> None:
     b.add_argument("--authority", help="only types issued by this Nomisma person ID, e.g. trajan")
     b.add_argument("--refresh", action="store_true", help="re-download sources instead of using the cache")
     b.add_argument("--build-dir", type=Path, default=ROOT / "build")
+    e = sub.add_parser("export-d1", help="write the built database as SQL for Cloudflare D1")
+    e.add_argument("--build-dir", type=Path, default=ROOT / "build")
     args = parser.parse_args()
     if args.command == "build":
         sys.exit(build(args.authority, args.refresh, args.build_dir))
+    if args.command == "export-d1":
+        from pipeline import export_d1
+        src, out = args.build_dir / "solidi.sqlite", args.build_dir / "solidi.sql"
+        counts = export_d1.export(src, out)
+        print(f"{sum(counts.values()):,} rows in {len(counts)} tables -> {out} ({out.stat().st_size / 1e6:.1f} MB)")
 
 
 if __name__ == "__main__":
