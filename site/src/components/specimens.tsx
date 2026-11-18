@@ -261,6 +261,12 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
         {current && (
           <DialogContent
             showCloseButton={false}
+            // Focus the viewer itself, not the first button, so opening it shows no focus ring;
+            // ← and → work from here, and Tab still reaches every control.
+            onOpenAutoFocus={(e) => {
+              e.preventDefault()
+              ;(e.currentTarget as HTMLElement).focus()
+            }}
             className="max-w-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[860px]"
             onKeyDown={(e) => {
               if (e.key === "ArrowRight") step(1)

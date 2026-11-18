@@ -150,6 +150,10 @@
     outline: 1px solid var(--color-ink);
     outline-offset: 2px;
   }
+  /* Containers focused by script (dialogs, sheets, menus) aren't controls: no focus outline. */
+  [tabindex="-1"]:focus-visible {
+    outline: none;
+  }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
