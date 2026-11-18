@@ -1,0 +1,45 @@
+# Sources the pipeline ingests. Adding a Numishare corpus (CRRO, PELLA, SCO...)
+# is a new entry under `corpora`, not new code.
+
+nomisma:
+  endpoint: https://nomisma.org/query        # GET only; POST returns 401
+  dump: https://nomisma.org/nomisma.org.ttl  # concepts: people, mints, denominations...
+  licence: CC BY 4.0
+
+corpora:
+  ocre:
+    name: Online Coins of the Roman Empire
+    dataset: http://numismatics.org/ocre/
+    id_path: /ocre/id/                       # used to match type URIs and their variants
+    licence: ODbL
+    # Build only part of the corpus while iterating, e.g. `solidi build --authority trajan`.
+
+# Licence classification for the commercial switch. Matched as substrings of the
+# dataset's licence URL; first match wins. Anything unmatched is treated as not
+# commercial-safe until reviewed.
+licence_rules:
+  - match: publicdomain
+    commercial_ok: true
+  - match: "-nc"
+    commercial_ok: false
+  - match: /by-sa/
+    commercial_ok: true
+  - match: /by/
+    commercial_ok: true
+  - match: odbl
+    commercial_ok: true
+  - match: fdl
+    commercial_ok: true
+
+# Where an institution's image terms differ from its dataset licence.
+# Keys are Nomisma dataset URIs.
+image_overrides:
+  http://numismatics.org/search/:
+    image_licence: Public domain for objects made before 1925 (ANS statement; written confirmation pending)
+    commercial_ok: true
+  http://bnf.fr/:
+    image_licence: Disputed; BnF charges for commercial reuse
+    commercial_ok: false
+  https://ikmk.smb.museum/:
+    image_licence: CC BY-SA 4.0 on data; imprint reserves commercial image reproduction
+    commercial_ok: false

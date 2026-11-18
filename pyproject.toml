@@ -1,0 +1,30 @@
+[project]
+name = "solidi"
+version = "0.1.0"
+description = "Solidi: an encyclopedia of ancient coinage"
+readme = "README.md"
+authors = [
+    { name = "Angus Durfee", email = "contact@angoose.dev" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "pyoxigraph>=0.5.13",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+solidi = "pipeline.build:main"
+
+[build-system]
+requires = ["uv_build>=0.13.9,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.uv.build-backend]
+module-name = "pipeline"
+module-root = ""
