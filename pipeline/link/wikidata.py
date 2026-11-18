@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pipeline.sources.wikidata import fetch
 
-ENTITY_TABLES = ("person", "organization", "mint", "denomination", "subject")
+ENTITY_TABLES = ("person", "organization", "mint", "region", "denomination", "subject")
 RELATIONS = {"father": "father", "mother": "mother", "spouse": "spouse", "child": "child"}
 
 

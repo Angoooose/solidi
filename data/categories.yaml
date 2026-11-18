@@ -1,0 +1,21 @@
+# Collector categories: how collectors and dealers group ancient coins, independent of which
+# catalogue a type comes from (Imperatorial coins sit inside RRC; posthumous Alexanders inside
+# PELLA). Types are placed by `rules`, in order: the first rule that matches gives the type's
+# primary category. A rule matches on any of:
+#   dataset:      dataset slug from sources.yaml ('ocre')
+#   work:         reference work ('ric', 'rrc', 'price1991')
+#   authorities:  any of these Nomisma person or organisation IDs as authority
+#   from_year / to_year: the type's dates fall inside this range (negative = BC)
+# Every condition given must hold.
+
+categories:
+  - id: roman
+    name: Roman
+    children:
+      - id: roman-imperial
+        name: Roman Imperial
+        description: Coinage of the emperors, from Augustus (27 BC) to the end of the western empire.
+
+rules:
+  - category: roman-imperial
+    dataset: ocre

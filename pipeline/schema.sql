@@ -5,6 +5,7 @@ PRAGMA foreign_keys = ON;
 -- Where rows came from, and the licence switch.
 CREATE TABLE dataset (
   id            TEXT PRIMARY KEY,          -- Nomisma dataset URI
+  slug          TEXT UNIQUE,               -- 'ocre': prefix of the dataset's type IDs; NULL for specimen-only datasets
   name          TEXT,
   data_licence  TEXT,
   image_licence TEXT,                      -- stricter image terms where known
@@ -16,10 +17,13 @@ CREATE TABLE build_info (
   value TEXT
 );
 
--- Reference data. IDs are Nomisma's own slugs ('trajan', 'rome').
+-- Reference data. Nomisma concepts keep Nomisma's own slug as ID ('trajan', 'rome'): Nomisma is
+-- the shared registry. Entities from elsewhere get a source prefix ('cn/monogram.840').
+-- `source` names the registry the URI belongs to ('nomisma', 'cn', ...).
 CREATE TABLE person (
   id          TEXT PRIMARY KEY,
-  nomisma_uri TEXT NOT NULL UNIQUE,
+  uri         TEXT NOT NULL UNIQUE,
+  source      TEXT NOT NULL,
   name        TEXT NOT NULL,
   definition  TEXT,
   start_year  INTEGER,                     -- earliest office held (negative = BC)
@@ -31,44 +35,92 @@ CREATE TABLE person (
 -- Groups that issue coins: peoples, states (e.g. Visigothic imitations in RIC X).
 CREATE TABLE organization (
   id          TEXT PRIMARY KEY,
-  nomisma_uri TEXT NOT NULL UNIQUE,
+  uri         TEXT NOT NULL UNIQUE,
+  source      TEXT NOT NULL,
   name        TEXT NOT NULL,
   definition  TEXT
 );
 
-CREATE TABLE mint (
+-- Geographic regions, nested (Latium within Greek Italy). Greek coinage is browsed by region.
+CREATE TABLE region (
   id          TEXT PRIMARY KEY,
-  nomisma_uri TEXT NOT NULL UNIQUE,
+  uri         TEXT NOT NULL UNIQUE,
+  source      TEXT NOT NULL,
   name        TEXT NOT NULL,
   definition  TEXT,
+  parent_id   TEXT REFERENCES region(id),
+  lat         REAL,
+  lon         REAL
+);
+
+CREATE TABLE mint (
+  id          TEXT PRIMARY KEY,
+  uri         TEXT NOT NULL UNIQUE,
+  source      TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  definition  TEXT,
+  region_id   TEXT REFERENCES region(id),
   lat         REAL,
   lon         REAL
 );
 
 CREATE TABLE denomination (
   id          TEXT PRIMARY KEY,
-  nomisma_uri TEXT NOT NULL UNIQUE,
+  uri         TEXT NOT NULL UNIQUE,
+  source      TEXT NOT NULL,
   name        TEXT NOT NULL,
   definition  TEXT
 );
 
 CREATE TABLE material (
   id          TEXT PRIMARY KEY,
-  nomisma_uri TEXT NOT NULL UNIQUE,
+  uri         TEXT NOT NULL UNIQUE,
+  source      TEXT NOT NULL,
   name        TEXT NOT NULL
 );
 
 CREATE TABLE subject (
   id          TEXT PRIMARY KEY,
-  nomisma_uri TEXT UNIQUE,
+  uri         TEXT UNIQUE,
+  source      TEXT NOT NULL,
   name        TEXT NOT NULL,
   kind        TEXT NOT NULL,               -- 'deity', 'other'
   definition  TEXT
 );
 
+-- Monograms, control marks and symbols in the field: key evidence for Hellenistic coinage.
+CREATE TABLE symbol (
+  id          TEXT PRIMARY KEY,            -- 'pella/monogram.price.453'
+  uri         TEXT NOT NULL UNIQUE,
+  source      TEXT NOT NULL,
+  name        TEXT NOT NULL,               -- the source ID when the source publishes no record
+  definition  TEXT,
+  published   INTEGER NOT NULL,            -- 0: the type cites it but the source has no record of it
+  image_url   TEXT,                        -- SVG drawing where the source has one
+  letters     TEXT                         -- letters a monogram is made of, space-separated
+);
+
+-- Published catalogues a type belongs to or is cited in (RIC, RRC, Price 1991...).
+CREATE TABLE reference_work (
+  id          TEXT PRIMARY KEY,            -- Nomisma slug: 'ric', 'rrc', 'price1991'
+  uri         TEXT NOT NULL UNIQUE,
+  source      TEXT NOT NULL,
+  name        TEXT NOT NULL                -- 'Roman Imperial Coinage'
+);
+
+-- Collector categories, nested: Roman > Imperial; Greek > Hellenistic > Seleucid.
+-- Defined in data/categories.yaml; types are placed by rules there, not by catalogue.
+CREATE TABLE category (
+  id          TEXT PRIMARY KEY,            -- 'roman-imperial'
+  parent_id   TEXT REFERENCES category(id),
+  name        TEXT NOT NULL,
+  description TEXT,
+  sort_order  INTEGER NOT NULL
+);
+
 -- Links from our entities to Wikidata, Pleiades, VIAF, Getty...
 CREATE TABLE external_id (
-  entity_type TEXT NOT NULL,               -- 'person', 'mint', 'denomination', 'subject'
+  entity_type TEXT NOT NULL,               -- 'person', 'mint', 'region', 'denomination', 'subject'
   entity_id   TEXT NOT NULL,
   system      TEXT NOT NULL,               -- 'wikidata', 'pleiades', 'viaf', 'getty', 'other'
   uri         TEXT NOT NULL,
@@ -110,12 +162,10 @@ CREATE TABLE article (
 
 -- The centre.
 CREATE TABLE coin_type (
-  id              TEXT PRIMARY KEY,        -- 'ric.2.tr.147'
+  id              TEXT PRIMARY KEY,        -- '{dataset slug}/{source ID}': 'ocre/ric.2.tr.147'
   source_uri      TEXT NOT NULL UNIQUE,
-  corpus          TEXT NOT NULL,           -- 'ocre'
-  title           TEXT,
-  ric_volume      TEXT,
-  ric_number      TEXT,
+  dataset_id      TEXT NOT NULL REFERENCES dataset(id),
+  title           TEXT,                    -- the source's label: 'RIC II Trajan 147'
   parent_id       TEXT REFERENCES coin_type(id),
   replaced_by_id  TEXT,                    -- may point outside the build slice
   start_year      INTEGER,
@@ -126,6 +176,51 @@ CREATE TABLE coin_type (
   obv_description TEXT,
   rev_legend      TEXT,
   rev_description TEXT
+);
+
+-- Catalogue references. One per type for now (the type's own catalogue, is_primary = 1);
+-- concordances to other catalogues will add more.
+CREATE TABLE type_reference (
+  type_id     TEXT NOT NULL REFERENCES coin_type(id),
+  work_id     TEXT NOT NULL REFERENCES reference_work(id),
+  label       TEXT NOT NULL,               -- as cited: 'RIC II Trajan 147'
+  volume      TEXT,                        -- 'RIC II', 'RIC II, Part 3 (second edition)'
+  number      TEXT,                        -- '147', '10-11', '414/1'
+  sort_key    TEXT NOT NULL,               -- orders references naturally within a work
+  is_primary  INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (type_id, work_id, label)
+);
+
+-- Types the source says are the same as, or correspond to, another type (case variants,
+-- a later edition's number). target_type_id is set when the other type is in the build.
+CREATE TABLE type_match (
+  type_id        TEXT NOT NULL REFERENCES coin_type(id),
+  uri            TEXT NOT NULL,
+  relation       TEXT NOT NULL,            -- 'exact'
+  target_type_id TEXT REFERENCES coin_type(id),
+  PRIMARY KEY (type_id, uri)
+);
+
+CREATE TABLE type_category (
+  type_id     TEXT NOT NULL REFERENCES coin_type(id),
+  category_id TEXT NOT NULL REFERENCES category(id),
+  is_primary  INTEGER NOT NULL DEFAULT 1,
+  method      TEXT NOT NULL,               -- 'rule' (data/categories.yaml), later 'reviewed'
+  PRIMARY KEY (type_id, category_id)
+);
+
+CREATE TABLE type_region (
+  type_id   TEXT NOT NULL REFERENCES coin_type(id),
+  region_id TEXT NOT NULL REFERENCES region(id),
+  PRIMARY KEY (type_id, region_id)
+);
+
+CREATE TABLE type_symbol (
+  type_id   TEXT NOT NULL REFERENCES coin_type(id),
+  side      TEXT NOT NULL,                 -- 'obverse', 'reverse'
+  symbol_id TEXT NOT NULL REFERENCES symbol(id),
+  uncertain INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (type_id, side, symbol_id)
 );
 
 -- Some types list more than one denomination or material.
@@ -144,14 +239,14 @@ CREATE TABLE type_material (
 CREATE TABLE type_person (
   type_id   TEXT NOT NULL REFERENCES coin_type(id),
   person_id TEXT NOT NULL REFERENCES person(id),
-  role      TEXT NOT NULL,                 -- 'authority', 'issuer', 'portrait_obverse', 'portrait_reverse'
+  role      TEXT NOT NULL,                 -- 'authority', 'stated_authority', 'issuer', 'portrait_obverse', 'portrait_reverse'
   PRIMARY KEY (type_id, person_id, role)
 );
 
 CREATE TABLE type_organization (
   type_id         TEXT NOT NULL REFERENCES coin_type(id),
   organization_id TEXT NOT NULL REFERENCES organization(id),
-  role            TEXT NOT NULL,           -- 'authority', 'issuer'
+  role            TEXT NOT NULL,           -- 'authority', 'stated_authority', 'issuer'
   PRIMARY KEY (type_id, organization_id, role)
 );
 
@@ -169,9 +264,12 @@ CREATE TABLE legend (
   id         INTEGER PRIMARY KEY,
   type_id    TEXT NOT NULL REFERENCES coin_type(id),
   side       TEXT NOT NULL,                -- 'obverse', 'reverse'
+  position   TEXT,                         -- where on the side, when the source says ('exergue', 'left field')
+  language   TEXT NOT NULL,                -- 'la', 'grc'
   legend     TEXT NOT NULL,                -- as written by the source
   normalised TEXT NOT NULL,                -- 'D N HONORIVS P F AVG'
   compact    TEXT NOT NULL,                -- 'DNHONORIVSPFAVG'
+  romanised  TEXT,                         -- compact form in Latin letters, for non-Latin legends
   segments   TEXT,                         -- JSON: [{text, latin, english, kind, number?}, ...]
   expanded_latin TEXT,                     -- 'Dominus Noster Honorius Pius Felix Augustus'
   english    TEXT,                         -- 'Our Lord · Honorius · dutiful and fortunate · Augustus'
@@ -179,8 +277,9 @@ CREATE TABLE legend (
 );
 CREATE INDEX idx_legend_type ON legend(type_id);
 
--- Trigram index: fast spacing-insensitive fragment search with LIKE.
-CREATE VIRTUAL TABLE legend_fts USING fts5(compact, content='legend', content_rowid='id', tokenize='trigram');
+-- Trigram index: fast spacing-insensitive fragment search with LIKE, in the legend's own
+-- script and romanised.
+CREATE VIRTUAL TABLE legend_fts USING fts5(compact, romanised, content='legend', content_rowid='id', tokenize='trigram');
 
 -- Word index over the expansion and glosses: search legends by meaning.
 CREATE VIRTUAL TABLE legend_meaning_fts USING fts5(expanded_latin, english, content='legend',
@@ -189,7 +288,8 @@ CREATE VIRTUAL TABLE legend_meaning_fts USING fts5(expanded_latin, english, cont
 -- Evidence.
 CREATE TABLE institution (
   id          TEXT PRIMARY KEY,
-  nomisma_uri TEXT UNIQUE,
+  uri         TEXT UNIQUE,
+  source      TEXT NOT NULL,
   name        TEXT NOT NULL
 );
 
@@ -224,6 +324,12 @@ CREATE TABLE image (
 );
 
 CREATE INDEX idx_type_mint ON coin_type(mint_id);
+CREATE INDEX idx_type_dataset ON coin_type(dataset_id);
+CREATE INDEX idx_mint_region ON mint(region_id);
+CREATE INDEX idx_type_reference_work ON type_reference(work_id, sort_key);
+CREATE INDEX idx_type_category_category ON type_category(category_id);
+CREATE INDEX idx_type_region_region ON type_region(region_id);
+CREATE INDEX idx_type_symbol_symbol ON type_symbol(symbol_id);
 CREATE INDEX idx_type_denomination_denom ON type_denomination(denomination_id);
 CREATE INDEX idx_type_parent ON coin_type(parent_id);
 CREATE INDEX idx_type_person_person ON type_person(person_id);

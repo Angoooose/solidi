@@ -1,6 +1,6 @@
 ---
 /*
- * Coin-type page: /type/ric.2.tr.98. Server-rendered from D1. Client JavaScript: the copy button
+ * Coin-type page: /type/ocre/ric.2.tr.98 (a rest route: type IDs are '{dataset}/{source id}'). Server-rendered from D1. Client JavaScript: the copy button
  * and the specimens table (an island, loaded when scrolled into view).
  */
 import { env } from "cloudflare:workers"
@@ -21,12 +21,20 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { getCoinType } from "@/lib/coinType"
-import { acsearchUrl, capitalise } from "@/lib/format"
+import { acsearchUrl, capitalise, typePath } from "@/lib/format"
 
-const id = Astro.params.id ?? ""
+/* Astro decodes the path but leaves reserved characters escaped: '%3F' for the '?' in some source IDs (lib/format.ts typePath). */
+const id = (() => {
+  const raw = Astro.params.id ?? ""
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+})()
 const result = await getCoinType(env.DB, id)
 
-if (result.kind === "redirect") return Astro.redirect(`/type/${result.to}`, 301)
+if (result.kind === "redirect") return Astro.redirect(typePath(result.to), 301)
 if (result.kind === "missing") {
   Astro.response.status = 404
 }
@@ -48,7 +56,7 @@ const subtitle = type
     )
   : ""
 
-const acsearch = type ? acsearchUrl(type.ricVolume, type.ricNumber, issuer?.name ?? null) : null
+const acsearch = type?.catalogue ? acsearchUrl(type.catalogue.volume, type.catalogue.number, issuer?.name ?? null) : null
 const sideLabel = { obverse: "Obverse", reverse: "Reverse" } as const
 const sideHint = { obverse: "Front of the coin", reverse: "Back of the coin" } as const
 const sidePhoto = (side: "obverse" | "reverse") => type?.hero?.photos.find((p) => p.side === side)?.src ?? null
@@ -84,20 +92,26 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
           <div class="flex min-w-0 flex-[1_1_440px] flex-col gap-10">
             <Breadcrumb>
               <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Roman Imperial</BreadcrumbLink>
-                </BreadcrumbItem>
+                {type.category && (
+                  <BreadcrumbItem>
+                    <BreadcrumbLink href="/">{type.category.name}</BreadcrumbLink>
+                  </BreadcrumbItem>
+                )}
                 {issuer && (
                   <>
-                    <BreadcrumbSeparator />
+                    {type.category && <BreadcrumbSeparator />}
                     <BreadcrumbItem>
                       <BreadcrumbLink href={`/ruler/${issuer.id}`}>{issuer.name}</BreadcrumbLink>
                     </BreadcrumbItem>
                   </>
                 )}
-                <BreadcrumbSeparator />
+                {(type.category || issuer) && <BreadcrumbSeparator />}
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{type.ricNumber ? `${type.ricVolume ?? "RIC"} ${type.ricNumber}` : type.reference}</BreadcrumbPage>
+                  <BreadcrumbPage>
+                    {type.catalogue?.volume && type.catalogue.number
+                      ? `${type.catalogue.volume} ${type.catalogue.number}`
+                      : (type.catalogue?.label ?? type.reference)}
+                  </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -183,7 +197,7 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
                 </DataRow>
               )}
               {type.parent && (
-                <DataRow label="Variant of" href={`/type/${type.parent.id}`}>
+                <DataRow label="Variant of" href={typePath(type.parent.id)}>
                   {type.parent.reference}
                 </DataRow>
               )}
@@ -193,7 +207,7 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
               {acsearch && (
                 <a href={acsearch} rel="noopener" class={buttonVariants({ variant: "link" })}>Past sales on ACSearch ↗</a>
               )}
-              <a href={type.sourceUri} rel="noopener" class={buttonVariants({ variant: "link" })}>View on OCRE ↗</a>
+              <a href={type.sourceUri} rel="noopener" class={buttonVariants({ variant: "link" })}>View on {type.source.slug.toUpperCase()} ↗</a>
             </div>
           </div>
         </section>
@@ -262,7 +276,7 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
             <SectionHeading aside={`${type.variants.length}`}>Variants</SectionHeading>
             <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10">
               {type.variants.map((v) => (
-                <TypeCard href={`/type/${v.id}`} image={v.image} title={v.title} reference={v.reference} meta={v.meta} />
+                <TypeCard href={typePath(v.id)} image={v.image} title={v.title} reference={v.reference} meta={v.meta} />
               ))}
             </div>
             <PhotoCredit photos={type.variantCredits} />
@@ -279,7 +293,7 @@ const anyGloss = type?.sides.some((s) => s.segments?.length)
             </div>
             <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10">
               {type.related.map((r) => (
-                <TypeCard href={`/type/${r.id}`} image={r.image} title={r.title} reference={r.reference} meta={r.meta} />
+                <TypeCard href={typePath(r.id)} image={r.image} title={r.title} reference={r.reference} meta={r.meta} />
               ))}
             </div>
             <PhotoCredit photos={type.relatedCredits} />

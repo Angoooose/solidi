@@ -22,6 +22,12 @@ _EDITORIAL = re.compile(r"\([^)]*[a-z.][^)]*\)")      # '(rev.N)' and similar no
 _WORD_BREAK = re.compile(r"(?<=[\w\]])[-_](?=[\w\[])")   # HONORI-VS -> HONORIVS, NOS-[TRIS] -> NOS[TRIS]
 _SEPARATORS = re.compile(r"[\s\-_/|•˙.:●*,?…()← ]+")
 GAP = re.compile(r"\s*(?:\.\.\.+|…|\*)\s*")             # what a user types for unreadable stretches
+_GREEK = re.compile(r"[\u0370-\u03ff\u1f00-\u1fff]")
+
+
+def language(legend: str) -> str:
+    """'grc' if the legend has any Greek letters, else 'la'."""
+    return "grc" if _GREEK.search(legend) else "la"
 
 
 def normalise(legend: str) -> str:
@@ -44,19 +50,20 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None) 
     for type_id, obv, rev in db.execute("SELECT id, obv_legend, rev_legend FROM coin_type"):
         for side, legend in (("obverse", obv), ("reverse", rev)):
             if legend and (norm := normalise(legend)):
+                lang = language(legend)
                 latin = english = segments = cov = None
-                if dictionary:
+                if dictionary and lang == "la":
                     segs = expand(norm, dictionary)
                     segments = json.dumps(as_rows(segs), ensure_ascii=False)
                     latin = " ".join(s.latin or s.text for s in segs)
                     english = " · ".join(s.english or f"[{s.text}]" for s in segs)
                     cov = round(coverage(segs), 3)
-                rows.append((type_id, side, legend, norm, norm.replace(" ", ""),
+                rows.append((type_id, side, lang, legend, norm, norm.replace(" ", ""), None,
                              segments, latin, english, cov))
-    db.executemany("""INSERT INTO legend (type_id, side, legend, normalised, compact,
+    db.executemany("""INSERT INTO legend (type_id, side, language, legend, normalised, compact, romanised,
                                           segments, expanded_latin, english, gloss_coverage)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", rows)
-    db.execute("INSERT INTO legend_fts (rowid, compact) SELECT id, compact FROM legend")
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", rows)
+    db.execute("INSERT INTO legend_fts (rowid, compact, romanised) SELECT id, compact, romanised FROM legend")
     db.execute("""INSERT INTO legend_meaning_fts (rowid, expanded_latin, english)
                   SELECT id, expanded_latin, english FROM legend WHERE english IS NOT NULL""")
     db.commit()
@@ -96,8 +103,11 @@ def search(db: sqlite3.Connection, query: str, side: str | None = None,
     # The trigram index serves LIKE when every fixed run is at least 3 letters.
     runs = [r for p in parts for r in p.split("_") if r]
     table = "legend_fts" if runs and all(len(r) >= 3 for r in runs) else "legend"
-    where = ["l.compact LIKE ?"] if table == "legend" else ["l.id IN (SELECT rowid FROM legend_fts WHERE compact LIKE ?)"]
-    args: list = [pattern]
+    if table == "legend":
+        where = ["(l.compact LIKE ? OR l.romanised LIKE ?)"]
+    else:
+        where = ["l.id IN (SELECT rowid FROM legend_fts WHERE compact LIKE ? OR romanised LIKE ?)"]
+    args: list = [pattern, pattern]
     if side:
         where.append("l.side = ?")
         args.append(side)

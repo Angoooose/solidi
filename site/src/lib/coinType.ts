@@ -37,8 +37,12 @@ export type CoinType = {
   id: string
   reference: string
   sourceUri: string
-  ricVolume: string | null
-  ricNumber: string | null
+  /** The dataset the type comes from, for "View on OCRE". */
+  source: { slug: string; name: string | null }
+  /** The type's own catalogue entry: 'RIC II' and '147' of 'RIC II Trajan 147'. */
+  catalogue: { label: string; volume: string | null; number: string | null } | null
+  /** Its primary collector category ('Roman Imperial'). */
+  category: Link | null
   date: string | null
   mint: (Link & { uncertain: boolean }) | null
   /** The source says the mint is uncertain but names none. */
@@ -77,8 +81,13 @@ type TypeRow = {
   id: string
   title: string | null
   source_uri: string
-  ric_volume: string | null
-  ric_number: string | null
+  dataset_slug: string
+  dataset_name: string | null
+  ref_label: string | null
+  ref_volume: string | null
+  ref_number: string | null
+  category_id: string | null
+  category_name: string | null
   parent_id: string | null
   replaced_by_id: string | null
   start_year: number | null
@@ -118,7 +127,16 @@ const SPECIMEN_ORDER = `
 export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeResult> {
   const t = await db
     .prepare(
-      `SELECT t.*, m.name AS mint_name FROM coin_type t LEFT JOIN mint m ON m.id = t.mint_id WHERE t.id = ?`
+      `SELECT t.*, m.name AS mint_name, d.slug AS dataset_slug, d.name AS dataset_name,
+         r.label AS ref_label, r.volume AS ref_volume, r.number AS ref_number,
+         c.id AS category_id, c.name AS category_name
+       FROM coin_type t
+       JOIN dataset d ON d.id = t.dataset_id
+       LEFT JOIN mint m ON m.id = t.mint_id
+       LEFT JOIN type_reference r ON r.type_id = t.id AND r.is_primary = 1
+       LEFT JOIN type_category tc ON tc.type_id = t.id AND tc.is_primary = 1
+       LEFT JOIN category c ON c.id = tc.category_id
+       WHERE t.id = ?`
     )
     .bind(id)
     .first<TypeRow>()
@@ -274,8 +292,9 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
       id: t.id,
       reference: t.title ?? t.id,
       sourceUri: secure(t.source_uri) ?? t.source_uri,
-      ricVolume: t.ric_volume,
-      ricNumber: t.ric_number,
+      source: { slug: t.dataset_slug, name: t.dataset_name },
+      catalogue: t.ref_label ? { label: t.ref_label, volume: t.ref_volume, number: t.ref_number } : null,
+      category: t.category_id ? { id: t.category_id, name: t.category_name ?? t.category_id } : null,
       date: yearRange(t.start_year, t.end_year),
       mint: t.mint_id ? { id: t.mint_id, name: t.mint_name ?? t.mint_id, uncertain: !!t.mint_uncertain } : null,
       mintUnknown: !t.mint_id && !!t.mint_uncertain,

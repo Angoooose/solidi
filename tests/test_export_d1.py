@@ -16,6 +16,7 @@ def _source(path):
     """)
     db.execute("INSERT INTO mint VALUES ('rome', 'Rome')")
     # Child inserted before its parent, quotes and NULLs, and enough text to force several INSERTs.
+    db.execute("INSERT INTO coin_type VALUES ('t.1a.i', 'rome', 't.1a', NULL)")   # grandchild first
     db.execute("INSERT INTO coin_type VALUES ('t.1a', 'rome', 't.1', 'it''s a variant')")
     db.execute("INSERT INTO coin_type VALUES ('t.1', 'rome', NULL, NULL)")
     for i in range(300):
@@ -29,7 +30,7 @@ def test_round_trip(tmp_path):
     src, sql = tmp_path / "src.sqlite", tmp_path / "out.sql"
     _source(src)
     counts = export_d1.export(src, sql)
-    assert counts == {"mint": 1, "coin_type": 2, "legend": 300}
+    assert counts == {"mint": 1, "coin_type": 3, "legend": 300}
 
     text = sql.read_text()
     assert "PRAGMA" not in text and "BEGIN" not in text

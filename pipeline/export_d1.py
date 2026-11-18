@@ -34,11 +34,17 @@ def _objects(db: sqlite3.Connection) -> tuple[list[tuple[str, str]], list[str], 
 def _inserts(db: sqlite3.Connection, table: str) -> list[str]:
     cols = [r[1] for r in db.execute(f'PRAGMA table_info("{table}")')]
     quoted = " || ',' || ".join(f'quote("{c}")' for c in cols)
-    # Parents before children for self-referencing coin types (parent_id).
-    order = "ORDER BY parent_id IS NOT NULL, rowid" if table == "coin_type" else "ORDER BY rowid"
     head = f'INSERT INTO "{table}" ({", ".join(chr(34) + c + chr(34) for c in cols)}) VALUES '
     statements, batch, size = [], [], len(head)
-    for (values,) in db.execute(f'SELECT {quoted} FROM "{table}" {order}'):
+    if "parent_id" in cols:
+        # Self-referencing trees (types, regions, categories): parents before children, at any depth.
+        query = f"""WITH RECURSIVE depth(id, d) AS (
+                        SELECT id, 0 FROM "{table}" WHERE parent_id IS NULL
+                        UNION ALL SELECT c.id, depth.d + 1 FROM "{table}" c JOIN depth ON c.parent_id = depth.id)
+                    SELECT {quoted} FROM "{table}" JOIN depth USING (id) ORDER BY depth.d, "{table}".rowid"""
+    else:
+        query = f'SELECT {quoted} FROM "{table}" ORDER BY rowid'
+    for (values,) in db.execute(query):
         row = f"({values})"
         if batch and size + len(row) + 1 > MAX_STATEMENT_BYTES:
             statements.append(head + ",".join(batch) + ";")

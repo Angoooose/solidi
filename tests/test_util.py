@@ -1,6 +1,7 @@
 from pipeline.stage import fix_predicate
 from pipeline.util import (
-    commercial_ok, external_system, local_id, normalise_uri, parse_ric_label, parse_year,
+    commercial_ok, entity_id, external_system, local_id, natural_key, parse_reference,
+    reference_sort_key, normalise_uri, parse_ric_label, parse_year,
 )
 
 RULES = [
@@ -92,3 +93,27 @@ def test_wikidata_year_converts_astronomical_numbering():
     assert wikidata_year("0000-01-01T00:00:00Z") == -1     # astronomical year 0 = 1 BC
     assert wikidata_year("0053-09-18T00:00:00Z") == 53
     assert wikidata_year(None) is None
+
+
+def test_entity_ids_are_namespaced_outside_nomisma():
+    assert entity_id("http://nomisma.org/id/trajan", "nomisma") == "trajan"
+    assert entity_id("https://data.corpus-nummorum.eu/api/monograms/840", "cn") == "cn/840"
+
+
+def test_reference_parsing_per_work():
+    assert parse_reference("ric", "RIC II Trajan 147") == ("RIC II", "147")
+    assert parse_reference("rrc", "RRC 414/1") == (None, "414/1")
+    assert parse_reference("price1991", "Price 153") == (None, "153")
+    assert parse_reference("seleucid_coins", "Seleucid Coins (part 1) 1043.3") == (None, "1043.3")
+    assert parse_reference("x", "No number here") == (None, None)
+
+
+def test_natural_sort():
+    nums = ["10a", "9", "100", "10"]
+    assert sorted(nums, key=natural_key) == ["9", "10", "10a", "100"]
+    vols = ["RIC X", "RIC II, Part 3", "RIC II", "RIC IV"]
+    assert sorted(vols, key=natural_key) == ["RIC II", "RIC II, Part 3", "RIC IV", "RIC X"]
+    assert reference_sort_key("RIC II", "9") < reference_sort_key("RIC II", "10") < reference_sort_key("RIC X", "1")
+    # A volume that extends another sorts after it, whatever punctuation follows.
+    assert reference_sort_key("RIC II", "999") < reference_sort_key("RIC II, Part 3 (second edition)", "1")
+    assert reference_sort_key("RIC II", "999") < reference_sort_key("RIC II (second edition)", "1")

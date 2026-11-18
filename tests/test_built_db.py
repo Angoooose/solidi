@@ -24,17 +24,19 @@ def one(db, sql, *args):
 
 
 def test_known_type(db):
-    row = one(db, """SELECT title, ric_volume, ric_number, start_year, end_year, mint_id, obv_legend
-                     FROM coin_type WHERE id = 'ric.2.tr.147'""")
-    assert row == ("RIC II Trajan 147", "RIC II", "147", 103, 111, "rome",
-                   "IMP TRAIANO AVG GER DAC P M TR P")
+    row = one(db, """SELECT t.title, r.work_id, r.volume, r.number, t.start_year, t.end_year, t.mint_id,
+                            t.obv_legend, d.slug
+                     FROM coin_type t JOIN type_reference r ON r.type_id = t.id AND r.is_primary = 1
+                     JOIN dataset d ON d.id = t.dataset_id WHERE t.id = 'ocre/ric.2.tr.147'""")
+    assert row == ("RIC II Trajan 147", "ric", "RIC II", "147", 103, 111, "rome",
+                   "IMP TRAIANO AVG GER DAC P M TR P", "ocre")
 
 
 def test_known_type_relations(db):
-    roles = {r for r, in db.execute("SELECT role FROM type_person WHERE type_id='ric.2.tr.147' AND person_id='trajan'")}
+    roles = {r for r, in db.execute("SELECT role FROM type_person WHERE type_id='ocre/ric.2.tr.147' AND person_id='trajan'")}
     assert roles == {"authority", "portrait_obverse"}
-    assert one(db, "SELECT denomination_id FROM type_denomination WHERE type_id='ric.2.tr.147'") == ("denarius",)
-    assert one(db, "SELECT COUNT(*) FROM specimen_type WHERE type_id='ric.2.tr.147'")[0] >= 3
+    assert one(db, "SELECT denomination_id FROM type_denomination WHERE type_id='ocre/ric.2.tr.147'") == ("denarius",)
+    assert one(db, "SELECT COUNT(*) FROM specimen_type WHERE type_id='ocre/ric.2.tr.147'")[0] >= 3
 
 
 def test_trajan_reign_and_links(db):
@@ -74,12 +76,49 @@ def test_every_dataset_has_commercial_flag(db):
 
 def test_nested_uncertain_mint_resolves(db):
     # Source: [ rdf:value nm:rome ; un:hasUncertainty nm:uncertain_value ]
-    if one(db, "SELECT COUNT(*) FROM coin_type WHERE id='ric.2_1(2).dom.822'")[0]:
-        assert one(db, "SELECT mint_id, mint_uncertain FROM coin_type WHERE id='ric.2_1(2).dom.822'") == ("rome", 1)
+    if one(db, "SELECT COUNT(*) FROM coin_type WHERE id='ocre/ric.2_1(2).dom.822'")[0]:
+        assert one(db, "SELECT mint_id, mint_uncertain FROM coin_type WHERE id='ocre/ric.2_1(2).dom.822'") == ("rome", 1)
 
 
 def test_every_type_has_a_ric_reference(db):
-    assert one(db, "SELECT COUNT(*) FROM coin_type WHERE ric_number IS NULL")[0] == 0
+    assert one(db, """SELECT COUNT(*) FROM coin_type WHERE id NOT IN
+                      (SELECT type_id FROM type_reference WHERE work_id = 'ric' AND number IS NOT NULL)""")[0] == 0
+    assert one(db, "SELECT name FROM reference_work WHERE id = 'ric'") == ("Roman Imperial Coinage",)
+
+
+def test_references_sort_naturally(db):
+    keys = [k for k, in db.execute("""SELECT sort_key FROM type_reference
+                                      WHERE number IN ('9', '10', '100') AND volume = 'RIC II' ORDER BY sort_key""")]
+    numbers = [n for n, in db.execute("""SELECT number FROM type_reference
+                                         WHERE number IN ('9', '10', '100') AND volume = 'RIC II' ORDER BY sort_key""")]
+    assert keys and numbers == sorted(numbers, key=int)
+
+
+def test_rome_sits_in_a_region_tree(db):
+    region = one(db, "SELECT region_id FROM mint WHERE id = 'rome'")[0]
+    assert region == "latium"
+    # Walk up: every parent exists, and the chain ends.
+    seen = set()
+    while region:
+        assert region not in seen
+        seen.add(region)
+        region = one(db, "SELECT parent_id FROM region WHERE id = ?", region)[0]
+
+
+def test_every_ocre_type_is_roman_imperial(db):
+    assert one(db, """SELECT COUNT(*) FROM coin_type WHERE id NOT IN
+                      (SELECT type_id FROM type_category WHERE category_id = 'roman-imperial')""")[0] == 0
+    assert one(db, "SELECT parent_id FROM category WHERE id = 'roman-imperial'") == ("roman",)
+
+
+def test_type_matches_point_inside_the_build(db):
+    bad = one(db, """SELECT COUNT(*) FROM type_match m LEFT JOIN coin_type t ON t.id = m.target_type_id
+                     WHERE m.target_type_id IS NOT NULL AND t.id IS NULL""")[0]
+    assert bad == 0
+
+
+def test_entities_record_their_source(db):
+    assert one(db, "SELECT uri, source FROM person WHERE id = 'trajan'") == ("http://nomisma.org/id/trajan", "nomisma")
 
 
 def test_no_placeholder_images_or_zero_weights(db):
@@ -106,11 +145,11 @@ def test_wikipedia_articles(db):
 def test_legend_search(db):
     from pipeline.legends import search
     hits = {t for t, _, _ in search(db, "IMP TRAIANO AVG GER DAC P M TR P")}
-    assert "ric.2.tr.147" in hits
+    assert "ocre/ric.2.tr.147" in hits
     # spacing-insensitive, gaps for unreadable stretches, '?' for one unknown letter
-    assert "ric.2.tr.147" in {t for t, _, _ in search(db, "IMPTRAIANO … DAC PM")}
-    assert "ric.2.tr.147" in {t for t, _, _ in search(db, "TRAI?NO AVG")}
-    assert "ric.2.tr.147" in {t for t, _, _ in search(db, "OPTIMO PRINC", side="reverse")}
+    assert "ocre/ric.2.tr.147" in {t for t, _, _ in search(db, "IMPTRAIANO … DAC PM")}
+    assert "ocre/ric.2.tr.147" in {t for t, _, _ in search(db, "TRAI?NO AVG")}
+    assert "ocre/ric.2.tr.147" in {t for t, _, _ in search(db, "OPTIMO PRINC", side="reverse")}
     assert search(db, "OPTIMO PRINC", side="obverse") == [] or all(
         s == "obverse" for _, s, _ in search(db, "OPTIMO PRINC", side="obverse"))
 
@@ -118,6 +157,11 @@ def test_legend_search(db):
 def test_licence_overrides_apply_regardless_of_trailing_slash(db):
     row = one(db, "SELECT commercial_ok FROM dataset WHERE id LIKE 'https://ikmk.smb.museum%'")
     assert row == (0,)
+
+
+def test_legends_have_a_language(db):
+    assert one(db, "SELECT COUNT(*) FROM legend WHERE language NOT IN ('la', 'grc')")[0] == 0
+    assert one(db, "SELECT language FROM legend WHERE type_id = 'ocre/ric.2.tr.147' AND side = 'obverse'") == ("la",)
 
 
 def test_unknown_legend_words_stay_visible(db):

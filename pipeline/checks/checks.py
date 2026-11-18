@@ -42,6 +42,21 @@ def run(db: sqlite3.Connection) -> Result:
     n = _one(db, "SELECT COUNT(*) FROM coin_type WHERE start_year > end_year")
     if n:
         r.errors.append(f"{n} types end before they start")
+    for table in ("coin_type", "region", "category"):
+        n = _one(db, f"""WITH RECURSIVE reach(id) AS (
+                            SELECT id FROM {table} WHERE parent_id IS NULL
+                            UNION SELECT c.id FROM {table} c JOIN reach ON c.parent_id = reach.id)
+                         SELECT (SELECT COUNT(*) FROM {table}) - (SELECT COUNT(*) FROM reach)""")
+        if n:
+            r.errors.append(f"{n} {table} rows sit in a parent loop")
+    n = _one(db, """SELECT COUNT(*) FROM coin_type WHERE id NOT IN
+                    (SELECT type_id FROM type_reference WHERE is_primary = 1)""")
+    if n:
+        r.errors.append(f"{n} types have no primary catalogue reference")
+    n = _one(db, """SELECT COUNT(*) FROM coin_type t JOIN dataset d ON d.id = t.dataset_id
+                    WHERE t.id NOT LIKE d.slug || '/%'""")
+    if n:
+        r.errors.append(f"{n} type IDs do not start with their dataset slug")
 
     # Warnings: gaps worth knowing about, not build-breaking.
     n = _one(db, f"""SELECT COUNT(*) FROM coin_type WHERE {ACTIVE}
@@ -49,6 +64,9 @@ def run(db: sqlite3.Connection) -> Result:
                      AND id NOT IN (SELECT type_id FROM type_organization WHERE role = 'authority')""")
     if n:
         r.warnings.append(f"{n} active types have no authority in the source")
+    n = _one(db, f"SELECT COUNT(*) FROM coin_type WHERE {ACTIVE} AND id NOT IN (SELECT type_id FROM type_category)")
+    if n:
+        r.warnings.append(f"{n} active types match no category rule")
     n = _one(db, "SELECT COUNT(*) FROM mint WHERE lat IS NULL")
     if n:
         r.warnings.append(f"{n} mints have no coordinates")
@@ -107,7 +125,7 @@ def run(db: sqlite3.Connection) -> Result:
         "entities_with_wikipedia": _one(db, "SELECT COUNT(*) FROM wikipedia_link"),
         "articles": {t: _pct(_one(db, f"SELECT COUNT(*) FROM article WHERE entity_type='{t}'"),
                              _one(db, f"SELECT COUNT(*) FROM {t}"))
-                     for t in ("person", "mint", "denomination", "subject", "organization")},
+                     for t in ("person", "mint", "region", "denomination", "subject", "organization")},
         "active_types_with_searchable_legend_pct": _pct(_one(db, f"""SELECT COUNT(DISTINCT type_id) FROM legend
                                          JOIN coin_type ON coin_type.id = type_id AND {ACTIVE}"""), active),
         "legend_words_glossed_pct": round(100 * (db.execute(
@@ -120,6 +138,21 @@ def run(db: sqlite3.Connection) -> Result:
         "mints_with_pleiades_pct": _pct(_one(db, """SELECT COUNT(DISTINCT entity_id) FROM external_id
                                        WHERE entity_type='mint' AND system='pleiades'"""),
                                        _one(db, "SELECT COUNT(*) FROM mint")),
+        "mints_with_region_pct": _pct(_one(db, "SELECT COUNT(*) FROM mint WHERE region_id IS NOT NULL"),
+                                      _one(db, "SELECT COUNT(*) FROM mint")),
+        "regions": _one(db, "SELECT COUNT(*) FROM region"),
+        "active_types_with_region_pct": _pct(_one(db, f"""SELECT COUNT(DISTINCT type_id) FROM type_region
+                                         JOIN coin_type ON coin_type.id = type_id AND {ACTIVE}"""), active),
+        "types_by_category": dict(db.execute("""SELECT c.id, COUNT(*) FROM type_category tc
+                                   JOIN category c ON c.id = tc.category_id GROUP BY c.id""").fetchall()),
+        "reference_works": dict(db.execute("""SELECT work_id, COUNT(*) FROM type_reference
+                                   GROUP BY work_id""").fetchall()),
+        "type_matches": _one(db, "SELECT COUNT(*) FROM type_match"),
+        "type_matches_in_build": _one(db, "SELECT COUNT(*) FROM type_match WHERE target_type_id IS NOT NULL"),
+        "symbols": _one(db, "SELECT COUNT(*) FROM symbol"),
+        "symbols_published": _one(db, "SELECT COUNT(*) FROM symbol WHERE published = 1"),
+        "active_types_with_symbol": _one(db, f"""SELECT COUNT(DISTINCT type_id) FROM type_symbol
+                                     JOIN coin_type ON coin_type.id = type_id AND {ACTIVE}"""),
         "subjects": _one(db, "SELECT COUNT(*) FROM subject"),
         "institutions": _one(db, "SELECT COUNT(*) FROM institution"),
     }

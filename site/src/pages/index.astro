@@ -1,13 +1,14 @@
 ---
 import Base from "@/layouts/Base.astro"
 import { SiteHeader, SiteFooter, PageTitle } from "@/components/site-chrome"
+import { typePath } from "@/lib/format"
 
 // Placeholder home page until the real one is built: a few coin types to open.
 const samples = [
-  ["ric.2.tr.98", "RIC II Trajan 98", "Dacia in mourning"],
-  ["ric.2.tr.147", "RIC II Trajan 147", "Trophy of shields"],
-  ["ric.2.tr.528", "RIC II Trajan 528", "Victory with Dacian shield"],
-  ["ric.2.tr.252", "RIC II Trajan 252", "Trajan's father seated"],
+  ["ocre/ric.2.tr.98", "RIC II Trajan 98", "Dacia in mourning"],
+  ["ocre/ric.2.tr.147", "RIC II Trajan 147", "Trophy of shields"],
+  ["ocre/ric.2.tr.528", "RIC II Trajan 528", "Victory with Dacian shield"],
+  ["ocre/ric.2.tr.252", "RIC II Trajan 252", "Trajan's father seated"],
 ]
 ---
 <Base title="Solidi">
@@ -17,7 +18,7 @@ const samples = [
     <ul class="m-0 flex list-none flex-col border-t border-hairline p-0">
       {samples.map(([id, ref, name]) => (
         <li class="border-b border-hairline py-3.5">
-          <a href={`/type/${id}`} class="underline-offset-4 hover:underline">{ref}</a>
+          <a href={typePath(id)} class="underline-offset-4 hover:underline">{ref}</a>
           <span class="text-stone">, {name}</span>
         </li>
       ))}

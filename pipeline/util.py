@@ -52,6 +52,66 @@ def parse_ric_label(label: str | None) -> tuple[str | None, str | None]:
     return m.group(1), m.group(3)
 
 
+def is_nomisma(uri: str) -> bool:
+    return normalise_uri(uri).startswith(normalise_uri(NOMISMA_ID))
+
+
+def entity_id(uri: str, source: str) -> str:
+    """Nomisma concepts keep their slug ('trajan'): Nomisma is the shared registry.
+    Anything else is prefixed with its source ('cn/monogram.840') so IDs never collide."""
+    return local_id(uri) if source == "nomisma" else f"{source}/{local_id(uri)}"
+
+
+_ROMAN_VALUES = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
+
+
+def _roman(text: str) -> int | None:
+    if not text or set(text) - set(_ROMAN_VALUES):
+        return None
+    total = 0
+    for i, ch in enumerate(text):
+        v = _ROMAN_VALUES[ch]
+        total += -v if i + 1 < len(text) and _ROMAN_VALUES[text[i + 1]] > v else v
+    return total
+
+
+def natural_key(text: str | None) -> str:
+    """Sortable form: numbers zero-padded, Roman volume numerals as numbers.
+    'RIC II, Part 3' < 'RIC X'; '9' < '10' < '10a'."""
+    if not text:
+        return ""
+    out = []
+    for token in re.findall(r"\d+|[A-Za-z]+|[^\dA-Za-z]+", text):
+        if token.isdigit():
+            out.append(f"{int(token):08d}")
+        elif (n := _roman(token)) is not None and token.isupper():
+            out.append(f"{n:08d}")
+        else:
+            out.append(token.lower())
+    return "".join(out)
+
+
+def parse_reference(work: str, label: str | None) -> tuple[str | None, str | None]:
+    """(volume, number) from a type's catalogue label. RIC labels carry a volume and the
+    issuer's name ('RIC II Trajan 147'); other catalogues end in the number ('RRC 414/1',
+    'Price 153', 'Seleucid Coins (part 1) 1043.3')."""
+    if not label:
+        return None, None
+    if work == "ric":
+        return parse_ric_label(label)
+    m = re.search(r"\s(\S*\d\S*)$", label.strip())
+    return None, (m.group(1) if m else None)
+
+
+def reference_sort_key(volume: str | None, number: str | None) -> str:
+    """Volume padded with spaces so a shorter volume sorts first ('RIC II' before
+    'RIC II, Part 3'): every printable character sorts after a space."""
+    vol = natural_key(volume)
+    if len(vol) > 80:
+        raise ValueError(f"volume too long to sort: {volume!r}")
+    return f"{vol:<80}|{natural_key(number)}"
+
+
 def external_system(uri: str) -> str:
     host_map = {
         "wikidata.org": "wikidata",

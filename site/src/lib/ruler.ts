@@ -54,10 +54,11 @@ export type Ruler = {
   typeCredits: PhotoCreditItem[]
 }
 
+/* r is the type's primary catalogue reference, joined by the grid query; its sort_key orders volumes and numbers naturally. */
 const ORDER: Record<Sort, string> = {
-  earliest: `t.start_year IS NULL, t.start_year, t.end_year, t.ric_volume, CAST(t.ric_number AS INTEGER), t.id`,
-  latest: `t.start_year IS NULL, t.start_year DESC, t.end_year DESC, t.ric_volume, CAST(t.ric_number AS INTEGER), t.id`,
-  reference: `t.ric_volume, CAST(t.ric_number AS INTEGER), t.ric_number, t.id`,
+  earliest: `t.start_year IS NULL, t.start_year, t.end_year, r.sort_key, t.id`,
+  latest: `t.start_year IS NULL, t.start_year DESC, t.end_year DESC, r.sort_key, t.id`,
+  reference: `r.sort_key, t.id`,
 }
 
 const RELATION_LABEL: Record<string, string> = { father: "Father", mother: "Mother", spouse: "Spouse", child: "Child" }
@@ -171,7 +172,9 @@ export async function getRuler(db: D1Database, id: string, query: RulerQuery): P
             FROM coin_type t WHERE ${where("period")} AND t.start_year IS NOT NULL
             GROUP BY value ORDER BY t.start_year, t.end_year`),
       grid(`SELECT count(*) AS n FROM coin_type t WHERE ${where()}`),
-      grid(`${CARD_SELECT} WHERE ${where()} ORDER BY ${ORDER[query.sort]} LIMIT ${query.limit}`),
+      grid(`${CARD_SELECT}
+            LEFT JOIN type_reference r ON r.type_id = t.id AND r.is_primary = 1
+            WHERE ${where()} ORDER BY ${ORDER[query.sort]} LIMIT ${query.limit}`),
       // Their own portrait, one per distinct start year, earliest to latest; sampled below.
       one(`SELECT t.id, t.title, t.start_year, t.end_year,
              (SELECT d.name FROM type_denomination td JOIN denomination d ON d.id = td.denomination_id

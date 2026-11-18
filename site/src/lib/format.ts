@@ -1,5 +1,13 @@
 /* Small formatting helpers shared by pages. Pure functions, no data access. */
 
+/**
+ * URL of a coin-type page. IDs are '{dataset}/{source id}' and keep their slash; a few source IDs
+ * contain '?' or '#' ('ocre/ric.2.hdn.312a?'), which must be escaped.
+ */
+export function typePath(id: string): string {
+  return `/type/${encodeURI(id).replace(/[?#]/g, encodeURIComponent)}`
+}
+
 /** 103 → "AD 103", -27 → "27 BC". */
 export function year(y: number): string {
   return y < 0 ? `${-y} BC` : `AD ${y}`
@@ -76,8 +84,8 @@ export function capitalise(s: string): string {
 }
 
 /** ACSearch past-sales search for a type, by its RIC citation and ruler. */
-export function acsearchUrl(ricVolume: string | null, ricNumber: string | null, ruler: string | null): string | null {
-  if (!ricNumber) return null
-  const term = [ruler, ricVolume ?? "RIC", ricNumber].filter(Boolean).join(" ")
+export function acsearchUrl(volume: string | null, number: string | null, ruler: string | null): string | null {
+  if (!number) return null
+  const term = [ruler, volume ?? "RIC", number].filter(Boolean).join(" ")
   return `https://www.acsearch.info/search.html?term=${encodeURIComponent(term)}&category=1-2-3-4-5-6-7-8&images=1`
 }

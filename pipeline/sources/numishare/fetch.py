@@ -45,6 +45,16 @@ CONSTRUCT {{ ?c ?p ?o . ?s ?sp ?so . ?img ?ip ?io }} WHERE {{
 """
 
 
+# Monograms and control marks the corpus publishes as records of their own.
+SYMBOLS_QUERY = """
+CONSTRUCT {{ ?s ?p ?o }} WHERE {{
+  ?s void:inDataset <{dataset}> ; a ?c .
+  FILTER(?c IN (nmo:Monogram, <http://www.cidoc-crm.org/cidoc-crm/E37_Mark>))
+  ?s ?p ?o
+}}
+"""
+
+
 def _count_subjects(turtle: str, cls: ox.NamedNode) -> int:
     if not turtle.strip():
         return 0
@@ -93,7 +103,12 @@ def fetch(raw_dir: Path, corpus_key: str, corpus: dict, authority: str | None = 
             break
         page += 1
 
-    # 2. Specimens, grouped by the first two ID segments ('ric.2.', 'ric.1(2).') and paged.
+    # 2. Symbols (monograms, control marks): one query, a few thousand at most.
+    path = out / "symbols.ttl"
+    sparql.cached_construct(path, SYMBOLS_QUERY.format(dataset=corpus["dataset"]), refresh=refresh)
+    files.append(path)
+
+    # 3. Specimens, grouped by the first two ID segments ('ric.2.', 'ric.1(2).') and paged.
     # Finer groups (one per ruler) mean ~1,800 slow queries; this gives about 20.
     id_path = corpus["id_path"]
     prefixes = sorted({".".join(uri.split(id_path, 1)[1].split(".")[:2]) + "."

@@ -20,6 +20,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { PAGE_SIZE, getRuler, parseQuery } from "@/lib/ruler"
+import { typePath } from "@/lib/format"
 
 const id = Astro.params.id ?? ""
 const query = parseQuery(Astro.url.searchParams)
@@ -137,7 +138,7 @@ const filters = ruler
                 <span aria-hidden="true" class="absolute inset-x-0 top-[4px] h-px bg-hairline" />
                 {ruler.portraits.map((p) => (
                   <li class="relative">
-                    <a href={`/type/${p.typeId}`} class="group flex flex-col">
+                    <a href={typePath(p.typeId)} class="group flex flex-col">
                       <span aria-hidden="true" class="block size-[9px] rounded-full bg-ink" />
                       <span class="mt-6 font-serif text-[26px] leading-tight">{p.years}</span>
                       <span class="num mt-1 text-label text-stone">
@@ -172,7 +173,7 @@ const filters = ruler
           {ruler.types.length ? (
             <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-10">
               {ruler.types.map((t) => (
-                <TypeCard href={`/type/${t.id}`} image={t.image} title={t.title} reference={t.reference} meta={t.meta} />
+                <TypeCard href={typePath(t.id)} image={t.image} title={t.title} reference={t.reference} meta={t.meta} />
               ))}
             </div>
           ) : (
