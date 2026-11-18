@@ -180,3 +180,9 @@
   font-variant-numeric: tabular-nums;
 }
 
+
+/* Thin native scrollbar in field grey, for sideways scrollers (legend gloss). No JavaScript. */
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-field) transparent;
+}

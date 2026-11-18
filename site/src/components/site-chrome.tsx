@@ -50,7 +50,7 @@ export function SiteHeader({ current }: { current?: string }) {
             </NavLink>
           ))}
         </nav>
-        <SearchField className="ml-auto min-w-[220px] flex-[0_1_320px]" placeholder="Reference, legend or ruler" shortcut="⌘K" />
+        <SearchField className="w-full sm:ml-auto sm:w-auto sm:min-w-[220px] sm:flex-[0_1_320px]" placeholder="Reference, legend or ruler" shortcut="⌘K" />
         <nav aria-label="Site" className="flex gap-x-7">
           <NavLink href="/about">About</NavLink>
           <NavLink href="/sources">Sources</NavLink>

@@ -8,34 +8,42 @@ export function DataList({ className, ...props }: React.ComponentProps<"dl">) {
 
 /*
  * One fact: stone label, value, optional stone qualifier ("attributed", "disputed").
- * With `href`, the value is a link that underlines on hover. No chevrons, no row hover.
+ * With `href`, the value is a link that underlines on hover. `action` sits at the row's end
+ * (the reference row's Copy button). No chevrons, no row hover.
  */
 export function DataRow({
   label,
   children,
   note,
   href,
+  action,
 }: {
   label: React.ReactNode
   children: React.ReactNode
   note?: React.ReactNode
   href?: string
+  action?: React.ReactNode
 }) {
   return (
-    <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-baseline gap-4 border-b border-hairline py-3.5">
+    <div
+      className={cn(
+        "grid items-baseline gap-4 border-b border-hairline py-3.5",
+        action ? "grid-cols-[8rem_minmax(0,1fr)_auto]" : "grid-cols-[8rem_minmax(0,1fr)]"
+      )}
+    >
       <dt className="text-label text-stone">{label}</dt>
       <dd className="m-0">
-        {href ? (
-          <a href={href} className="underline-offset-4 hover:underline">
-            {children}
-          </a>
-        ) : (
-          children
-        )}
+        {href ? <RowLink href={href}>{children}</RowLink> : children}
         {note && <span className="text-stone">, {note}</span>}
       </dd>
+      {action}
     </div>
   )
+}
+
+/* A link inside a data row's value: ink, underline on hover. For rows with several links. */
+export function RowLink(props: React.ComponentProps<"a">) {
+  return <a {...props} className={cn("underline-offset-4 hover:underline", props.className)} />
 }
 
 /* Name … count, for ranked lists (rulers at a mint, denominations). */

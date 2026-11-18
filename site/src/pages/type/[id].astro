@@ -1,0 +1,307 @@
+---
+/*
+ * Coin-type page: /type/ric.2.tr.98. Server-rendered from D1. Client JavaScript: the copy button
+ * and the specimens table (an island, loaded when scrolled into view).
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import { SiteHeader, SiteFooter, SectionHeading } from "@/components/site-chrome"
+import { DataList, DataRow, RowLink } from "@/components/data"
+import { CoinPair, TypeCard } from "@/components/coin"
+import { SpecimenTable } from "@/components/specimens"
+import { Legend, LegendGloss } from "@/components/legend"
+import { Button } from "@/components/ui/button"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { getCoinType } from "@/lib/coinType"
+import { acsearchUrl, capitalise } from "@/lib/format"
+
+const id = Astro.params.id ?? ""
+const result = await getCoinType(env.DB, id)
+
+if (result.kind === "redirect") return Astro.redirect(`/type/${result.to}`, 301)
+if (result.kind === "missing") {
+  Astro.response.status = 404
+}
+const type = result.kind === "found" ? result.type : null
+
+const issuer = type?.authorities[0] ?? null
+const denomination = type?.denominations.map((d) => d.name.toLowerCase()).join(" or ")
+const material = type?.materials[0]?.toLowerCase()
+
+/* "Silver denarius of Trajan, struck at Rome, AD 103–111": built only from fields we have. */
+const subtitle = type
+  ? capitalise(
+      [
+        [material, denomination].filter(Boolean).join(" ") || "Coin",
+        issuer || type.organizations[0] ? ` of ${(issuer ?? type.organizations[0]).name}` : "",
+        type.mint ? `, ${type.mint.uncertain ? "probably struck" : "struck"} at ${type.mint.name}` : "",
+        type.date ? `, ${type.date}` : "",
+      ].join("")
+    )
+  : ""
+
+const acsearch = type ? acsearchUrl(type.ricVolume, type.ricNumber, issuer?.name ?? null) : null
+const sideLabel = { obverse: "Obverse", reverse: "Reverse" } as const
+const sideHint = { obverse: "Front of the coin", reverse: "Back of the coin" } as const
+const sidePhoto = (side: "obverse" | "reverse") => type?.hero?.photos.find((p) => p.side === side)?.src ?? null
+const anyGloss = type?.sides.some((s) => s.segments?.length)
+
+---
+
+<Base title={type ? `${type.reference}` : "Type not found"}>
+  <SiteHeader />
+  {
+    !type ? (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] py-24">
+        <h1 class="m-0 font-serif text-display font-normal">Type not found</h1>
+        <p class="mt-6 text-body text-stone">
+          There is no coin type <span class="text-ink">{id}</span>. Check the reference, or search for it.
+        </p>
+      </main>
+    ) : (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)]">
+        {/* Photo beside the facts */}
+        <section class="flex flex-wrap items-stretch gap-x-20 gap-y-12 pt-12 pb-26">
+          <CoinPair photos={type.hero?.photos ?? []} size="hero" className="min-w-0 flex-[1.4_1_560px] justify-between">
+            {type.hero && (
+              <figcaption class="flex flex-wrap justify-between gap-x-6 gap-y-1.5 text-credit text-stone">
+                <span>{type.hero.photos.length === 2 ? "Obverse and reverse" : "Obverse and reverse, one photograph"}</span>
+                <a href={type.hero.credit.url} class="underline-offset-4 hover:underline">
+                  Photograph: {type.hero.credit.holder}
+                  {type.hero.credit.licence && ` · ${type.hero.credit.licence}`}
+                </a>
+              </figcaption>
+            )}
+          </CoinPair>
+
+          <div class="flex min-w-0 flex-[1_1_440px] flex-col gap-10">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/">Roman Imperial</BreadcrumbLink>
+                </BreadcrumbItem>
+                {issuer && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbLink href={`/ruler/${issuer.id}`}>{issuer.name}</BreadcrumbLink>
+                    </BreadcrumbItem>
+                  </>
+                )}
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{type.ricNumber ? `${type.ricVolume ?? "RIC"} ${type.ricNumber}` : type.reference}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+
+            <div class="flex flex-col gap-4">
+              <h1 class="m-0 font-serif text-display font-normal">{type.reference}</h1>
+              <p class="m-0 text-subtitle text-pretty text-graphite">{subtitle}</p>
+            </div>
+
+            <DataList>
+              <DataRow label="Reference">
+                {type.reference}
+                <button
+                  slot="action"
+                  type="button"
+                  data-copy={type.reference}
+                  class="text-label text-stone underline-offset-4 hover:text-ink hover:underline"
+                >
+                  Copy
+                </button>
+              </DataRow>
+              {type.authorities.length > 0 && (
+                <DataRow label={type.authorities.length > 1 ? "Issuers" : "Issuer"}>
+                  {type.authorities.map((p, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      <RowLink href={`/ruler/${p.id}`}>{p.name}</RowLink>
+                      {p.years && <span class="text-stone">, {p.years}</span>}
+                    </>
+                  ))}
+                </DataRow>
+              )}
+              {type.organizations.length > 0 && (
+                <DataRow label="Issued by">
+                  {type.organizations.map((o, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      {o.name}
+                    </>
+                  ))}
+                </DataRow>
+              )}
+              {type.portraits.length > 0 && (
+                <DataRow label="Portrait">
+                  {type.portraits.map((p, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      <RowLink href={`/ruler/${p.id}`}>{p.name}</RowLink>
+                    </>
+                  ))}
+                </DataRow>
+              )}
+              {type.mint && (
+                <DataRow label="Mint" href={`/mint/${type.mint.id}`} note={type.mint.uncertain ? "uncertain" : undefined}>
+                  {type.mint.name}
+                </DataRow>
+              )}
+              {type.mintUnknown && (
+                <DataRow label="Mint">
+                  <span class="text-stone">Uncertain</span>
+                </DataRow>
+              )}
+              {type.date && <DataRow label="Date">{type.date}</DataRow>}
+              {type.denominations.length > 0 && (
+                <DataRow label="Denomination" note={material}>
+                  {type.denominations.map((d, i) => (
+                    <>
+                      {i > 0 && " or "}
+                      <RowLink href={`/denomination/${d.id}`}>{d.name}</RowLink>
+                    </>
+                  ))}
+                </DataRow>
+              )}
+              {type.subjects.length > 0 && (
+                <DataRow label={type.subjects.length > 1 ? "Subjects" : "Subject"}>
+                  {type.subjects.map((s, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      <RowLink href={`/subject/${s.id}`}>{s.name}</RowLink>
+                      {s.side === "obverse" && <span class="text-stone"> (obverse)</span>}
+                    </>
+                  ))}
+                </DataRow>
+              )}
+              {type.parent && (
+                <DataRow label="Variant of" href={`/type/${type.parent.id}`}>
+                  {type.parent.reference}
+                </DataRow>
+              )}
+            </DataList>
+
+            <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
+              {acsearch && (
+                <Button variant="link" asChild>
+                  <a href={acsearch} rel="noopener">Past sales on ACSearch ↗</a>
+                </Button>
+              )}
+              <Button variant="link" asChild>
+                <a href={type.sourceUri} rel="noopener">View on OCRE ↗</a>
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* Legends, word by word */}
+        {type.sides.length > 0 && (
+          <section class="flex flex-wrap gap-x-20 gap-y-10 border-t border-hairline pt-18 pb-22">
+            <h2 class="m-0 flex-[1_1_220px] font-serif text-heading font-normal">Legends</h2>
+            <div class="flex min-w-0 flex-[3_1_640px] flex-col gap-16">
+              {type.sides.map((s) => (
+                <div class="flex flex-col gap-7">
+                  <div class="flex items-center gap-5">
+                    {sidePhoto(s.side) && (
+                      <img src={sidePhoto(s.side)!} alt="" class="size-16 flex-none rounded-full object-cover" loading="lazy" />
+                    )}
+                    <div class="flex min-w-0 flex-col">
+                      <span class="text-body">{sideLabel[s.side]}</span>
+                      <span class="text-label text-stone">
+                        {sideHint[s.side]}
+                        {s.description && ` · ${s.description}`}
+                      </span>
+                    </div>
+                  </div>
+                  {s.segments?.length ? (
+                    <LegendGloss segments={s.segments} />
+                  ) : s.legend ? (
+                    <Legend>{s.legend}</Legend>
+                  ) : (
+                    <p class="m-0 text-body text-stone">No legend.</p>
+                  )}
+                </div>
+              ))}
+              {anyGloss && (
+                <p class="-mt-6 text-label text-stone">Letters in grey are not on the coin; they complete the abbreviations.</p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Museum coins of this type: the one interactive island on the page */}
+        <section class="flex flex-col gap-8 border-t border-hairline pt-18 pb-22">
+          <SectionHeading>Specimens</SectionHeading>
+          {type.specimens.length ? (
+            <SpecimenTable
+              client:visible
+              specimens={type.specimens.map((s) => ({
+                id: s.id,
+                url: s.url,
+                holder: s.holder,
+                identifier: s.identifier,
+                weight: s.weight,
+                diameter: s.diameter,
+                dieAxis: s.dieAxis,
+                licence: s.credit.licence,
+                thumbs: s.thumbs,
+                photos: s.photos,
+              }))}
+            />
+          ) : (
+            <p class="m-0 text-body text-stone">No museum specimens are linked to this type yet.</p>
+          )}
+        </section>
+
+        {type.variants.length > 0 && (
+          <section class="flex flex-col gap-10 border-t border-hairline pt-18 pb-22">
+            <SectionHeading aside={`${type.variants.length}`}>Variants</SectionHeading>
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10">
+              {type.variants.map((v) => (
+                <TypeCard href={`/type/${v.id}`} image={v.image} title={v.title} reference={v.reference} meta={v.meta} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {type.related.length > 0 && (
+          <section class="flex flex-col gap-10 border-t border-hairline pt-18 pb-24">
+            <div class="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 class="m-0 font-serif text-heading font-normal">Related types</h2>
+              {issuer && (
+                <Button variant="link" asChild>
+                  <a href={`/ruler/${issuer.id}`}>All types of {issuer.name}</a>
+                </Button>
+              )}
+            </div>
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10">
+              {type.related.map((r) => (
+                <TypeCard href={`/type/${r.id}`} image={r.image} title={r.title} reference={r.reference} meta={r.meta} />
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+    )
+  }
+  <SiteFooter />
+</Base>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+    button.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(button.dataset.copy ?? "")
+      const label = button.textContent
+      button.textContent = "Copied"
+      setTimeout(() => (button.textContent = label), 1500)
+    })
+  }
+</script>

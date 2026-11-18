@@ -44,13 +44,14 @@ function splitSupplied(abbr: string, latin: string): React.ReactNode[] {
  *   a hairline across the side
  *   Latin      Geist body, supplied letters in stone
  *   English    Garamond italic, wraps at 13ch
- * Scrolls sideways on narrow screens.
+ * Scrolls sideways when it doesn't fit, fading at the edge with more to see.
  */
 export function LegendGloss({ segments, className }: { segments: LegendSegment[]; className?: string }) {
   return (
-    <div className={cn("overflow-x-auto", className)} tabIndex={0} aria-label="Legend, word by word">
+    // shadcn's scroll-fade-x: fades whichever edge has more to scroll to, and none at the ends.
+    <div className={cn("scroll-fade-x scroll-fade-16 scrollbar-thin overflow-x-auto pb-2", className)} tabIndex={0} aria-label="Legend, word by word">
       <div
-        className="grid w-max items-baseline gap-x-8"
+        className="grid w-max items-baseline gap-x-8 pr-16"
         style={{ gridTemplateColumns: `repeat(${segments.length}, max-content)` }}
       >
         {segments.map((s, i) => (
