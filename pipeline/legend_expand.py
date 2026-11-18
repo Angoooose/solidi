@@ -185,13 +185,13 @@ def apply_context(segments: list[Segment], dictionary: Dictionary) -> list[Segme
             genitive_name = (prev and prev.kind == "name" and not female(prev)
                              and (prev.latin or "").lower().endswith(("i", "is")))
             if prev and prev.kind == "name" and female(prev):
-                seg.latin, seg.english = "Augusta", "Augusta (empress)"
+                seg.latin, seg.english = "Augusta", "empress"
             elif prev_word in _FILIATION:
                 pass
             elif genitive_name or (nxt and nxt.text in ("F", "FIL")):
                 seg.latin, seg.english = "Augusti", "of the Emperor"
             elif subject_female and seen_subject:
-                seg.latin, seg.english = "Augusta", "Augusta (empress)"
+                seg.latin, seg.english = "Augusta", "empress"
             elif prev and prev.kind in _GENITIVE_AFTER:
                 seg.latin, seg.english = "Augusti", "of the Emperor"
         elif seg.text in ("AVGVSTA", "AVGVSTAE") and prev and prev.kind in ("personification", "virtue"):

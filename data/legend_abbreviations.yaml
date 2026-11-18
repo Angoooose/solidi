@@ -209,15 +209,15 @@ phrases:
 
 words:
   # --- Imperial titles and offices --------------------------------------------------------------
-  AVG: {latin: "Augustus", english: "Augustus (emperor)", kind: title, note: "often genitive Augusti in reverse legends (VICTORIA AVG)"}
-  AV: {latin: "Augustus", english: "Augustus (emperor)", kind: title}
-  AG: {latin: "Augustus", english: "Augustus (emperor)", kind: title}
-  AVGVS: {latin: "Augustus", english: "Augustus (emperor)", kind: title}
-  AVGVST: {latin: "Augustus", english: "Augustus (emperor)", kind: title, note: "also Augusti / Augusta by context"}
-  AVGVSTVS: {latin: "Augustus", english: "Augustus (emperor)", kind: title}
+  AVG: {latin: "Augustus", english: "emperor", kind: title, note: "often genitive Augusti in reverse legends (VICTORIA AVG)"}
+  AV: {latin: "Augustus", english: "emperor", kind: title}
+  AG: {latin: "Augustus", english: "emperor", kind: title}
+  AVGVS: {latin: "Augustus", english: "emperor", kind: title}
+  AVGVST: {latin: "Augustus", english: "emperor", kind: title, note: "also Augusti / Augusta by context"}
+  AVGVSTVS: {latin: "Augustus", english: "emperor", kind: title}
   AVGVSTI: {latin: "Augusti", english: "of the Augustus (emperor)", kind: title, lemma: "Augustus"}
   AVGVSTO: {latin: "Augusto", english: "to the Augustus (emperor)", kind: title, lemma: "Augustus"}
-  AVGVSTA: {latin: "Augusta", english: "Augusta (empress)", kind: title}
+  AVGVSTA: {latin: "Augusta", english: "empress", kind: title}
   AVGVSTAE: {latin: "Augustae", english: "of the Augusta (empress)", kind: title, lemma: "Augusta"}
   AVGG: {latin: "Augustorum", english: "of the (two) emperors", kind: title, lemma: "Augustus", note: "doubled letter = two emperors; nominative Augusti after a list of names"}
   AVGGG: {latin: "Augustorum", english: "of the (three) emperors", kind: title, lemma: "Augustus"}
@@ -381,24 +381,24 @@ words:
   RESTITVTORI: {latin: "Restitutori", english: "to the restorer", kind: epithet, lemma: "Restitutor"}
 
   # --- Victory titles -----------------------------------------------------------------------------
-  GER: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
-  GERM: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
-  GERMA: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
-  GERMAN: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
-  GERMANIC: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title}
-  GERMANICVS: {latin: "Germanicus", english: "Germanicus (victor over the Germans)", kind: title, note: "also the personal name of Germanicus Caesar and Caligula"}
-  DAC: {latin: "Dacicus", english: "Dacicus (victor over the Dacians)", kind: title}
-  DACICVS: {latin: "Dacicus", english: "Dacicus (victor over the Dacians)", kind: title}
-  PARTH: {latin: "Parthicus", english: "Parthicus (victor over the Parthians)", kind: title}
-  PART: {latin: "Parthicus", english: "Parthicus (victor over the Parthians)", kind: title}
-  PARTHICO: {latin: "Parthico", english: "Parthicus (victor over the Parthians)", kind: title, lemma: "Parthicus"}
-  PARTHIC: {latin: "Parthici", english: "Parthicus (victor over the Parthians)", kind: title, lemma: "Parthicus", note: "PARTHIC DIVI TRAIAN = son of the deified Trajan Parthicus"}
-  BRIT: {latin: "Britannicus", english: "Britannicus (victor over the Britons)", kind: title}
-  ARM: {latin: "Armeniacus", english: "Armeniacus (victor over the Armenians)", kind: title}
-  ARMENIACVS: {latin: "Armeniacus", english: "Armeniacus (victor over the Armenians)", kind: title}
-  SARM: {latin: "Sarmaticus", english: "Sarmaticus (victor over the Sarmatians)", kind: title}
-  SARMAT: {latin: "Sarmaticus", english: "Sarmaticus (victor over the Sarmatians)", kind: title, note: "VICTORIA SARMAT = Sarmatica"}
-  ARAB: {latin: "Arabicus", english: "Arabicus (victor over the Arabs)", kind: title, note: "ARAB ADQ = Arabia adquisita"}
+  GER: {latin: "Germanicus", english: "victor over the Germans", kind: title}
+  GERM: {latin: "Germanicus", english: "victor over the Germans", kind: title}
+  GERMA: {latin: "Germanicus", english: "victor over the Germans", kind: title}
+  GERMAN: {latin: "Germanicus", english: "victor over the Germans", kind: title}
+  GERMANIC: {latin: "Germanicus", english: "victor over the Germans", kind: title}
+  GERMANICVS: {latin: "Germanicus", english: "victor over the Germans", kind: title, note: "also the personal name of Germanicus Caesar and Caligula"}
+  DAC: {latin: "Dacicus", english: "victor over the Dacians", kind: title}
+  DACICVS: {latin: "Dacicus", english: "victor over the Dacians", kind: title}
+  PARTH: {latin: "Parthicus", english: "victor over the Parthians", kind: title}
+  PART: {latin: "Parthicus", english: "victor over the Parthians", kind: title}
+  PARTHICO: {latin: "Parthico", english: "victor over the Parthians", kind: title, lemma: "Parthicus"}
+  PARTHIC: {latin: "Parthici", english: "victor over the Parthians", kind: title, lemma: "Parthicus", note: "PARTHIC DIVI TRAIAN = son of the deified Trajan Parthicus"}
+  BRIT: {latin: "Britannicus", english: "victor over the Britons", kind: title}
+  ARM: {latin: "Armeniacus", english: "victor over the Armenians", kind: title}
+  ARMENIACVS: {latin: "Armeniacus", english: "victor over the Armenians", kind: title}
+  SARM: {latin: "Sarmaticus", english: "victor over the Sarmatians", kind: title}
+  SARMAT: {latin: "Sarmaticus", english: "victor over the Sarmatians", kind: title, note: "VICTORIA SARMAT = Sarmatica"}
+  ARAB: {latin: "Arabicus", english: "victor over the Arabs", kind: title, note: "ARAB ADQ = Arabia adquisita"}
   GERMANICA: {latin: "Germanica", english: "German (victory)", kind: word, lemma: "Germanicus"}
 
   # --- Praenomina and family names ----------------------------------------------------------------

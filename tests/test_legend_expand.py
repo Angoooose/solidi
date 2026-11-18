@@ -63,7 +63,7 @@ def test_real_dictionary_parses():
 CONTEXT = Dictionary({
     "words": {
         "VICTORIA": {"latin": "Victoria", "english": "Victory", "kind": "personification"},
-        "AVG": {"latin": "Augustus", "english": "Augustus (emperor)", "kind": "title"},
+        "AVG": {"latin": "Augustus", "english": "emperor", "kind": "title"},
         "SABINA": {"latin": "Sabina", "english": "Sabina", "kind": "name", "gender": "f"},
         "HADRIANVS": {"latin": "Hadrianus", "english": "Hadrian", "kind": "name"},
         "F": {"latin": "Filius", "english": "son", "kind": "word"},
