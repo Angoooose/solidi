@@ -3,7 +3,11 @@
  * D1 batch. Column names mirror pipeline/schema.sql, the contract with the pipeline.
  */
 import type { LegendSegment } from "@/components/legend"
-import { iiif, licenceLabel, secure, shortDescription, yearRange } from "@/lib/format"
+import { iiif, imageLicence, secure, yearRange, type Licence } from "@/lib/format"
+import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
+import { CARD_SELECT, REFUSING_HOST, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
+
+export type { TypeCardData }
 
 const RELATED_LIMIT = 8
 
@@ -12,7 +16,7 @@ type Side = "obverse" | "reverse"
 export type Link = { id: string; name: string }
 export type Person = Link & { role: string; years: string | null }
 export type Photo = { src: string; side: Side | "combined" }
-export type Credit = { holder: string; licence: string | null; url: string }
+export type Credit = { holder: string; licence: Licence | null; url: string }
 
 export type Specimen = {
   id: string
@@ -27,14 +31,6 @@ export type Specimen = {
   /** Large images for the viewer and the hero. */
   photos: Photo[]
   credit: Credit
-}
-
-export type TypeCardData = {
-  id: string
-  reference: string
-  title: string
-  meta: string
-  image: string | null
 }
 
 export type CoinType = {
@@ -56,6 +52,7 @@ export type CoinType = {
   subjects: (Link & { side: Side })[]
   parent: { id: string; reference: string } | null
   variants: TypeCardData[]
+  variantCredits: PhotoCreditItem[]
   sides: {
     side: Side
     legend: string | null
@@ -68,6 +65,7 @@ export type CoinType = {
   specimenCount: number
   collectionCount: number
   related: TypeCardData[]
+  relatedCredits: PhotoCreditItem[]
 }
 
 export type CoinTypeResult =
@@ -102,23 +100,6 @@ type ImageRow = {
   iiif_service: string | null
 }
 
-type CardRow = {
-  id: string
-  title: string | null
-  rev_description: string | null
-  start_year: number | null
-  end_year: number | null
-  denomination: string | null
-  image: string | null
-  iiif: string | null
-}
-
-/*
- * Image hosts that refused to serve our pages in testing (Gallica returned 403). Their photos are
- * treated as missing (photosFor) and their specimens ranked last. Revisit once BnF replies.
- */
-const REFUSING_HOST = `'%gallica.bnf.fr%'`
-
 /*
  * Specimens worth showing first: photos that load, both sides photographed, then a single
  * combined photo, then the rest; within that, IIIF (sharp at any size) and measured coins first.
@@ -133,30 +114,6 @@ const SPECIMEN_ORDER = `
     (SELECT count(*) FROM image WHERE specimen_id = s.id AND iiif_service IS NOT NULL) DESC,
     s.weight_g IS NULL,
     s.id`
-
-/* One reverse photo per type for cards: prefer a reverse, then a combined image. */
-const CARD_IMAGE = (col: string) => `
-  (SELECT i.${col} FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-   WHERE st.type_id = t.id AND i.side IN ('reverse', 'combined')
-   ORDER BY i.url LIKE ${REFUSING_HOST}, i.side = 'combined', i.iiif_service IS NULL LIMIT 1)`
-
-const CARD_SELECT = `
-  SELECT t.id, t.title, t.rev_description, t.start_year, t.end_year,
-    (SELECT d.name FROM type_denomination td JOIN denomination d ON d.id = td.denomination_id
-     WHERE td.type_id = t.id LIMIT 1) AS denomination,
-    ${CARD_IMAGE("url")} AS image,
-    ${CARD_IMAGE("iiif_service")} AS iiif
-  FROM coin_type t`
-
-function card(row: CardRow): TypeCardData {
-  return {
-    id: row.id,
-    reference: row.title ?? row.id,
-    title: shortDescription(row.rev_description) ?? row.title ?? row.id,
-    meta: [row.denomination, yearRange(row.start_year, row.end_year)].filter(Boolean).join(" · "),
-    image: iiif(row.iiif, 600) ?? secure(row.image),
-  }
-}
 
 export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeResult> {
   const t = await db
@@ -194,7 +151,7 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
       q(`${CARD_SELECT} WHERE t.parent_id = ? AND t.replaced_by_id IS NULL ORDER BY t.id`, id),
       q(
         `SELECT s.id, s.source_uri, s.identifier, s.weight_g, s.diameter_mm, s.die_axis,
-           coalesce(i.name, d.name) AS holder, coalesce(d.image_licence, d.data_licence) AS licence
+           coalesce(i.name, d.name) AS holder, d.image_licence, d.data_licence
          FROM specimen_type st JOIN specimen s ON s.id = st.specimen_id
          LEFT JOIN institution i ON i.id = s.institution_id
          LEFT JOIN dataset d ON d.id = s.dataset_id
@@ -232,7 +189,8 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
     diameter_mm: number | null
     die_axis: number | null
     holder: string | null
-    licence: string | null
+    image_licence: string | null
+    data_licence: string | null
   }[]
 
   const imagesBySpecimen = new Map<string, ImageRow[]>()
@@ -242,7 +200,7 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
 
   /* Obverse and reverse if both exist, else one combined photo. Small sizes prefer the museum's thumbnail. */
   const photosFor = (specimenId: string, box: number, small = false): Photo[] => {
-    const rows = (imagesBySpecimen.get(specimenId) ?? []).filter((r) => !r.url.includes("gallica.bnf.fr"))
+    const rows = (imagesBySpecimen.get(specimenId) ?? []).filter((r) => !r.url.includes("gallica.bnf.fr")) // REFUSING_HOST
     const pick = (side: ImageRow["side"]) => rows.find((r) => r.side === side)
     const chosen = [pick("obverse"), pick("reverse")].filter(Boolean) as ImageRow[]
     const list = chosen.length ? chosen : rows.filter((r) => r.side === "combined").slice(0, 1)
@@ -256,7 +214,7 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
 
   const toSpecimen = (s: (typeof specimenRows)[number], box: number): Specimen => ({
     id: s.id,
-    url: s.source_uri,
+    url: secure(s.source_uri) ?? s.source_uri,
     holder: s.holder ?? "Unknown collection",
     identifier: s.identifier,
     weight: s.weight_g,
@@ -264,7 +222,7 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
     dieAxis: s.die_axis,
     thumbs: photosFor(s.id, 160, true),
     photos: photosFor(s.id, box),
-    credit: { holder: s.holder ?? "Unknown collection", licence: licenceLabel(s.licence), url: s.source_uri },
+    credit: { holder: s.holder ?? "Unknown collection", licence: imageLicence(s.image_licence, s.data_licence), url: secure(s.source_uri) ?? s.source_uri },
   })
 
   const peopleRows = people.results as { id: string; name: string; start_year: number | null; end_year: number | null; role: string }[]
@@ -302,12 +260,20 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
   const heroRow = specimenRows.find((s) => photosFor(s.id, 900).length > 0)
   const parentRow = parent.results[0] as { id: string; title: string | null } | undefined
 
+  const variantCards = (variants.results as CardRow[]).map(card)
+  const relatedCards = (related.results as CardRow[]).map(card)
+  const ids = (cards: TypeCardData[]) => cards.map((c) => c.imageId).filter((i): i is number => i != null)
+  const [variantCredits, relatedCredits] = await Promise.all([
+    getPhotoCredits(db, ids(variantCards)),
+    getPhotoCredits(db, ids(relatedCards)),
+  ])
+
   return {
     kind: "found",
     type: {
       id: t.id,
       reference: t.title ?? t.id,
-      sourceUri: t.source_uri,
+      sourceUri: secure(t.source_uri) ?? t.source_uri,
       ricVolume: t.ric_volume,
       ricNumber: t.ric_number,
       date: yearRange(t.start_year, t.end_year),
@@ -320,13 +286,15 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
       organizations: orgs.results as Link[],
       subjects: subjects.results as (Link & { side: Side })[],
       parent: parentRow ? { id: parentRow.id, reference: parentRow.title ?? parentRow.id } : null,
-      variants: (variants.results as CardRow[]).map(card),
+      variants: variantCards,
+      variantCredits,
       sides: [sideData("obverse"), sideData("reverse")].filter((s) => s.legend || s.description),
       hero: heroRow ? toSpecimen(heroRow, 900) : null,
       specimens: specimenRows.map((s) => toSpecimen(s, 900)),
       specimenCount: specimenRows.length,
       collectionCount: new Set(specimenRows.map((s) => s.holder)).size,
-      related: (related.results as CardRow[]).map(card),
+      related: relatedCards,
+      relatedCredits,
     },
   }
 }

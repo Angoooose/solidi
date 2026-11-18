@@ -6,10 +6,16 @@ import { cn } from "@/lib/utils"
  * backgrounds disappear. Without a photo, the plinth says so in words.
  */
 export function Plinth({ src, alt = "", className }: { src?: string | null; alt?: string; className?: string }) {
+  // The image is positioned inside a square box, so a tall or wide photo can never resize the card.
   return (
-    <span className={cn("flex aspect-square items-center justify-center bg-plinth p-5", className)}>
+    <span className={cn("relative flex aspect-square items-center justify-center bg-plinth", className)}>
       {src ? (
-        <img src={src} alt={alt} loading="lazy" className="size-full object-contain mix-blend-multiply" />
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="absolute inset-0 size-full object-contain p-5 mix-blend-multiply"
+        />
       ) : (
         <span className="text-label text-stone">No photograph yet</span>
       )}

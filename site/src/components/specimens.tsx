@@ -22,6 +22,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
+import { LicenceLink } from "@/components/credits"
+import type { Licence } from "@/lib/format"
 
 export type SpecimenRow = {
   id: string
@@ -31,7 +33,7 @@ export type SpecimenRow = {
   weight: number | null
   diameter: number | null
   dieAxis: number | null
-  licence: string | null
+  licence: Licence | null
   thumbs: { src: string; side: string }[]
   photos: { src: string; side: string }[]
 }
@@ -149,11 +151,8 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
           <SelectContent>
             <SelectItem value={ALL}>All collections</SelectItem>
             {collections.map(([name, n]) => (
-              <SelectItem key={name} value={name}>
-                <span className="flex min-w-0 gap-1.5">
-                  <span className="truncate">{name}</span>
-                  <span className="flex-none text-stone">· {n}</span>
-                </span>
+              <SelectItem key={name} value={name} count={n}>
+                {name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -227,7 +226,11 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
                 <TableCell className="num text-right">{fmt(s.weight)}</TableCell>
                 <TableCell className="num text-right">{fmt(s.diameter)}</TableCell>
                 <TableCell className="num text-right">{axis(s.dieAxis)}</TableCell>
-                <TableCell className="truncate text-stone" title={s.licence ?? undefined}>{s.licence ?? "—"}</TableCell>
+                <TableCell className="truncate text-stone" title={s.licence?.label}>
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <LicenceLink licence={s.licence} />
+                  </span>
+                </TableCell>
                 <TableCell className="text-right">
                   <a
                     href={s.url}
@@ -324,7 +327,7 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
                     ["Weight", fmt(current.weight, " g")],
                     ["Diameter", fmt(current.diameter, " mm")],
                     ["Die axis", axis(current.dieAxis)],
-                    ["Image licence", current.licence ?? "—"],
+                    ["Image licence", <LicenceLink licence={current.licence} />],
                   ] as const
                 ).map(([label, value]) => (
                   <div key={label} className="flex flex-col gap-1">

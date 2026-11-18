@@ -38,14 +38,31 @@ const LICENCES: [RegExp, string][] = [
   [/by\/([\d.]+)/i, "CC BY $1"],
 ]
 
-/** "https://creativecommons.org/licenses/by-nc-sa/4.0/" → "CC BY-NC-SA 4.0". Unknown text is returned as is. */
-export function licenceLabel(licence: string | null | undefined): string | null {
-  if (!licence) return null
+/** A licence as shown to readers: a short name, and the licence's own page when we have one. */
+export type Licence = { label: string; url: string | null }
+
+/** "https://creativecommons.org/licenses/by-nc-sa/4.0/" → { label: "CC BY-NC-SA 4.0", url: that page }. */
+export function licence(raw: string | null | undefined): Licence | null {
+  if (!raw) return null
+  const url = /^https?:\/\//.test(raw) ? secure(raw) : null
   for (const [pattern, label] of LICENCES) {
-    const m = licence.match(pattern)
-    if (m) return label.replace("$1", m[1] ?? "")
+    const m = raw.match(pattern)
+    if (m) return { label: label.replace("$1", m[1] ?? ""), url }
   }
-  return licence.length <= 40 ? licence : null
+  return raw.length <= 40 ? { label: raw, url } : null
+}
+
+/* Database licences describe the dataset, not the photographs in it. */
+const DATABASE_LICENCE = /odbl|opendatacommons/i
+
+/**
+ * The licence for a photograph: the dataset's image licence, else its data licence unless that is
+ * a database licence (ODbL says nothing about the photos; showing it would misstate their terms).
+ */
+export function imageLicence(imageLicence: string | null, dataLicence: string | null): Licence | null {
+  if (imageLicence) return licence(imageLicence)
+  if (dataLicence && !DATABASE_LICENCE.test(dataLicence)) return licence(dataLicence)
+  return null
 }
 
 /** First clause of an OCRE description, for card titles: "Dacian seated left …; round him …" → "Dacian seated left …". */

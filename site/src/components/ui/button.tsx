@@ -12,7 +12,7 @@ import { Slot } from "radix-ui"
  *   muted    the same link in stone                     "Clear all", "Copy link"
  * Height matches the inputs: 44px default, 36px small.
  */
-const buttonVariants = cva(
+const variants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 border border-transparent text-ui font-medium whitespace-nowrap transition-colors select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
@@ -38,6 +38,11 @@ const buttonVariants = cva(
   }
 )
 
+/** Button classes, merged like <Button> merges them (cva alone keeps conflicting classes). */
+function buttonVariants(props?: Parameters<typeof variants>[0]) {
+  return cn(variants(props))
+}
+
 function Button({
   className,
   variant = "default",
@@ -45,7 +50,7 @@ function Button({
   asChild = false,
   ...props
 }: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
+  VariantProps<typeof variants> & {
     asChild?: boolean
   }) {
   const Comp = asChild ? Slot.Root : "button"

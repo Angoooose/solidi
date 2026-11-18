@@ -1,6 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { SearchField } from "./search"
+import { IMAGE_CREDITS_URL } from "@/lib/credits"
 
 /* Wordmark: the one place besides Latin legends where capitals are used. */
 export function Wordmark({ className }: { className?: string }) {
@@ -65,7 +66,12 @@ export function SiteFooter() {
     <footer className="border-t border-hairline">
       <div className="mx-auto flex max-w-page flex-wrap justify-between gap-x-8 gap-y-3 px-[clamp(20px,4vw,56px)] pt-7 pb-10 text-label text-stone">
         <span>Solidi is a non-commercial encyclopedia built on OCRE, Nomisma and museum collections.</span>
-        <span>Data ODbL · Images under each holder's licence</span>
+        <span>
+          Data ODbL ·{" "}
+          <a href={IMAGE_CREDITS_URL} className="underline-offset-4 hover:text-ink hover:underline">
+            Image credits
+          </a>
+        </span>
       </div>
     </footer>
   )

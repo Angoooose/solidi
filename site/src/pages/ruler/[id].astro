@@ -1,0 +1,197 @@
+---
+/*
+ * Ruler page: /ruler/trajan. Server-rendered from D1; "Show more" is a plain link and the filter
+ * selects (an island) navigate to a new URL.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import { SiteHeader, SiteFooter } from "@/components/site-chrome"
+import { DataList, DataRow, RowLink } from "@/components/data"
+import { TypeCard } from "@/components/coin"
+import { PhotoCredit } from "@/components/credits"
+import { CoinageFilters } from "@/components/coinage-filters"
+import { buttonVariants } from "@/components/ui/button"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { PAGE_SIZE, getRuler, parseQuery } from "@/lib/ruler"
+
+const id = Astro.params.id ?? ""
+const query = parseQuery(Astro.url.searchParams)
+const ruler = await getRuler(env.DB, id, query)
+if (!ruler) Astro.response.status = 404
+
+/* A URL for this page with some parameters changed; null removes one. Used with data-keep-scroll. */
+const link = (changes: Record<string, string | number | null>) => {
+  const url = new URL(Astro.url)
+  for (const [k, v] of Object.entries(changes)) {
+    if (v == null) url.searchParams.delete(k)
+    else url.searchParams.set(k, String(v))
+  }
+  return `${url.pathname}${url.search}`
+}
+
+const filters = ruler
+  ? [
+      { label: "Portrait", param: "portrait", value: query.portrait, options: ruler.portraitFacet, available: ruler.available.portrait },
+      { label: "Issued by", param: "issuer", value: query.issuer, options: ruler.issuerFacet, available: ruler.available.issuer },
+      { label: "Denomination", param: "denomination", value: query.denomination, options: ruler.denominationFacet, available: ruler.available.denomination },
+      { label: "Date", param: "date", value: query.period, options: ruler.periodFacet, available: ruler.available.period },
+    ]
+  : []
+---
+
+<Base title={ruler?.name ?? "Ruler not found"}>
+  <SiteHeader current="Rulers" />
+  {
+    !ruler ? (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] py-24">
+        <h1 class="m-0 font-serif text-display font-normal">Ruler not found</h1>
+        <p class="mt-6 text-body text-stone">
+          There is no ruler <span class="text-ink">{id}</span>.
+        </p>
+      </main>
+    ) : (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)]">
+        {/* Name, lead, facts */}
+        <section class="flex flex-col gap-8 pt-10">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Roman Imperial</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/rulers">Rulers</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{ruler.name}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+
+          <div class="flex flex-wrap items-end justify-between gap-x-20 gap-y-6">
+            <div class="flex min-w-0 flex-[1_1_560px] flex-col gap-4">
+              <div class="flex flex-wrap items-baseline gap-x-7 gap-y-2">
+                <h1 class="m-0 font-serif text-display font-normal">{ruler.name}</h1>
+                {(ruler.ruled ?? ruler.lived) && <span class="text-subtitle text-graphite">{ruler.ruled ?? ruler.lived}</span>}
+              </div>
+              {ruler.lead && (
+                <p class="m-0 max-w-[56ch] font-serif text-reading text-pretty">
+                  {ruler.lead}
+                  {ruler.article && (
+                    <>
+                      {" "}
+                      <a
+                        href={ruler.article.url}
+                        rel="noopener"
+                        class="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline"
+                      >
+                        Read more on Wikipedia ↗
+                      </a>
+                    </>
+                  )}
+                </p>
+              )}
+              {ruler.article && (
+                <span class="text-credit text-stone">Text from Wikipedia, {ruler.article.licence}</span>
+              )}
+            </div>
+
+            <DataList className="min-w-[300px] flex-[0_1_440px]">
+              {ruler.ruled && <DataRow label="Ruled">{ruler.ruled}</DataRow>}
+              {ruler.lived && <DataRow label="Lived">{ruler.lived}</DataRow>}
+              {ruler.mainMint && (
+                <DataRow label="Main mint" href={`/mint/${ruler.mainMint.id}`}>
+                  {ruler.mainMint.name}
+                </DataRow>
+              )}
+              {ruler.family.map((g) => (
+                <DataRow label={g.relation}>
+                  {g.people.map((p, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      <RowLink href={`/ruler/${p.id}`}>{p.name}</RowLink>
+                    </>
+                  ))}
+                </DataRow>
+              ))}
+            </DataList>
+          </div>
+        </section>
+
+        {/* Their portrait across the reign, as a timeline: a rule with a dot per portrait */}
+        {ruler.portraits.length >= 2 && (
+          <section class="flex flex-col gap-8 border-t border-hairline pt-18 mt-16">
+            <h2 class="m-0 font-serif text-heading font-normal">
+              {ruler.name}'s portrait{ruler.ruled && `, ${ruler.ruled.replace(/^AD /, "")}`}
+            </h2>
+            <div class="scroll-fade-x scrollbar-thin overflow-x-auto pb-2">
+              <ol class="relative m-0 grid min-w-[880px] list-none grid-cols-6 gap-x-6 p-0">
+                <span aria-hidden="true" class="absolute inset-x-0 top-[4px] h-px bg-hairline" />
+                {ruler.portraits.map((p) => (
+                  <li class="relative">
+                    <a href={`/type/${p.typeId}`} class="group flex flex-col">
+                      <span aria-hidden="true" class="block size-[9px] rounded-full bg-ink" />
+                      <span class="mt-6 font-serif text-[26px] leading-tight">{p.years}</span>
+                      <span class="num mt-1 text-label text-stone">
+                        {p.denomination && `${p.denomination} · `}
+                        <span class="underline-offset-4 group-hover:text-ink group-hover:underline">{p.reference}</span>
+                      </span>
+                      <span class="relative mt-5 block aspect-square bg-plinth">
+                        <img
+                          src={p.src}
+                          alt={`${ruler.name}, ${p.years ?? ""}`}
+                          loading="lazy"
+                          class="absolute inset-0 size-full object-contain p-5 mix-blend-multiply"
+                        />
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <PhotoCredit photos={ruler.portraitCredits} />
+          </section>
+        )}
+
+        {/* Coinage */}
+        <section id="coinage" class="flex scroll-mt-6 flex-col gap-8 pt-18 pb-24">
+          <h2 class="m-0 font-serif text-heading font-normal">Coinage</h2>
+
+          <div class="border-b border-hairline pb-3">
+            <CoinageFilters client:idle filters={filters} sort={query.sort} />
+          </div>
+
+          {ruler.types.length ? (
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-10">
+              {ruler.types.map((t) => (
+                <TypeCard href={`/type/${t.id}`} image={t.image} title={t.title} reference={t.reference} meta={t.meta} />
+              ))}
+            </div>
+          ) : (
+            <p class="m-0 text-body text-stone">No types match these filters.</p>
+          )}
+
+          <PhotoCredit photos={ruler.typeCredits} />
+
+          {ruler.total > ruler.types.length && (
+            <a data-keep-scroll href={link({ limit: query.limit + PAGE_SIZE })} class={buttonVariants({ variant: "outline", className: "self-center" })}>
+                Show more types
+                <span class="num font-normal text-stone">
+                  {ruler.types.length} of {ruler.total.toLocaleString("en")}
+                </span>
+              </a>
+          )}
+        </section>
+      </main>
+    )
+  }
+  <SiteFooter />
+</Base>

@@ -114,16 +114,21 @@ function SelectLabel({
   )
 }
 
+/*
+ * `count` is shown in stone after the label in the menu but not in the trigger once chosen
+ * (Radix copies only ItemText into the trigger). Long labels truncate; the menu is capped at 24rem.
+ */
 function SelectItem({
   className,
   children,
+  count,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+}: React.ComponentProps<typeof SelectPrimitive.Item> & { count?: React.ReactNode }) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex w-full cursor-default items-center gap-1.5 py-1.5 pr-8 pl-2 text-ui outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:min-w-0 *:[span]:last:items-center *:[span]:last:gap-2",
+        "relative flex w-full cursor-default items-center gap-1.5 py-1.5 pr-8 pl-2 text-ui outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
@@ -133,10 +138,12 @@ function SelectItem({
           <CheckIcon className="pointer-events-none" />
         </SelectPrimitive.ItemIndicator>
       </span>
-      {/* Long options truncate; the menu is capped at 24rem (Radix otherwise sizes it to the longest option). */}
-      <SelectPrimitive.ItemText>
-        <span className="block min-w-0 truncate">{children}</span>
-      </SelectPrimitive.ItemText>
+      <span className="flex min-w-0 items-center gap-1.5">
+        <SelectPrimitive.ItemText>
+          <span className="block min-w-0 truncate">{children}</span>
+        </SelectPrimitive.ItemText>
+        {count != null && <span className="num flex-none text-stone">· {count}</span>}
+      </span>
     </SelectPrimitive.Item>
   )
 }
