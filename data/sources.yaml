@@ -20,6 +20,8 @@ corpora:
 licence_rules:
   - match: publicdomain
     commercial_ok: true
+  - match: cc0
+    commercial_ok: true
   - match: "-nc"
     commercial_ok: false
   - match: /by-sa/

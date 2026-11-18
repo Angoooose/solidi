@@ -53,8 +53,11 @@ def enrich(db: sqlite3.Connection, raw_dir: Path, refresh: bool = False, log=pri
                            (table, entity_id, f"http://www.wikidata.org/entity/{q}"))
                 stats[f"{table} wikidata links added"] += 1
 
-    # 2. One QID per entity: exact matches first.
+    # 2. One QID per entity: the item Wikidata links back to this Nomisma ID, else exact matches first.
     entity_qid: dict[tuple[str, str], str] = {}
+    for etype, eid, uri in db.execute("SELECT entity_type, entity_id, uri FROM external_id WHERE system = 'wikidata'"):
+        if by_nm.get(eid) == qid(uri):
+            entity_qid[(etype, eid)] = qid(uri)
     for etype, eid, uri, match in db.execute("""
             SELECT entity_type, entity_id, uri, match_type FROM external_id
             WHERE system = 'wikidata' ORDER BY match_type = 'exact' DESC, uri"""):

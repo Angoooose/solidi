@@ -144,12 +144,12 @@ class Builder:
 
     def build_datasets(self) -> None:
         rules = self.config["licence_rules"]
-        overrides = self.config.get("image_overrides", {})
+        overrides = {normalise_uri(k): v for k, v in self.config.get("image_overrides", {}).items()}
         for uri in self.g.subjects_of_type("void:Dataset"):
             p = self.g.props(uri)
             licence = first(p, "dcterms:license") or first(p, "dcterms:rights")
             ok = commercial_ok(licence, rules)
-            override = overrides.get(uri, {})
+            override = overrides.get(normalise_uri(uri), {})
             self.insert("dataset", {
                 "id": uri, "name": label(p, "dcterms:title"), "data_licence": licence,
                 "image_licence": override.get("image_licence"),
@@ -249,8 +249,18 @@ class Builder:
             self.insert("type_denomination", {"type_id": tid, "denomination_id": did})
         for tid, mid in mats:
             self.insert("type_material", {"type_id": tid, "material_id": mid})
-        self.redirects = {tid: new[0] for tid, new in replacements.items()
-                          if len(new) == 1 and new[0] in ids}
+        def final(tid: str, seen: set[str]) -> str | None:
+            new = replacements.get(tid, [])
+            if not new:
+                return tid
+            if len(new) > 1 or new[0] in seen or new[0] not in ids:
+                return None          # split, cycle or outside the build: stay put
+            return final(new[0], seen | {tid})
+
+        self.redirects = {}
+        for tid, new in replacements.items():
+            if new and (target := final(tid, set())) and target != tid:
+                self.redirects[tid] = target
         self.log(f"  types: {len(rows)} ({len(self.redirects)} retired types redirect to a single replacement)")
         return index
 
