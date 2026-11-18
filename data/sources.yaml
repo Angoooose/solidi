@@ -12,7 +12,18 @@ corpora:
     dataset: http://numismatics.org/ocre/
     id_path: /ocre/id/                       # used to match type URIs and their variants
     licence: ODbL
+    # Specimens are fetched in groups of type IDs; the regex's first group is the group key.
+    # 'ric.2.tr.147' -> 'ric.2.' (about 20 groups).
+    specimen_group: '^([^.]+\.[^.]+\.)'
     # Build only part of the corpus while iterating, e.g. `solidi build --authority trajan`.
+
+  crro:
+    name: Coinage of the Roman Republic Online
+    dataset: http://numismatics.org/crro/
+    id_path: /crro/id/
+    licence: ODbL
+    # 'rrc-414.1' -> 'rrc-4' (Crawford numbers by hundreds: about 6 groups).
+    specimen_group: '^(rrc-\d)'
 
 # Licence classification for the commercial switch. Matched as substrings of the
 # dataset's licence URL; first match wins. Anything unmatched is treated as not

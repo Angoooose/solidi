@@ -78,6 +78,7 @@ MARKERS = {
 
 class Dictionary:
     def __init__(self, data: dict):
+        self.data = data
         self.phrases = {tuple(k.split()): v for k, v in (data.get("phrases") or {}).items()}
         for key, entry in MARKERS.items():
             self.phrases.setdefault(tuple(key.split()), entry)
@@ -91,6 +92,19 @@ class Dictionary:
     def load(cls, path: Path) -> "Dictionary":
         return cls(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
 
+    def with_overlay(self, overlay: dict) -> "Dictionary":
+        """A copy with `overlay` laid over it: its entries replace ours, `null` removes one."""
+        merged = {}
+        for part in ("phrases", "words"):
+            entries = dict(self.data.get(part) or {})
+            for key, entry in (overlay.get(part) or {}).items():
+                if entry is None:
+                    entries.pop(key, None)
+                else:
+                    entries[key] = entry
+            merged[part] = entries
+        return Dictionary(merged)
+
     def lookup(self, tokens: list[str], i: int) -> tuple[int, dict | None]:
         for size in range(min(self.max_phrase, len(tokens) - i), 1, -1):
             entry = self.phrases.get(tuple(tokens[i:i + size]))
@@ -99,7 +113,151 @@ class Dictionary:
         return 1, self.lookup_word(tokens[i])
 
 
-def expand(normalised: str, dictionary: Dictionary) -> list[Segment]:
+PRAENOMINA = {
+    "A": "Aulus", "AP": "Appius", "C": "Gaius", "CN": "Gnaeus", "D": "Decimus", "K": "Kaeso",
+    "L": "Lucius", "M": "Marcus", "MN": "Manius", "N": "Numerius", "P": "Publius", "Q": "Quintus",
+    "SER": "Servius", "SEX": "Sextus", "S": "Spurius", "SP": "Spurius", "T": "Titus", "TI": "Tiberius",
+    "V": "Vibius",
+}
+
+
+PRAENOMINA_GENITIVE = {
+    "A": "Auli", "AP": "Appi", "C": "Gai", "CN": "Gnaei", "D": "Decimi", "K": "Kaesonis",
+    "L": "Luci", "M": "Marci", "MN": "Mani", "N": "Numeri", "P": "Publi", "Q": "Quinti",
+    "SER": "Servi", "SEX": "Sexti", "S": "Spuri", "SP": "Spuri", "T": "Titi", "TI": "Tiberi",
+    "V": "Vibi",
+}
+
+# Dictionary words a moneyer's own name may override on Republican coins (MAT = Matienus,
+# TER = Terentius), and the kinds it may not: formulas, gods and virtues mean what they say.
+_PROTECTED_KINDS = {"formula", "deity", "personification", "virtue", "numeral", "marker"}
+
+
+def _legend_form(word: str) -> str:
+    return word.upper().replace("U", "V").replace("J", "I")
+
+
+def apply_names(segments: list[Segment], names: list[str], dictionary: Dictionary | None = None,
+                override: bool = False) -> list[Segment]:
+    """Gloss words the dictionary doesn't know from the names of the type's own issuers.
+
+    Republican moneyers sign with their own names, abbreviated at will: for a type issued by
+    'C. Aburius Geminus', C ABVRI is 'Gaius Aburius' and GEM is 'Geminus'. A word matches when it
+    is a name word or the start of one (3+ letters); a 1-2 letter word matches the issuer's own
+    praenomen ('Cn.' -> CN). Only unknown words are touched, so the dictionary always wins,
+    except with `override` (Republican coins): there a single dictionary word that is not a
+    formula, god, virtue or numbered title gives way to the issuer's name (MAT = Matienus).
+    """
+    words: dict[str, str] = {}
+    praenomina: set[str] = set()
+    for name in names:
+        # Nomisma marks restored letters and inferred names: 'Ogul[nius]', '(Furius) Purpurio'.
+        for w in re.sub(r"[\[\]()]", "", name).replace(",", " ").split():
+            if w.endswith(".") and _legend_form(w[:-1]) in PRAENOMINA:
+                praenomina.add(_legend_form(w[:-1]))
+            elif w[:1].isupper() and len(w) > 2:
+                words.setdefault(_legend_form(w), w)
+    for seg in segments:
+        if seg.kind != "unknown":
+            entry = dictionary.lookup_word(seg.text) if (override and dictionary and " " not in seg.text) else None
+            if not (entry and seg.kind not in _PROTECTED_KINDS and not entry.get("numbered")
+                    and seg.number is None):
+                continue
+            if seg.text in praenomina or len(seg.text) < 3:
+                continue
+        t = seg.text
+        if t in praenomina:
+            seg.latin = seg.english = PRAENOMINA[t]
+            seg.kind = "name"
+            continue
+        # Archaic spellings (SERVEILI, MAXSVMVS) and the genitive -I of -IVS names (PAETI: Paetus).
+        modern = t.replace("EI", "I").replace("XS", "X")
+        forms = {t, modern} | ({modern[:-1]} if modern.endswith("I") and len(modern) >= 5 else set())
+        match = next((w for f, w in words.items() for v in forms
+                      if f == v or (len(v) >= 3 and f.startswith(v))), None)
+        if not match:
+            continue
+        seg.latin = seg.english = match
+        seg.kind = "name"
+    return segments
+
+
+def _praenomen(seg: Segment | None) -> bool:
+    return bool(seg) and seg.kind == "name" and seg.text in PRAENOMINA
+
+
+def apply_filiation(segments: list[Segment]) -> list[Segment]:
+    """C F after a name is 'son of Gaius', not 'Gaius · son'; CN N 'grandson of Gnaeus'.
+    (C EGNATIVS CN F CN N = Gaius Egnatius, son of Gnaeus, grandson of Gnaeus.)"""
+    out: list[Segment] = []
+    i = 0
+    while i < len(segments):
+        seg, nxt = segments[i], segments[i + 1] if i + 1 < len(segments) else None
+        prev = out[-1] if out else None
+        if (_praenomen(seg) and nxt and nxt.text in ("F", "N") and prev
+                and prev.kind in ("name", "unknown", "filiation")):
+            rel = ("filius", "son of") if nxt.text == "F" else ("nepos", "grandson of")
+            out.append(Segment(f"{seg.text} {nxt.text}", f"{PRAENOMINA_GENITIVE[seg.text]} {rel[0]}",
+                               f"{rel[1]} {PRAENOMINA[seg.text]}", "filiation"))
+            i += 2
+            continue
+        out.append(seg)
+        i += 1
+    return out
+
+
+def apply_legion(segments: list[Segment]) -> list[Segment]:
+    """LEG is a legion only before its number (LEG VI, LEG I MIN); otherwise a legate
+    (P CARISIVS LEG AVGVSTI). A lone I, V or X after LEG is the legion's number."""
+    for i, seg in enumerate(segments):
+        if seg.text != "LEG":
+            continue
+        nxt = segments[i + 1] if i + 1 < len(segments) else None
+        if nxt and nxt.kind == "unknown" and nxt.text in ("I", "V", "X"):
+            n = roman_value(nxt.text)
+            nxt.latin, nxt.english, nxt.kind, nxt.number = nxt.text, str(n), "numeral", n
+        if not (nxt and nxt.kind == "numeral"):
+            seg.latin, seg.english, seg.kind = "Legatus", "legate", "office"
+    return segments
+
+
+_QUAESTOR_BEFORE = {"S C", "EX S C", "DESIG", "DES", "D", "P", "PRO", "VRB", "PRO COS", "PRO PR"}
+
+
+def apply_republic(segments: list[Segment]) -> list[Segment]:
+    """Republican readings no single dictionary entry can give.
+
+    - Q after a name is quaestor (NERI Q VRB, Q LVTATI Q); after another praenomen it is a
+      nomen we can't expand (T Q, TI Q) and stays unknown; before a name it is Quintus.
+    - Runs of three or more single letters are initialisms of formulas (L P D A P), not
+      praenomina: unless a phrase caught them, they stay unknown.
+    """
+    for i, seg in enumerate(segments):
+        if seg.text != "Q" or seg.kind != "name":
+            continue
+        prev = segments[i - 1] if i else None
+        nxt = segments[i + 1] if i + 1 < len(segments) else None
+        if _praenomen(prev):
+            seg.latin = seg.english = None
+            seg.kind = "unknown"
+        elif prev and (nxt is None or nxt.text in _QUAESTOR_BEFORE or nxt.kind in ("office", "formula")):
+            seg.latin, seg.english, seg.kind = "Quaestor", "quaestor", "office"
+    run: list[Segment] = []
+    for seg in [*segments, None]:
+        if seg is not None and len(seg.text) == 1 and seg.kind in ("name", "unknown", "word"):
+            run.append(seg)
+            continue
+        if len(run) >= 3:
+            for r in run:
+                r.latin = r.english = None
+                r.kind = "unknown"
+        run = []
+    return segments
+
+
+def expand(normalised: str, dictionary: Dictionary, names: list[str] | None = None,
+           republic: bool = False) -> list[Segment]:
+    """`republic`: the coin was struck before 27 BC (pass the Republican dictionary too)."""
     tokens = normalised.split()
     out: list[Segment] = []
     i = 0
@@ -110,7 +268,9 @@ def expand(normalised: str, dictionary: Dictionary) -> list[Segment]:
                           entry.get("kind", "word"))
             i += size
             numbered = entry.get("numbered")
-            n = title_number(tokens[i]) if numbered and i < len(tokens) else None
+            # III VIR is 'triumvir', not a third acclamation (C CAESAR IMP III VIR R P C).
+            board = i + 1 < len(tokens) and tokens[i + 1] in ("VIR", "V")
+            n = title_number(tokens[i]) if numbered and i < len(tokens) and not board else None
             if n:
                 seg.text += f" {tokens[i]}"
                 seg.latin = f"{seg.latin} {tokens[i]}"
@@ -124,6 +284,12 @@ def expand(normalised: str, dictionary: Dictionary) -> list[Segment]:
         else:
             out.append(Segment(tokens[i], None, None, "unknown"))
             i += 1
+    if names:
+        apply_names(out, names, dictionary, override=republic)
+    out = apply_filiation(out)
+    apply_legion(out)
+    if republic:
+        apply_republic(out)
     return apply_context(out, dictionary)
 
 
@@ -183,7 +349,9 @@ def apply_context(segments: list[Segment], dictionary: Dictionary) -> list[Segme
         if seg.text in _AVG_FORMS:
             prev_word = prev.text.split()[-1] if prev else ""
             genitive_name = (prev and prev.kind == "name" and not female(prev)
-                             and (prev.latin or "").lower().endswith(("i", "is")))
+                             and ((prev.latin or "").lower().endswith(("i", "is"))
+                                  # read from an issuer's name: GORDIANI -> 'Gordian'
+                                  or (prev.text.endswith("I") and not (prev.latin or "").upper().endswith("I"))))
             if prev and prev.kind == "name" and female(prev):
                 seg.latin, seg.english = "Augusta", "empress"
             elif prev_word in _FILIATION:

@@ -145,3 +145,83 @@ def test_review_round_two_regressions(real):
     # Son of the Emperor; imperial Hope.
     assert gloss("CAESAR AVG F DOMITIAN", real)[1].english == "of the Emperor"
     assert gloss("SPES AVGVSTA", real)[-1].english == "imperial"
+
+
+def test_moneyer_names_come_from_the_issuer(real):
+    from pipeline.legends import normalise
+    segs = expand(normalise("C\u00b7ABVRI ROMA"), real, ["C. Aburius Geminus"])
+    assert [s.latin for s in segs[:2]] == ["Gaius", "Aburius"]
+    assert expand("SISENA", real, ["Cn. Cornelius Sisenna"])[0].kind == "unknown"   # spelled differently
+    assert expand("SISENNA", real, ["Cn. Cornelius Sisenna"])[0].latin == "Sisenna"
+    # The dictionary always wins: GEM is the legion title Gemina there.
+    assert expand("GEM", real, ["C. Aburius Geminus"])[0].latin == "Gemina"
+    segs = expand("P MAE ROMA", real, ["P. Maenius Antiaticus"])
+    assert [s.latin for s in segs[:2]] == ["Publius", "Maenius"]
+    # Without that issuer, a lone P stays unknown rather than guessed.
+    assert expand("P MAE ROMA", real, ["C. Aburius Geminus"])[0].kind == "unknown"
+    # Two-letter words never match a name by prefix.
+    assert expand("MA ROMA", real, ["C. Aburius Geminus", "M. Marcius"])[0].kind == "unknown"
+
+
+def test_republican_offices_and_genitive_names(real):
+    from pipeline.legends import normalise
+    segs = expand(normalise("C·CAESAR·IMP·III·VIR·R·P·C"), real)
+    assert segs[-1].english == "triumvir for restoring the Republic"
+    assert not any(s.number == 3 for s in segs)
+    segs = expand(normalise("C·CONSIDI PAETI"), real, ["C. Considius Paetus"])
+    assert [s.latin for s in segs] == ["Gaius", "Considius", "Paetus"]
+    assert expand("SERVEILI", real, ["C. Servilius"])[0].latin == "Servilius"
+
+
+def test_editorial_marks_in_issuer_names_are_dropped(real):
+    assert expand("OGVL", real, ["C. Ogul[nius]"])[0].latin == "Ogulnius"
+    assert expand("FOVRI", real, ["(Furius) Purpurio"])[0].kind == "unknown"   # FOVRI is not FVRI
+    assert expand("FVRI", real, ["(Furius) Purpurio"])[0].latin == "Furius"
+
+
+@pytest.fixture(scope="module")
+def republic(real):
+    import yaml
+    overlay = REAL.parent / "legend_abbreviations_republic.yaml"
+    return real.with_overlay(yaml.safe_load(overlay.read_text()))
+
+
+def rep(text, d, names=None):
+    from pipeline.legends import normalise
+    return expand(normalise(text), d, names, republic=True)
+
+
+def test_republican_senses_from_review(republic):
+    """Cases from the CRRO gloss review: Imperial senses must not leak into Republican coins."""
+    assert rep("C CASSI IMP", republic, ["Gaius Cassius Longinus"])[-1].english == "imperator (victorious general)"
+    assert rep("IMP CAESAR DIVI F", republic)[0].english == "Imperator Caesar"
+    assert rep("ANT AVG III VIR R P C", republic)[0].latin == "Antonius"
+    assert rep("C CAESAR COS PONT AVG", republic)[-1].latin == "Augur"
+    assert rep("ROMA", republic)[0].english == "Rome"
+    assert rep("ANT AVG IMP III V R P C", republic)[-1].english == "triumvir for restoring the Republic"
+    # A moneyer's own name beats a generic dictionary word.
+    assert rep("MAT ROMA", republic, ["Matienus"])[0].latin == "Matienus"
+    assert rep("C TER LVC ROMA", republic, ["C. Terentius Lucanus"])[1].latin == "Terentius"
+    # ...but never a formula or a numbered title.
+    segs = rep("C CAESAR COS TER", republic, ["Julius Caesar"])
+    assert [s.english for s in segs[-2:]] == ["consul", "for the third time"]
+
+
+def test_quaestor_initialisms_and_filiation(republic, real):
+    assert rep("NERI Q VRB", republic, ["Cn. Nerius"])[1].english == "quaestor"
+    assert rep("Q LVTATI Q", republic, ["Q. Lutatius Cerco"])[0].latin == "Quintus"
+    assert rep("Q LVTATI Q", republic, ["Q. Lutatius Cerco"])[-1].english == "quaestor"
+    assert rep("T Q ROMA", republic)[1].kind == "unknown"
+    assert rep("L P D A P", republic)[0].english == "under the Papirian law on the weight of the as"
+    assert all(s.kind == "unknown" for s in rep("S X T", republic))
+    segs = rep("C EGNATIVS CN F CN N", republic, ["C. Egnatius Maximus"])
+    assert [s.english for s in segs[2:]] == ["son of Gnaeus", "grandson of Gnaeus"]
+    # Imperial legends keep their readings.
+    assert gloss("DIVI F", real)[-1].latin == "Divi Filius"
+    assert gloss("IMP CAESAR TRAIANO", real)[0].english == "Emperor Caesar"
+
+
+def test_legion_or_legate(real):
+    assert gloss("P CARISIVS LEG AVGVSTI", real)[2].english == "legate"
+    segs = gloss("ANT AVG III VIR R P C LEG V", real)
+    assert segs[-2].english == "legion" and segs[-1].number == 5

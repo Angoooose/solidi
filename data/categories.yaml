@@ -12,6 +12,14 @@ categories:
   - id: roman
     name: Roman
     children:
+      - id: roman-republican
+        name: Roman Republican
+        description: Coinage of the Republic, from the first Roman issues (c. 300 BC) to the outbreak of civil war in 49 BC.
+      - id: roman-imperatorial
+        name: Roman Imperatorial
+        description: >-
+          Coinage of the civil wars, 49-27 BC: Caesar, Pompey and his sons, Brutus and Cassius,
+          Antony, Lepidus and Octavian, and the moneyers who struck at Rome alongside them.
       - id: roman-imperial
         name: Roman Imperial
         description: Coinage of the emperors, from Augustus (27 BC) to the end of the western empire.
@@ -19,3 +27,11 @@ categories:
 rules:
   - category: roman-imperial
     dataset: ocre
+  # Imperatorial follows the collector convention (Sear, Roman Coins and their Values; Sear,
+  # The History and Coinage of the Roman Imperators): everything RRC dates from 49 BC on.
+  # RIC I already begins Octavian in 31 BC, so the last years overlap with OCRE by design.
+  - category: roman-imperatorial
+    dataset: crro
+    from_year: -49
+  - category: roman-republican
+    dataset: crro

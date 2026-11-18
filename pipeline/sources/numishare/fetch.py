@@ -108,11 +108,15 @@ def fetch(raw_dir: Path, corpus_key: str, corpus: dict, authority: str | None = 
     sparql.cached_construct(path, SYMBOLS_QUERY.format(dataset=corpus["dataset"]), refresh=refresh)
     files.append(path)
 
-    # 3. Specimens, grouped by the first two ID segments ('ric.2.', 'ric.1(2).') and paged.
-    # Finer groups (one per ruler) mean ~1,800 slow queries; this gives about 20.
+    # 3. Specimens, grouped by type-ID prefix (sources.yaml `specimen_group`) and paged.
+    # One query per type is far too slow; a couple of dozen groups is fast.
     id_path = corpus["id_path"]
-    prefixes = sorted({".".join(uri.split(id_path, 1)[1].split(".")[:2]) + "."
-                       for uri in type_uris if id_path in uri})
+    group = re.compile(corpus["specimen_group"])
+    prefixes = sorted({m.group(1) for uri in type_uris if id_path in uri
+                       and (m := group.match(uri.split(id_path, 1)[1]))})
+    ungrouped = [u for u in type_uris if id_path in u and not group.match(u.split(id_path, 1)[1])]
+    if ungrouped:
+        raise ValueError(f"{len(ungrouped)} {corpus_key} type IDs match no specimen group, e.g. {ungrouped[0]}")
     log(f"  {corpus_key}: {len(type_uris)} types in {len(prefixes)} ID prefixes")
     for prefix in prefixes:
         page = 0

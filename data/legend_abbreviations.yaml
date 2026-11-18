@@ -207,6 +207,41 @@ phrases:
   "DE GERM": {latin: "de Germanis", english: "over the Germans", kind: formula}
   "DE SARM": {latin: "de Sarmatis", english: "over the Sarmatians", kind: formula}
 
+  # --- Roman Republic and Imperators (CRRO) ---------------------------------------------------
+  "III VIR R P C": {latin: "Triumvir Rei Publicae Constituendae", english: "triumvir for restoring the Republic", kind: office, note: "the Second Triumvirate: Antony, Octavian, Lepidus"}
+  "IIIVIR R P C": {latin: "Triumvir Rei Publicae Constituendae", english: "triumvir for restoring the Republic", kind: office}
+  "III VIR": {latin: "Triumvir", english: "triumvir (one of three)", kind: office, note: "a moneyer, or with R P C a member of the Second Triumvirate"}
+  "III V": {latin: "Triumvir", english: "triumvir (one of three)", kind: office}
+  "IIII VIR A P F": {latin: "Quattuorvir Auro Publico Feriundo", english: "one of four moneyers, for striking public gold", kind: office}
+  "IIII VIR": {latin: "Quattuorvir", english: "one of four (moneyers)", kind: office}
+  "VIIVIR EPVL": {latin: "Septemvir Epulonum", english: "member of the Seven for sacred feasts", kind: office}
+  "AED PL": {latin: "Aedilis Plebis", english: "plebeian aedile", kind: office}
+  "AED CVR": {latin: "Aedilis Curulis", english: "curule aedile", kind: office}
+  "CVR AED": {latin: "Curulis Aedilis", english: "curule aedile", kind: office}
+  "PRAEF CLAS ET ORAE MARIT EX S C": {latin: "Praefectus Classis et Orae Maritimae ex Senatus Consulto", english: "commander of the fleet and the coast, by decree of the Senate", kind: office}
+  "PRAEF CLAS ET ORAE MARIT": {latin: "Praefectus Classis et Orae Maritimae", english: "commander of the fleet and the coast", kind: office}
+  "PRAEF VRB": {latin: "Praefectus Urbi", english: "prefect of the City", kind: office}
+  "PRO COS": {latin: "Pro Consule", english: "proconsul", kind: office}
+  "PRO PR": {latin: "Pro Praetore", english: "propraetor", kind: office}
+  "PRO Q": {latin: "Pro Quaestore", english: "proquaestor", kind: office}
+  "DICT PERPETVO": {latin: "Dictator Perpetuo", english: "dictator for life", kind: office}
+  "DICT PERPETVA": {latin: "Dictator Perpetuo", english: "dictator for life", kind: office}
+  "DICT ITER": {latin: "Dictator Iterum", english: "dictator for the second time", kind: office}
+  "DICT TER": {latin: "Dictator Tertium", english: "dictator for the third time", kind: office}
+  "DICT QVART": {latin: "Dictator Quartum", english: "dictator for the fourth time", kind: office}
+  "COS TERT": {latin: "Consul Tertium", english: "consul for the third time", kind: office}
+  "COS ITER": {latin: "Consul Iterum", english: "consul for the second time", kind: office}
+  "IMPER ITERVM": {latin: "Imperator Iterum", english: "hailed imperator for the second time", kind: title}
+  "IMP ITER": {latin: "Imperator Iterum", english: "hailed imperator for the second time", kind: title}
+  "D S S": {latin: "De Senatus Sententia", english: "by resolution of the Senate", kind: formula}
+  "EX A PV": {latin: "Ex Argento Publico", english: "from public silver", kind: formula}
+  "EX A P": {latin: "Ex Argento Publico", english: "from public silver", kind: formula}
+  "ARG PVB": {latin: "Argento Publico", english: "from public silver", kind: formula}
+  "S F": {latin: "Spuri Filius", english: "son of Spurius", kind: word}
+  "NVMA POMPILI": {latin: "Numa Pompilius", english: "Numa Pompilius (second king of Rome)", kind: name}
+  "NVMA POMPIL": {latin: "Numa Pompilius", english: "Numa Pompilius (second king of Rome)", kind: name}
+  "ANCVS MARCI": {latin: "Ancus Marcius", english: "Ancus Marcius (fourth king of Rome)", kind: name}
+
 words:
   # --- Imperial titles and offices --------------------------------------------------------------
   AVG: {latin: "Augustus", english: "emperor", kind: title, note: "often genitive Augusti in reverse legends (VICTORIA AVG)"}
@@ -974,3 +1009,40 @@ words:
   ARIADNE: {latin: "Ariadne", english: "Ariadne", kind: name, gender: f}
   ARIAVNE: {latin: "Ariadne", english: "Ariadne", kind: name, gender: f, note: "OCRE spelling"}
   ARIANE: {latin: "Ariadne", english: "Ariadne", kind: name, gender: f, note: "OCRE spelling"}
+
+  # --- Roman Republic and Imperators (CRRO) ---------------------------------------------------
+  PR: {latin: "Praetor", english: "praetor", kind: office}
+  DICT: {latin: "Dictator", english: "dictator", kind: office, numbered: times}
+  DIC: {latin: "Dictator", english: "dictator", kind: office, numbered: times}
+  PRAEF: {latin: "Praefectus", english: "prefect", kind: office}
+  AED: {latin: "Aedilis", english: "aedile", kind: office}
+  AVGVR: {latin: "Augur", english: "augur (priest of omens)", kind: office}
+  PROQ: {latin: "Proquaestor", english: "proquaestor", kind: office}
+  IMPER: {latin: "Imperator", english: "imperator (victorious general)", kind: title}
+  ITERVM: {latin: "Iterum", english: "for the second time", kind: word}
+  ITERV: {latin: "Iterum", english: "for the second time", kind: word}
+  TER: {latin: "Tertium", english: "for the third time", kind: word}
+  TERT: {latin: "Tertium", english: "for the third time", kind: word}
+  PERPETVO: {latin: "Perpetuo", english: "for life", kind: word}
+  ANTONIVS: {latin: "Antonius", english: "Antony", kind: name}
+  ANTONI: {latin: "Antoni", english: "Antony", kind: name, lemma: "Antonius"}
+  ANTONIO: {latin: "Antonio", english: "to Antony", kind: name, lemma: "Antonius"}
+  LEPIDVS: {latin: "Lepidus", english: "Lepidus", kind: name}
+  LEPIDO: {latin: "Lepido", english: "to Lepidus", kind: name, lemma: "Lepidus"}
+  BRVTVS: {latin: "Brutus", english: "Brutus", kind: name}
+  BRVTI: {latin: "Bruti", english: "of Brutus", kind: name, lemma: "Brutus"}
+  CAEPIO: {latin: "Caepio", english: "Caepio", kind: name, note: "Brutus' adoptive name (Q. Servilius Caepio Brutus)"}
+  MAGNVS: {latin: "Magnus", english: "the Great", kind: epithet, note: "Pompey's cognomen; also his son Sextus"}
+  MAGN: {latin: "Magnus", english: "the Great", kind: epithet}
+  POMPEIVS: {latin: "Pompeius", english: "Pompey", kind: name}
+  POMPEI: {latin: "Pompei", english: "of Pompey", kind: name, lemma: "Pompeius"}
+  YPSAE: {latin: "Hypsaeus", english: "Hypsaeus", kind: name, note: "C. Plautius Hypsaeus, spelled without H"}
+  LEIBERTAS: {latin: "Libertas", english: "Liberty", kind: personification, note: "archaic spelling"}
+  HONORIS: {latin: "Honoris", english: "of Honour", kind: personification, lemma: "Honos"}
+  PVTEAL: {latin: "Puteal", english: "wellhead (the Puteal Scribonianum)", kind: word}
+  SCRIBON: {latin: "Scribonianum", english: "of Scribonius", kind: name}
+  CLOACIN: {latin: "Cloacina", english: "Cloacina (Venus of the Great Drain)", kind: deity}
+  CEPIT: {latin: "Cepit", english: "captured", kind: word}
+  PRIV: {latin: "Privernum", english: "Privernum", kind: place}
+  ANCVS: {latin: "Ancus", english: "Ancus (Marcius, king of Rome)", kind: name}
+  IVLI: {latin: "Iuli", english: "of Julius (Caesar)", kind: name, lemma: "Iulius", note: "DIVI IVLI F = son of the deified Julius"}

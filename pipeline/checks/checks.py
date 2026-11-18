@@ -59,11 +59,12 @@ def run(db: sqlite3.Connection) -> Result:
         r.errors.append(f"{n} type IDs do not start with their dataset slug")
 
     # Warnings: gaps worth knowing about, not build-breaking.
+    # Republican coins name their moneyer (issuer), not an authority: either counts.
     n = _one(db, f"""SELECT COUNT(*) FROM coin_type WHERE {ACTIVE}
-                     AND id NOT IN (SELECT type_id FROM type_person WHERE role = 'authority')
-                     AND id NOT IN (SELECT type_id FROM type_organization WHERE role = 'authority')""")
+                     AND id NOT IN (SELECT type_id FROM type_person WHERE role IN ('authority', 'issuer'))
+                     AND id NOT IN (SELECT type_id FROM type_organization WHERE role IN ('authority', 'issuer'))""")
     if n:
-        r.warnings.append(f"{n} active types have no authority in the source")
+        r.warnings.append(f"{n} active types have no authority or issuer in the source")
     n = _one(db, f"SELECT COUNT(*) FROM coin_type WHERE {ACTIVE} AND id NOT IN (SELECT type_id FROM type_category)")
     if n:
         r.warnings.append(f"{n} active types match no category rule")

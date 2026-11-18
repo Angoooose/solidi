@@ -1,0 +1,58 @@
+# Senses for coins struck before 27 BC, laid over legend_abbreviations.yaml.
+#
+# The base dictionary reads legends as Imperial coinage does: IMP = Emperor, AVG = Augustus,
+# ANT = Antoninus. Before Octavian took the name Augustus (January 27 BC) those readings are
+# anachronisms: IMP is a victorious general, AVG an augur, ANT Antonius. The pipeline picks
+# this overlay by the type's date, not its catalogue, so Octavian's pre-27 BC issues in RIC I
+# are read the same way as the Republican coins in RRC.
+#
+# Same format as the base file. An entry here replaces the base entry; `null` removes it, so
+# the word stays unknown or is read from the moneyer's own name.
+
+phrases:
+  "IMP CAESAR": {latin: "Imperator Caesar", english: "Imperator Caesar", kind: title}
+  "IMP L": null                   # BRVT IMP L PLAET CEST: L belongs to the next name
+  "P F": {latin: "Publi Filius", english: "son of Publius", kind: word}
+  "P P": null                     # Pater Patriae is Caesar's from 45 BC; earlier P P is other words
+  "CAE SAR": {latin: "Caesar", english: "Caesar", kind: name, note: "split either side of the design (RRC 452)"}
+  "D P P": {latin: "Di Penates Praestites", english: "the guardian Penates", kind: deity}
+  "III V R P C": {latin: "Triumvir Rei Publicae Constituendae", english: "triumvir for restoring the Republic", kind: office}
+  "III VR R P C": {latin: "Triumvir Rei Publicae Constituendae", english: "triumvir for restoring the Republic", kind: office}
+  "VIR R P C": {latin: "Triumvir Rei Publicae Constituendae", english: "triumvir for restoring the Republic", kind: office}
+  "III VIR ITER R P C": {latin: "Triumvir Iterum Rei Publicae Constituendae", english: "triumvir for restoring the Republic for the second time", kind: office}
+  "R P C": {latin: "Rei Publicae Constituendae", english: "for restoring the Republic", kind: office}
+  "Q DESIG": {latin: "Quaestor Designatus", english: "quaestor designate", kind: office}
+  "Q P": {latin: "Quaestor Pro Praetore", english: "quaestor with praetorian power", kind: office}
+  "PR Q": {latin: "Pro Quaestore", english: "proquaestor", kind: office}
+  "PR COS": {latin: "Pro Consule", english: "proconsul", kind: office}
+  "PR VRB": {latin: "Praefectus Urbi", english: "prefect of the City", kind: office}
+  "DICT PERP": {latin: "Dictator Perpetuo", english: "dictator for life", kind: office}
+  "DIC PER": {latin: "Dictator Perpetuo", english: "dictator for life", kind: office}
+  "COS QVINQ": {latin: "Consul Quinquiens", english: "consul for the fifth time", kind: office}
+  "L P D A P": {latin: "Lege Papiria de Assis Pondere", english: "under the Papirian law on the weight of the as", kind: formula}
+  "E L P": {latin: "Ex Lege Papiria", english: "under the Papirian law", kind: formula}
+  "PR L V P F": {latin: "Praetor Ludos Victoriae Primus Fecit", english: "as praetor first held the games of Victory", kind: formula}
+  "LEG F C": {latin: "Legatus Faciundum Curavit", english: "struck under the legate's charge", kind: formula}
+  "F P R": {latin: "Fortuna Populi Romani", english: "the Fortune of the Roman People", kind: personification}
+  "G T A": {latin: "Genius Terrae Africae", english: "the Genius of the land of Africa", kind: deity}
+  "S C D T": {latin: "Senatus Consulto de Thesauro", english: "by decree of the Senate, from the treasury", kind: formula}
+
+words:
+  ROMA: {latin: "Roma", english: "Rome", kind: place}
+  ROMANO: {latin: "Romano(m)", english: "of the Romans", kind: word, lemma: "Romanus", note: "archaic genitive plural (Romanorum)"}
+  IMP: {latin: "Imperator", english: "imperator (victorious general)", kind: title, numbered: acclamation}
+  IM: {latin: "Imperator", english: "imperator (victorious general)", kind: title, numbered: acclamation}
+  IMPERAT: {latin: "Imperator", english: "imperator (victorious general)", kind: title, numbered: acclamation}
+  IMPERATOR: {latin: "Imperator", english: "imperator (victorious general)", kind: title, numbered: acclamation}
+  AVG: {latin: "Augur", english: "augur (priest of omens)", kind: office}
+  AV: {latin: "Augur", english: "augur (priest of omens)", kind: office}
+  ANT: {latin: "Antonius", english: "Antony", kind: name}
+  ANTON: {latin: "Antonius", english: "Antony", kind: name}
+  DOM: {latin: "Domitius", english: "Domitius", kind: name}
+  DOMIT: {latin: "Domitius", english: "Domitius", kind: name}
+  POMPEI: {latin: "Pompei(us)", english: "Pompeius", kind: name}
+  AVR: null       # Aurelius is Imperial; on RRC 65 it is the moneyer Aurunculeius
+  AN: null        # 'AN or AV' (RRC 136): an unidentified moneyer, not Annius
+  FL: null        # flandis/flavit, not Flavius
+  MAT: null       # Matienus (RRC 162), not Mater
+  PP: null        # RRC 307: not Pater Patriae

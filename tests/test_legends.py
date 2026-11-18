@@ -25,3 +25,15 @@ def test_special_letters():
 
 def test_compact_ignores_spacing():
     assert compact("TR P COS") == compact("TRP COS") == "TRPCOS"
+
+
+def test_middle_dot_separates_words():
+    from pipeline.legends import normalise
+    assert normalise("CN\u00b7DOM ROMA") == "CN DOM ROMA"
+
+
+def test_latin_letter_forms_are_not_greek():
+    from pipeline.legends import language
+    assert language("AEL \u03e4ERI-NA A\u03e4G") == "la"
+    assert language("D N \u039bEONS P F AVG") == "la"
+    assert language("\u0392\u0391\u03a3\u0399\u039b\u0395\u03a9\u03a3") == "grc"

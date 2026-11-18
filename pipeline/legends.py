@@ -11,6 +11,9 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from pathlib import Path
+
+import yaml
 
 from pipeline.legend_expand import Dictionary, as_rows, coverage, expand
 
@@ -20,14 +23,14 @@ LETTER_MAP = {
 }
 _EDITORIAL = re.compile(r"\([^)]*[a-z.][^)]*\)")      # '(rev.N)' and similar notes
 _WORD_BREAK = re.compile(r"(?<=[\w\]])[-_](?=[\w\[])")   # HONORI-VS -> HONORIVS, NOS-[TRIS] -> NOS[TRIS]
-_SEPARATORS = re.compile(r"[\s\-_/|•˙.:●*,?…()← ]+")
+_SEPARATORS = re.compile(r"[\s\-_/|•·˙.:●*,?…()← ]+")
 GAP = re.compile(r"\s*(?:\.\.\.+|…|\*)\s*")             # what a user types for unreadable stretches
 _GREEK = re.compile(r"[\u0370-\u03ff\u1f00-\u1fff]")
 
 
 def language(legend: str) -> str:
-    """'grc' if the legend has any Greek letters, else 'la'."""
-    return "grc" if _GREEK.search(legend) else "la"
+    """'grc' if Greek letters remain once OCRE's Latin letter forms (Ϥ, Λ) are mapped, else 'la'."""
+    return "grc" if _GREEK.search(normalise(legend)) else "la"
 
 
 def normalise(legend: str) -> str:
@@ -46,14 +49,27 @@ def compact(legend: str) -> str:
 
 
 def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None) -> int:
+    # Issuer names gloss moneyers' signatures the dictionary can't know (C ABVRI = Gaius Aburius).
+    republic = None
+    if dictionary:
+        overlay = Path(__file__).resolve().parent.parent / "data" / "legend_abbreviations_republic.yaml"
+        republic = dictionary.with_overlay(yaml.safe_load(overlay.read_text(encoding="utf-8")) or {})
+    names: dict[str, list[str]] = {}
+    for type_id, name in db.execute("""SELECT tp.type_id, p.name FROM type_person tp JOIN person p ON p.id = tp.person_id
+                                       WHERE tp.role IN ('issuer', 'authority', 'stated_authority')
+                                       ORDER BY tp.type_id, tp.role, p.id"""):
+        names.setdefault(type_id, []).append(name)
     rows = []
-    for type_id, obv, rev in db.execute("SELECT id, obv_legend, rev_legend FROM coin_type"):
+    # Coins struck before 27 BC, when Octavian became Augustus, are read with Republican senses.
+    for type_id, obv, rev, year in db.execute(
+            "SELECT id, obv_legend, rev_legend, COALESCE(end_year, start_year) FROM coin_type"):
+        early = year is not None and year < -27
         for side, legend in (("obverse", obv), ("reverse", rev)):
             if legend and (norm := normalise(legend)):
                 lang = language(legend)
                 latin = english = segments = cov = None
                 if dictionary and lang == "la":
-                    segs = expand(norm, dictionary)
+                    segs = expand(norm, republic if early else dictionary, names.get(type_id), early)
                     segments = json.dumps(as_rows(segs), ensure_ascii=False)
                     latin = " ".join(s.latin or s.text for s in segs)
                     english = " · ".join(s.english or f"[{s.text}]" for s in segs)

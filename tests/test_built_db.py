@@ -81,7 +81,7 @@ def test_nested_uncertain_mint_resolves(db):
 
 
 def test_every_type_has_a_ric_reference(db):
-    assert one(db, """SELECT COUNT(*) FROM coin_type WHERE id NOT IN
+    assert one(db, """SELECT COUNT(*) FROM coin_type WHERE id LIKE 'ocre/%' AND id NOT IN
                       (SELECT type_id FROM type_reference WHERE work_id = 'ric' AND number IS NOT NULL)""")[0] == 0
     assert one(db, "SELECT name FROM reference_work WHERE id = 'ric'") == ("Roman Imperial Coinage",)
 
@@ -106,7 +106,7 @@ def test_rome_sits_in_a_region_tree(db):
 
 
 def test_every_ocre_type_is_roman_imperial(db):
-    assert one(db, """SELECT COUNT(*) FROM coin_type WHERE id NOT IN
+    assert one(db, """SELECT COUNT(*) FROM coin_type WHERE id LIKE 'ocre/%' AND id NOT IN
                       (SELECT type_id FROM type_category WHERE category_id = 'roman-imperial')""")[0] == 0
     assert one(db, "SELECT parent_id FROM category WHERE id = 'roman-imperial'") == ("roman",)
 
@@ -166,3 +166,16 @@ def test_legends_have_a_language(db):
 
 def test_unknown_legend_words_stay_visible(db):
     assert one(db, "SELECT COUNT(*) FROM legend WHERE gloss_coverage < 1 AND english NOT LIKE '%[%'")[0] == 0
+
+
+def test_crro_categories(db):
+    if not one(db, "SELECT COUNT(*) FROM coin_type WHERE id LIKE 'crro/%'")[0]:
+        pytest.skip("CRRO not in this build")
+    cats = dict(db.execute("""SELECT tc.category_id, COUNT(*) FROM type_category tc
+                              WHERE tc.type_id LIKE 'crro/%' GROUP BY 1""").fetchall())
+    assert set(cats) == {"roman-republican", "roman-imperatorial"}
+    assert sum(cats.values()) == one(db, "SELECT COUNT(*) FROM coin_type WHERE id LIKE 'crro/%'")[0]
+    # RRC 480 (44 BC, the year of Caesar's portrait denarii) is Imperatorial; the earliest Roman issues are Republican.
+    assert one(db, "SELECT category_id FROM type_category WHERE type_id = 'crro/rrc-480.1'") == ("roman-imperatorial",)
+    assert one(db, "SELECT category_id FROM type_category WHERE type_id = 'crro/rrc-1.1'") == ("roman-republican",)
+    assert one(db, "SELECT work_id, number FROM type_reference WHERE type_id = 'crro/rrc-414.1'") == ("rrc", "414/1")
