@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from pipeline import categories, legends, stage, transform
+from pipeline import categories, legends, regions, stage, transform
 from pipeline.legend_expand import Dictionary
 from pipeline.checks import checks
 from pipeline.link import wikidata, wikipedia
@@ -55,9 +55,12 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
 
     print("categories")
     categories.load_and_assign(db, ROOT / "data" / "categories.yaml")
+    print("regions")
+    region_warnings = regions.load_and_apply(db, ROOT / "data" / "regions.yaml")
 
     print("check")
     result = checks.run(db)
+    result.warnings.extend(region_warnings)
     report = {"errors": result.errors, "warnings": result.warnings, "coverage": result.coverage,
               "seconds": round(time.time() - t0, 1)}
     (build_dir / "report.json").write_text(json.dumps(report, indent=2))

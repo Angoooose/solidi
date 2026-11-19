@@ -41,6 +41,13 @@ CREATE TABLE organization (
   definition  TEXT
 );
 
+-- Headings for browsing city coinage by region, in catalogue order (data/regions.yaml).
+CREATE TABLE region_group (
+  id          TEXT PRIMARY KEY,            -- 'asia-minor'
+  name        TEXT NOT NULL,               -- 'Asia Minor'
+  sort_order  INTEGER NOT NULL
+);
+
 -- Geographic regions, nested (Latium within Greek Italy). Greek coinage is browsed by region.
 CREATE TABLE region (
   id          TEXT PRIMARY KEY,
@@ -50,7 +57,9 @@ CREATE TABLE region (
   definition  TEXT,
   parent_id   TEXT REFERENCES region(id),
   lat         REAL,
-  lon         REAL
+  lon         REAL,
+  group_id    TEXT REFERENCES region_group(id), -- its heading; NULL for regions no type uses
+  sort_order  INTEGER                      -- order within the heading
 );
 
 CREATE TABLE mint (

@@ -1,0 +1,87 @@
+# Region headings for browsing city coinage, in the order of the standard catalogues (SNG, BMC).
+#
+# Nomisma's region tree can't group regions: its parents are inconsistent (Sicily sits under
+# Europe, Lucania under Italy, Ionia under Asia). Each heading lists its Nomisma region IDs in
+# catalogue order; the pipeline loads them into region_group and sets region.group_id and
+# region.sort_order, and warns about any region a type uses that isn't listed here.
+#
+# The western provinces (Britannia, Germania) and the Danube (Pannonia, Moesia) only have Roman
+# mints; they are filed where a catalogue would put them so every region has a heading.
+
+groups:
+  - id: spain-gaul
+    name: Spain and Gaul
+    regions: [hispania, hispania_citerior, hispania_ulterior, gallia, gallia_transalpina, britannia, germania]
+  - id: italy
+    name: Italy
+    regions: [greek_italy, gallia_cisalpina, etruria, umbria, picenum, latium, frentani, samnium, campania,
+              apulia, calabria, lucania, bruttium]
+  - id: sicily
+    name: Sicily
+    regions: [sicily, islands_off_sicily]
+  - id: thrace
+    name: Thrace and the Black Sea
+    regions: [tauric_chersonesus, danubian_district_sarmatia, pannonia, moesia_superior, moesia_inferior,
+              eastern_coast_of_thrace, the_european_coast_of_the_propontis, thracian_chersonesus,
+              southern_coast_of_thrace, inland_cities_of_thrace, thrace, islands_off_thrace, lemnos_lemnos]
+  - id: macedon
+    name: Macedon
+    regions: [macedon, emathian_district, bisaltian_district, chalcidian_district,
+              strymonian_and_bottiaean_district, pangaean_district, paeonia]
+  - id: thessaly-illyria-epirus
+    name: Thessaly, Illyria and Epirus
+    regions: [thessaly, islands_off_thessaly, illyricum, islands_off_illyricum, epirus, corcyra, acarnania]
+  - id: central-greece
+    name: Central Greece
+    regions: [aetolia, locri_ozolae, locri_opuntii, phocis, boeotia, euboea, attica, aegina, megaris]
+  - id: peloponnese
+    name: Peloponnese
+    regions: [corinthia, phliasia, sicyonia, achaea, elis, islands_off_elis, cephallenia, messenia, laconia,
+              islands_off_laconia, argolis, arcadia]
+  - id: crete-aegean
+    name: Crete and the Aegean Islands
+    regions: [crete, aegaean_islands, ceos, amorgos]
+  - id: asia-minor
+    name: Asia Minor
+    regions: [asia_minor, greek_western_asia_minor, seleucid_west_sco, bosporus, colchis, pontus,
+              paphlagonia, bithynia, mysia, troas, islands_off_troas, aeolis, lesbos, hecatonnesi, ionia,
+              islands_off_ionia, icaria, caria, islands_off_caria, rhodes_rhodes, carpathus, lycia, pamphylia,
+              pisidia, cilicia, island_adjacent_to_cilicia, lydia, phrygia, galatia, lycaonia, cappadocia]
+  - id: cyprus
+    name: Cyprus
+    regions: [cyprus]
+  - id: syria-phoenicia-judaea
+    name: Syria, Phoenicia and Judaea
+    regions: [greek_syria, seleucis_and_pieria, chalcidice, cyrrhestica, commagene, coele-syria, decapolis,
+              phoenicia, galilaea, samaria, judaea, arabia, arabia_petraea]
+  - id: mesopotamia-persia
+    name: Mesopotamia and Persia
+    regions: [armenia, mesopotamia, assyria, babylonia, characene, susiana, media, persis, hyrcania, aria,
+              margiana, drangiana, arachosia, bactria, seleucid_far_east_sco]
+  - id: africa
+    name: Africa
+    regions: [greek_egypt, cyrenaica, islands_between_africa_and_sicily, zeugitana, numidia, mauretania]
+
+# Duplicate regions: the first is folded into the second (its mints and types move across).
+merge:
+  judea: judaea                         # Nomisma has both; 'judea' has no parent
+  cities_of_commagene: commagene
+
+# Mints whose Nomisma region is a catch-all ('Europe', 'Asia') or missing.
+mints:
+  corcyra: corcyra
+  locri_opuntii: locri_opuntii
+  macedon: macedon
+  sicily: sicily
+  persis: persis
+  agathopolis: eastern_coast_of_thrace
+  olbia_city: danubian_district_sarmatia
+  hyria_calabria: calabria
+  prusias_ad_mare: bithynia
+  apollonia_ad_maeandrum: caria
+  achilleion: troas
+  icarus: characene
+  antioch_persian_gulf_sco: characene
+  italy_central_rrc: greek_italy
+  italy_southeast_rrc: greek_italy
+  italy_north_rrc: greek_italy
