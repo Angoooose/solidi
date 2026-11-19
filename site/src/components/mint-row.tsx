@@ -50,3 +50,31 @@ export function MintListRow({
     />
   )
 }
+
+/* A collection on the mint page's "Over time": name, its dates there, its histogram, its count. */
+export function MintCollectionRow({
+  href,
+  name,
+  dates,
+  ...chart
+}: {
+  href: string
+  name: string
+  dates: string | null
+  bins: MintRow["bins"]
+  domain: [number, number]
+  ticks: number[]
+  yMax: number
+  count: number
+}) {
+  return (
+    <CollectionRow
+      href={href}
+      name={name}
+      dates={<span className="md:hidden">{dates}</span>}
+      aside={<span className="num text-ui text-ink">{dates}</span>}
+      binWidth={MINT_BIN}
+      {...chart}
+    />
+  )
+}

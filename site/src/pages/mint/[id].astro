@@ -1,0 +1,269 @@
+---
+/*
+ * Mint page: /mint/antiocheia_syria. Where it was and what it struck: its
+ * output per collection over time, who struck there, its denominations, metals and subjects, then
+ * its coinage with filters (the person page's grid, lib/coinage.ts). ?collection= (from a
+ * collection's mint list) narrows the coinage to that collection; ?people=all lists everyone.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import SiteFooter from "@/components/SiteFooter.astro"
+import { Crumbs, FacetColumn, RowsHead, Section } from "@/components/collection"
+import { DataList, DataRow } from "@/components/data"
+import { PersonTrack, PersonTrackKey, YearAxis, niceStep, yearTicks } from "@/components/charts"
+import { MintMap, onBasemap } from "@/components/mint-map"
+import { TypeCard } from "@/components/coin"
+import { MintCollectionRow } from "@/components/mint-row"
+import { PhotoCredit } from "@/components/credits"
+import { CoinageFilters } from "@/components/coinage-filters"
+import { buttonVariants } from "@/components/ui/button"
+import { typePath, yearRange } from "@/lib/format"
+import { cardWorthy, fmt } from "@/lib/categories"
+import { PAGE_SIZE } from "@/lib/coinage"
+import { PEOPLE_SHOWN, getMint, parseQuery } from "@/lib/mint"
+
+const id = Astro.params.id ?? ""
+const query = parseQuery(Astro.url.searchParams)
+const result = await getMint(env.DB, id, query)
+if (result && "redirect" in result) return Astro.redirect(`/mint/${result.redirect}${Astro.url.search}`, 301)
+const mint = result
+if (!mint) Astro.response.status = 404
+
+const allPeople = Astro.url.searchParams.get("people") === "all"
+/** This page's URL with some parameters changed; null removes one. */
+const link = (changes: Record<string, string | number | null>, hash = "") => {
+  const url = new URL(Astro.url)
+  for (const [k, v] of Object.entries(changes)) {
+    if (v == null) url.searchParams.delete(k)
+    else url.searchParams.set(k, String(v))
+  }
+  return `${url.pathname}${url.search}${hash}`
+}
+
+// One axis for "Over time" and "Who struck here": the mint's years, and its people's reigns.
+const years = mint
+  ? [mint.start, mint.end, ...mint.people.flatMap((p) => [...(p.office ?? []), ...(p.coins ?? [])])].filter((y): y is number => y != null)
+  : []
+const lo = years.length ? Math.min(...years) : -100
+const hi = years.length ? Math.max(...years) : 100
+const step = niceStep([lo, hi], 7)
+const pad = Math.max(10, (hi - lo) * 0.04)
+const domain: [number, number] = [lo - pad, hi + pad]
+const ticks = yearTicks(domain, step)
+const pct = (y: number) => ((y - domain[0]) / (domain[1] - domain[0])) * 100
+const binMax = mint ? Math.max(1, ...mint.collections.flatMap((c) => c.bins.map((b) => b.n))) : 1
+
+// The shortlist: whoever struck most here (not issuers known only by a control mark), in date order.
+const shortlist = new Set(mint ? [...mint.people].filter(cardWorthy).sort((a, b) => b.n - a.n).slice(0, PEOPLE_SHOWN).map((p) => p.id) : [])
+const people = mint ? (allPeople ? mint.people : mint.people.filter((p) => shortlist.has(p.id))) : []
+const peopleLabel = mint && mint.people.length === 1 ? "person" : "people"
+const located = mint?.location && onBasemap("all", mint.location.lon, mint.location.lat)
+
+// A collection chosen elsewhere (a parent, from /mints?collection=greek) that the facet doesn't list.
+const collectionOptions = mint ? [...mint.collectionFacet] : []
+if (mint && query.collection && !collectionOptions.some((o) => o.value === query.collection)) {
+  const c = mint.collections.find((x) => x.category.id === query.collection)?.category
+  collectionOptions.unshift({ value: query.collection, label: c?.name ?? query.collection, count: mint.total })
+}
+const filters = mint
+  ? [
+      { label: "Collection", param: "collection", value: query.collection, options: collectionOptions, available: mint.available.collection },
+      { label: "Issued by", param: "issuer", value: query.issuer, options: mint.issuerFacet, available: mint.available.issuer },
+      { label: "Denomination", param: "denomination", value: query.denomination, options: mint.denominationFacet, available: mint.available.denomination },
+      { label: "Metal", param: "material", value: query.material, options: mint.materialFacet, available: mint.available.material },
+    ]
+  : []
+const asFacets = (items: { value: string; label: string; count: number }[]) => items.map((f) => ({ id: f.value, name: f.label, n: f.count }))
+const COLS = "md:grid-cols-[minmax(0,280px)_150px_minmax(0,1fr)_72px]"
+---
+
+<Base title={mint?.name ?? "Mint not found"}>
+  <SiteHeader current="Mints" />
+  {
+    !mint ? (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] py-24">
+        <h1 class="m-0 font-serif text-display font-normal">Mint not found</h1>
+        <p class="mt-6 text-body text-stone">
+          There is no mint <span class="text-ink">{id}</span>. <a href="/mints" class="text-ink underline-offset-4 hover:underline">All mints</a>
+        </p>
+      </main>
+    ) : (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] pb-24">
+        {/* Name, lead, map and facts */}
+        <section class="flex flex-col gap-8 pt-10">
+          <Crumbs items={[{ href: "/mints", label: "Mints" }, ...(mint.group ? [{ href: `/mints?region=${mint.group.id}`, label: mint.group.name }] : [])]} />
+          <div class="grid gap-x-20 gap-y-10 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
+            <div class="flex min-w-0 flex-col gap-4">
+              <div class="flex flex-wrap items-baseline gap-x-7 gap-y-2">
+                <h1 class="m-0 font-serif text-display font-normal">{mint.name}</h1>
+                {yearRange(mint.start, mint.end) && <span class="num text-subtitle text-graphite">{yearRange(mint.start, mint.end)}</span>}
+              </div>
+              {mint.lead && (
+                <p class="m-0 max-w-[56ch] font-serif text-reading text-pretty">
+                  {mint.lead}
+                  {mint.article && (
+                    <>
+                      {" "}
+                      <a href={mint.article.url} rel="noopener" class="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline">
+                        Read more on Wikipedia ↗
+                      </a>
+                    </>
+                  )}
+                </p>
+              )}
+              {mint.article && <span class="text-credit text-stone">Text from Wikipedia, {mint.article.licence}</span>}
+            </div>
+            <div class="flex flex-col gap-6">
+              {located && mint.location && (
+                <MintMap basemap="all" mints={[mint.location]} label={`Map: ${mint.name}${mint.region ? `, ${mint.region.name}` : ""}`} focus={{ width: 440, height: 240, zoom: 3 }} />
+              )}
+              <DataList>
+                {mint.region && <DataRow label="Region">{mint.region.name}</DataRow>}
+                <DataRow label="Types">{fmt(mint.types)}</DataRow>
+                {mint.people.length > 0 && (
+                  <DataRow label="Struck for" href="#people">
+                    {`${fmt(mint.people.length)} ${peopleLabel}`}
+                  </DataRow>
+                )}
+                {mint.specimens > 0 && (
+                  <DataRow label="Specimens">
+                    {`${fmt(mint.specimens)} in ${fmt(mint.holders)} ${mint.holders === 1 ? "museum or collection" : "museums and collections"}`}
+                  </DataRow>
+                )}
+              </DataList>
+            </div>
+          </div>
+        </section>
+
+        {/* Output per collection, on one time axis */}
+        {mint.collections.length > 0 && (
+          <Section>
+            <h2 class="m-0 mb-6 font-serif text-heading font-normal">Over time</h2>
+            <div style="--aside: 150px">
+              <RowsHead first="Collection" aside="Dates" domain={domain} ticks={ticks} className="border-b border-ink pb-3.5" />
+              {mint.collections.map((c) => (
+                <MintCollectionRow
+                  href={link({ collection: c.category.id, limit: null }, "#coinage")}
+                  name={c.category.name}
+                  dates={yearRange(c.start, c.end)}
+                  bins={c.bins}
+                  domain={domain}
+                  yMax={binMax}
+                  ticks={ticks}
+                  count={c.n}
+                />
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* Who struck here: each person's time in office and their coins from this mint */}
+        {mint.people.length > 0 && (
+          <section id="people" class="scroll-mt-6">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-ink pt-12 pb-3">
+              <h3 class="m-0 font-serif text-[1.5rem] leading-[1.15] font-normal">Who struck here</h3>
+              <PersonTrackKey layers={["office", "coins"]} coinsLabel="Coins from this mint" />
+            </div>
+            <div class:list={["mt-3 hidden items-end gap-6 pb-1 md:grid", COLS]}>
+              <span class="text-label text-stone">Name</span>
+              <span class="text-label text-stone">In office</span>
+              <YearAxis domain={domain} ticks={ticks} />
+              <span class="text-right text-label text-stone">Types</span>
+            </div>
+            <div class="relative">
+              <div aria-hidden="true" class:list={["pointer-events-none absolute inset-0 hidden gap-6 md:grid", COLS]}>
+                <span></span><span></span>
+                <span class="relative">{ticks.map((tk) => <span class="absolute inset-y-0 w-px bg-hairline" style={{ left: `${pct(tk)}%` }}></span>)}</span>
+                <span></span>
+              </div>
+              {people.map((p) => {
+                const office = p.office && yearRange(...p.office)
+                const coins = p.coins && yearRange(...p.coins)
+                return (
+                  <a
+                    href={`/person/${p.id}`}
+                    class:list={[
+                      "group relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1 border-b border-hairline py-2.5 transition-[background-color,box-shadow] hover:bg-wash hover:shadow-[-12px_0_0_var(--color-wash),12px_0_0_var(--color-wash)] md:py-2",
+                      COLS,
+                    ]}
+                  >
+                    <span class="font-serif text-[1.125rem] leading-[1.2] decoration-1 underline-offset-4 group-hover:underline">{p.name}</span>
+                    <span class:list={["num col-span-2 row-start-2 text-ui md:col-span-1 md:row-start-auto", office ? "text-ink" : "text-stone"]}>{office ?? coins ?? "—"}</span>
+                    <span class="col-span-2 md:col-span-1">
+                      <PersonTrack
+                        office={p.office}
+                        coins={p.coins}
+                        lived={null}
+                        domain={domain}
+                        tip={[p.name, office && `In office ${office}`, coins && `Coins from ${mint.name} ${coins}`, `${fmt(p.n)} ${p.n === 1 ? "type" : "types"}`].filter(Boolean).join("\n")}
+                        richTip={{
+                          title: p.name,
+                          rows: [
+                            ...(office ? [["office", "In office", office]] : []),
+                            ...(coins ? [["coins", "Coins from this mint", coins]] : []),
+                          ] as [string, string, string][],
+                          foot: `${fmt(p.n)} ${p.n === 1 ? "type" : "types"} at ${mint.name}`,
+                        }}
+                      />
+                    </span>
+                    <span class="num col-start-2 row-start-1 text-right text-ui md:col-start-auto md:row-start-auto">{fmt(p.n)}</span>
+                  </a>
+                )
+              })}
+            </div>
+            {mint.people.length > shortlist.size && (
+              <a
+                href={link({ people: allPeople ? null : "all" }, "#people")}
+                class="group flex items-baseline justify-between border-b border-hairline py-3.5 text-ui text-ink transition-[background-color,box-shadow] hover:bg-wash hover:shadow-[-12px_0_0_var(--color-wash),12px_0_0_var(--color-wash)]"
+              >
+                <span class="underline-offset-4 group-hover:underline">{allPeople ? `Show the main ${fmt(shortlist.size)}` : `All ${fmt(mint.people.length)} people at ${mint.name}`}</span>
+                {!allPeople && <span class="num text-stone">{`${fmt(mint.people.length - shortlist.size)} more`}</span>}
+              </a>
+            )}
+          </section>
+        )}
+
+        {/* Denominations, metals, subjects */}
+        {(mint.denominations.items.length > 0 || mint.subjects.items.length > 0) && (
+          <Section className="grid gap-x-14 gap-y-10 sm:grid-cols-2 md:grid-cols-3">
+            <FacetColumn title="Denominations" items={asFacets(mint.denominations.items)} href={(d) => link({ denomination: d, limit: null }, "#coinage")} />
+            <FacetColumn title="Metal" items={asFacets(mint.materials.items)} href={(m) => link({ material: m, limit: null }, "#coinage")} />
+            <FacetColumn title="Subjects" items={asFacets(mint.subjects.items)} href={(s) => `/subject/${s}`} />
+          </Section>
+        )}
+
+        {/* Coinage */}
+        <Section id="coinage" className="flex scroll-mt-6 flex-col gap-8">
+          <h2 class="m-0 font-serif text-heading font-normal">Coinage</h2>
+          <div class="border-b border-hairline pb-3">
+            <CoinageFilters client:idle filters={filters} sort={query.sort} />
+          </div>
+          {mint.grid.length ? (
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-10">
+              {mint.grid.map((t) => (
+                <TypeCard href={typePath(t.id)} image={t.image} title={t.title} reference={t.reference} meta={t.meta} />
+              ))}
+            </div>
+          ) : (
+            <p class="m-0 text-body text-stone">No types match these filters.</p>
+          )}
+          <PhotoCredit photos={mint.typeCredits} />
+          {mint.total > mint.grid.length && (
+            <a data-keep-scroll href={link({ limit: query.limit + PAGE_SIZE })} class={buttonVariants({ variant: "outline", className: "self-center" })}>
+              Show more types
+              <span class="num font-normal text-stone">
+                {fmt(mint.grid.length)} of {fmt(mint.total)}
+              </span>
+            </a>
+          )}
+        </Section>
+      </main>
+    )
+  }
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+</script>

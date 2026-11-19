@@ -190,22 +190,37 @@ export function PersonTrack({
   )
 }
 
-/* The key above a people list: one swatch per layer. */
-export function PersonTrackKey({ className }: { className?: string }) {
+/* The key above a people list: one swatch per layer (`layers`: those the list draws). */
+type Layer = "lived" | "office" | "coins"
+export function PersonTrackKey({
+  className,
+  layers = ["lived", "office", "coins"],
+  coinsLabel = "Coins dated",
+}: {
+  className?: string
+  layers?: Layer[]
+  coinsLabel?: string
+}) {
   return (
     <span className={cn("flex flex-wrap items-center gap-x-5 gap-y-1 text-label text-stone", className)}>
-      <span className="flex items-center gap-2">
-        <span aria-hidden="true" className="relative h-[7px] w-5 border-x border-stone/60 before:absolute before:inset-x-0 before:top-[3px] before:h-px before:bg-stone/60" />
-        Lived
-      </span>
-      <span className="flex items-center gap-2">
-        <span aria-hidden="true" className="h-1.5 w-5 rounded-[3px] bg-ink" />
-        In office
-      </span>
-      <span className="flex items-center gap-2">
-        <span aria-hidden="true" className="h-1.5 w-5 rounded-[3px] bg-field" />
-        Coins dated
-      </span>
+      {layers.includes("lived") && (
+        <span className="flex items-center gap-2">
+          <span aria-hidden="true" className="relative h-[7px] w-5 border-x border-stone/60 before:absolute before:inset-x-0 before:top-[3px] before:h-px before:bg-stone/60" />
+          Lived
+        </span>
+      )}
+      {layers.includes("office") && (
+        <span className="flex items-center gap-2">
+          <span aria-hidden="true" className="h-1.5 w-5 rounded-[3px] bg-ink" />
+          In office
+        </span>
+      )}
+      {layers.includes("coins") && (
+        <span className="flex items-center gap-2">
+          <span aria-hidden="true" className="h-1.5 w-5 rounded-[3px] bg-field" />
+          {coinsLabel}
+        </span>
+      )}
     </span>
   )
 }
