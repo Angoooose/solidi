@@ -126,7 +126,7 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
                 {ruler && (
                   <>
                     <BreadcrumbItem>
-                      <BreadcrumbLink href={`/ruler/${ruler.id}`}>{ruler.name}</BreadcrumbLink>
+                      <BreadcrumbLink href={`/person/${ruler.id}`}>{ruler.name}</BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                   </>
@@ -163,7 +163,7 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
                   {type.authorities.map((p, i) => (
                     <>
                       {i > 0 && ", "}
-                      <RowLink href={`/ruler/${p.id}`}>{p.name}</RowLink>
+                      <RowLink href={`/person/${p.id}`}>{p.name}</RowLink>
                       {p.years && <span class="text-stone">, {p.years}</span>}
                     </>
                   ))}
@@ -177,7 +177,7 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
                   {type.statedAuthorities.map((p, i) => (
                     <>
                       {i > 0 && ", "}
-                      <RowLink href={`/ruler/${p.id}`}>{p.name}</RowLink>
+                      <RowLink href={`/person/${p.id}`}>{p.name}</RowLink>
                       {p.years && <span class="text-stone">, {p.years}</span>}
                     </>
                   ))}
@@ -198,7 +198,7 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
                   {type.portraits.map((p, i) => (
                     <>
                       {i > 0 && ", "}
-                      <RowLink href={`/ruler/${p.id}`}>{p.name}</RowLink>
+                      <RowLink href={`/person/${p.id}`}>{p.name}</RowLink>
                     </>
                   ))}
                 </DataRow>
@@ -364,9 +364,9 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
               <h2 class="m-0 font-serif text-heading font-normal">Related types</h2>
               {ruler &&
                 (ruler === stated ? (
-                  <a href={`/ruler/${ruler.id}?struck=name`} class={buttonVariants({ variant: "link" })}>All types in the name of {ruler.name}</a>
+                  <a href={`/person/${ruler.id}?struck=name`} class={buttonVariants({ variant: "link" })}>All types in the name of {ruler.name}</a>
                 ) : (
-                  <a href={`/ruler/${ruler.id}`} class={buttonVariants({ variant: "link" })}>All types of {ruler.name}</a>
+                  <a href={`/person/${ruler.id}`} class={buttonVariants({ variant: "link" })}>All types of {ruler.name}</a>
                 ))}
             </div>
             <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10">

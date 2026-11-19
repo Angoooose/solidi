@@ -1,22 +1,34 @@
 /*
- * Data for the collection pages (/collections, /category/[id], /rulers?collection=) and the
+ * Data for the collection pages (/collections, /category/[id], /people?collection=) and the
  * header's Collections menu. Everything is read from the summary tables the pipeline writes
  * (pipeline/summaries.py: category_stat, _bin, _facet, _person, _mint), so a page reads tens to
  * hundreds of rows, never the coin types themselves.
  */
 import { iiif, secure, yearRange } from "@/lib/format"
 
-/* City coinages are browsed by mint; their "rulers" are magistrates and client kings. */
+/* City coinages are browsed by mint; their people are magistrates, governors and client kings. */
 export const BY_MINT = new Set(["archaic-classical", "hellenistic-cities", "roman-provincial"])
 
-/* What a category's people are called. */
+/*
+ * What a category's people are called ("All 40 kings and queens", "Filter moneyers"). The pages and
+ * URLs say "people"; a collection names its own where one word fits them.
+ */
+const KINGS = { one: "king or queen", many: "kings and queens" }
 const PEOPLE: Record<string, { one: string; many: string }> = {
   "roman-imperial": { one: "emperor", many: "emperors" },
   "roman-republican": { one: "moneyer", many: "moneyers" },
   "roman-imperatorial": { one: "issuer", many: "issuers" },
+  "macedonian-kings": KINGS,
+  antigonid: KINGS,
+  seleucid: KINGS,
+  ptolemaic: KINGS,
+  "bactrian-indo-greek": KINGS,
+  attalid: KINGS,
+  "archaic-classical": { one: "magistrate or ruler", many: "magistrates and rulers" },
+  "hellenistic-cities": { one: "magistrate or ruler", many: "magistrates and rulers" },
 }
 export function peopleNoun(categoryId: string | null) {
-  return (categoryId && PEOPLE[categoryId]) || { one: "ruler", many: "rulers" }
+  return (categoryId && PEOPLE[categoryId]) || { one: "person", many: "people" }
 }
 
 export const fmt = (n: number) => Math.round(n).toLocaleString("en-GB")
@@ -178,7 +190,7 @@ export type RegionGroup = { id: string; name: string; n: number; regions: Region
 export type CategoryPage = {
   category: Category
   ancestors: Category[]
-  variant: "parent" | "rulers" | "mints"
+  variant: "parent" | "people" | "mints"
   children: Category[]
   /** Parent pages: each child's histogram (25-year bins) and cards. */
   childBins: Map<string, Bin[]>
@@ -261,7 +273,7 @@ export async function getCategoryPage(db: D1Database, id: string): Promise<Categ
   }
 
   return {
-    category, ancestors, variant: byMint ? "mints" : "rulers", children: [],
+    category, ancestors, variant: byMint ? "mints" : "people", children: [],
     childBins: new Map(), childPeople: new Map(), childMints: new Map(),
     bins: bins.results as Bin[],
     people: (people.results as PersonRow[]).map(toPerson),
@@ -276,14 +288,14 @@ export async function getCategoryPage(db: D1Database, id: string): Promise<Categ
 
 /* ---------------------------------------------------------------- people in a collection */
 
-export type RulerSort = "reign" | "types" | "name"
-export type RulerRow = { id: string; name: string; n: number; start: number | null; end: number | null; datedBy: string | null }
+export type PeopleSort = "reign" | "types" | "name"
+export type PeopleRow = { id: string; name: string; n: number; start: number | null; end: number | null; datedBy: string | null }
 
 /**
- * Everyone who issued coins in a collection (or in all collections), for /rulers. A type sits in
+ * Everyone who issued coins in a collection (or in all collections), for /people. A type sits in
  * one primary category, so summing a person's top-level counts never counts a type twice.
  */
-export async function getRulers(db: D1Database, categoryId: string | null, sort: RulerSort): Promise<RulerRow[]> {
+export async function getPeople(db: D1Database, categoryId: string | null, sort: PeopleSort): Promise<PeopleRow[]> {
   const order = {
     reign: `start IS NULL, start, "end", n DESC, name`,
     types: `n DESC, name`,
@@ -297,7 +309,7 @@ export async function getRulers(db: D1Database, categoryId: string | null, sort:
        FROM category_person cp JOIN person p ON p.id = cp.person_id
        JOIN category c ON c.id = cp.category_id AND c.parent_id IS NULL
        WHERE ?1 IS NULL GROUP BY p.id`
-  const { results } = await db.prepare(`SELECT * FROM (${sql}) ORDER BY ${order}`).bind(categoryId).all<RulerRow>()
+  const { results } = await db.prepare(`SELECT * FROM (${sql}) ORDER BY ${order}`).bind(categoryId).all<PeopleRow>()
   return results
 }
 
@@ -327,7 +339,7 @@ export async function getPreviews(db: D1Database, t: Tree, cats: Category[]): Pr
   const leafCards = (id: string): CollectionCard[] =>
     BY_MINT.has(id)
       ? (mints.get(id) ?? []).map((m) => ({ href: `/mint/${m.id}?collection=${id}`, name: m.name, line: metaLine(m.start, m.end, m.n), photo: m.photo }))
-      : chronological((people.get(id) ?? []).filter(cardWorthy)).map((p) => ({ href: `/ruler/${p.id}`, name: p.name, line: metaLine(p.start, p.end, p.n), photo: p.photo }))
+      : chronological((people.get(id) ?? []).filter(cardWorthy)).map((p) => ({ href: `/person/${p.id}`, name: p.name, line: metaLine(p.start, p.end, p.n), photo: p.photo }))
   // The photo for a collection: its most prolific ruler's or mint's.
   const leafPhoto = (id: string): Photo | null =>
     (BY_MINT.has(id) ? mints.get(id) : people.get(id))?.find((x) => x.photo)?.photo ?? null
@@ -355,7 +367,7 @@ export async function getPreviews(db: D1Database, t: Tree, cats: Category[]): Pr
       photo: leafPhoto(c.id),
       more: byMint
         ? { href: `/mints?collection=${c.id}`, count: c.mints, label: "All mints" }
-        : { href: `/rulers?collection=${c.id}`, count: c.people, label: `All ${peopleNoun(c.id).many}` },
+        : { href: `/people?collection=${c.id}`, count: c.people, label: `All ${peopleNoun(c.id).many}` },
     })
   }
   return out

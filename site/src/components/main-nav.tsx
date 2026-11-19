@@ -23,6 +23,7 @@ import type { CollectionsMenu, MenuCard, MenuLink } from "@/lib/collections"
  */
 
 const LINKS = [
+  ["People", "/people"],
   ["Mints", "/mints"],
   ["Denominations", "/denominations"],
   ["Subjects", "/subjects"],

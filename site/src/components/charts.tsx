@@ -133,7 +133,7 @@ export function Histogram({ bins, binWidth, label }: { bins: Bin[]; binWidth: nu
   )
 }
 
-/** One person's reign as a bar on a shared year axis (the rulers list). */
+/** One person's reign as a bar on a shared year axis (the people list). */
 export function ReignTrack({
   start,
   end,

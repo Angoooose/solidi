@@ -186,7 +186,7 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
          WHERE ts.type_id = ? ORDER BY ts.side DESC, ts.confidence DESC`,
         id
       ),
-      // `rulers`: people the segments name who have a ruler page (every person row does; see lib/ruler.ts).
+      // `rulers`: people the segments name who have a ruler page (every person row does; see lib/person.ts).
       q(
         `SELECT side, language, legend, transliteration, segments,
            (SELECT json_group_array(p.id) FROM json_each(CASE WHEN json_valid(l.segments) THEN l.segments ELSE '[]' END) j

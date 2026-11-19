@@ -1,5 +1,5 @@
 /*
- * Data for the ruler page (/ruler/trajan): the person, every coin type connected to them (issued
+ * Data for the person page (/person/trajan): the person, every coin type connected to them (issued
  * by them or showing their portrait) with filters, and a strip of their portraits across the reign.
  * Filters come from the URL so every view is shareable.
  *
@@ -24,7 +24,7 @@ export const IN_NAME = "name"
 
 export type Sort = "earliest" | "latest" | "reference"
 
-export type RulerQuery = {
+export type PersonQuery = {
   /** Obverse portrait: a person id, NO_PORTRAIT, or null for all. */
   portrait: string | null
   /** Issuing authority: a person id, or null for all. */
@@ -40,7 +40,7 @@ export type RulerQuery = {
 
 export type Facet = { value: string; label: string; count: number }
 
-export type Ruler = {
+export type Person = {
   id: string
   name: string
   ruled: string | null
@@ -112,7 +112,7 @@ function where(except?: FilterName): string {
 
 const SLUG = /^[a-z0-9][a-z0-9_.-]*$/
 
-export function parseQuery(params: URLSearchParams): RulerQuery {
+export function parseQuery(params: URLSearchParams): PersonQuery {
   const slug = (k: string) => (SLUG.test(params.get(k) ?? "") ? params.get(k) : null)
   const sort = params.get("sort") as Sort
   const limit = Number(params.get("limit"))
@@ -147,7 +147,7 @@ function lead(text: string | null, max = 320): string | null {
   return out.trim()
 }
 
-export async function getRuler(db: D1Database, id: string, query: RulerQuery): Promise<Ruler | null> {
+export async function getPerson(db: D1Database, id: string, query: PersonQuery): Promise<Person | null> {
   const person = await db
     .prepare(`SELECT id, name, definition, start_year, end_year, birth_year, death_year FROM person WHERE id = ?`)
     .bind(id)
@@ -260,7 +260,7 @@ export async function getRuler(db: D1Database, id: string, query: RulerQuery): P
     .filter((g) => g.people.length)
 
   // One portrait per start year that has a photo, then evenly spaced picks across the reign.
-  const byYear = new Map<number, Ruler["portraits"][number]>()
+  const byYear = new Map<number, Person["portraits"][number]>()
   const imageIds = new Map<string, number>()
   for (const r of portraits.results as { id: string; title: string | null; denomination: string | null; start_year: number; end_year: number | null; url: string | null; iiif: string | null; image_id: number | null }[]) {
     if (r.image_id != null) imageIds.set(r.id, r.image_id)

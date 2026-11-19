@@ -79,7 +79,7 @@ export function LegendGloss({
   const latin = (language ?? "la") === "la"
   const linked = (s: LegendSegment, node: React.ReactNode) =>
     s.person && rulers?.has(s.person) ? (
-      <a href={`/ruler/${s.person}`} className="underline-offset-4 hover:underline">
+      <a href={`/person/${s.person}`} className="underline-offset-4 hover:underline">
         {node}
       </a>
     ) : (

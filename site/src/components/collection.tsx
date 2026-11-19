@@ -91,7 +91,7 @@ const countLine = (start: number | null, end: number | null, n: number) =>
   [yearRange(start, end), `${fmt(n)} ${n === 1 ? "type" : "types"}`].filter(Boolean).join(" · ")
 
 export function PersonCardView({ person, small }: { person: PersonCard; small?: boolean }) {
-  return <Card href={`/ruler/${person.id}`} photo={person.photo} name={person.name} lines={[countLine(person.start, person.end, person.n)]} small={small} />
+  return <Card href={`/person/${person.id}`} photo={person.photo} name={person.name} lines={[countLine(person.start, person.end, person.n)]} small={small} />
 }
 
 export function MintCardView({ mint, categoryId, small, showRegion = true }: { mint: MintCard; categoryId: string; small?: boolean; showRegion?: boolean }) {

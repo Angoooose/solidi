@@ -79,7 +79,7 @@ export async function getCollectionsMenu(db: D1Database): Promise<CollectionsMen
     }
     const min = Math.max(MIN_TYPES, c.types * MIN_SHARE)
     return chronological((people.get(c.id) ?? []).filter((p) => p.n >= min && cardWorthy(p))).map((p) => ({
-      name: p.name, href: `/ruler/${p.id}`, meta: metaLine(p.start, p.end, p.n), image: thumb(p.photo),
+      name: p.name, href: `/person/${p.id}`, meta: metaLine(p.start, p.end, p.n), image: thumb(p.photo),
     }))
   }
   const cardsOf = new Map<string, MenuCard[]>()
@@ -94,7 +94,7 @@ export async function getCollectionsMenu(db: D1Database): Promise<CollectionsMen
 
   const links = (label: string, scope: string, n: { people: number; mints: number; denominations: number; subjects: number }): MenuLink[] =>
     [
-      { label, href: `/rulers${scope}`, count: n.people },
+      { label, href: `/people${scope}`, count: n.people },
       { label: "Mints", href: `/mints${scope}`, count: n.mints },
       { label: "Denominations", href: `/denominations${scope}`, count: n.denominations },
       { label: "Subjects", href: `/subjects${scope}`, count: n.subjects },

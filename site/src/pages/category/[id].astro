@@ -2,7 +2,7 @@
 /*
  * A collection: /category/seleucid. Three layouts:
  * - parent (Greek, Hellenistic, Roman): its collections as rows with histograms, then each with cards;
- * - by ruler (kingdoms, Republic, Empire): rulers, types by decade, mint map, denominations;
+ * - by person (kingdoms, Republic, Empire): people, types by decade, mint map, denominations;
  * - by mint (city coinage): mint map, most prolific mints, regions in catalogue order.
  * Everything comes from the pipeline's summary tables (lib/categories.ts).
  */
@@ -43,7 +43,7 @@ if (page?.variant === "parent") {
 }
 
 // Leaves: cards earliest first, chosen from the most prolific.
-const rulerCards = page ? chronological(page.people.filter(cardWorthy).slice(0, 8)) : []
+const personCards = page ? chronological(page.people.filter(cardWorthy).slice(0, 8)) : []
 const mintCards = page ? page.mints.slice(0, 8) : []
 const hero = page ? (page.variant === "mints" ? page.mints : page.people).find((x) => x.photo)?.photo ?? null : null
 const datedTypes = page ? Math.round(page.bins.reduce((s, b) => s + b.n, 0)) : 0
@@ -134,13 +134,13 @@ const scope = `?collection=${id}`
           {hero && <Plinth photo={hero} alt="" size="large" className="hidden p-12 md:block" />}
         </div>
 
-        {page.variant === "rulers" ? (
+        {page.variant === "people" ? (
           <>
-            {rulerCards.length > 0 && (
+            {personCards.length > 0 && (
               <Section>
-                <SectionHead title={capitalise(noun.many)} link={{ href: `/rulers${scope}`, label: `All ${fmt(c.people)} ${noun.many}` }} />
+                <SectionHead title={capitalise(noun.many)} link={{ href: `/people${scope}`, label: `All ${fmt(c.people)} ${noun.many}` }} />
                 <div class="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-4">
-                  {rulerCards.map((p) => <PersonCardView person={p} />)}
+                  {personCards.map((p) => <PersonCardView person={p} />)}
                 </div>
               </Section>
             )}
@@ -222,10 +222,10 @@ const scope = `?collection=${id}`
               <FacetColumn title="Denominations" items={page.denominations} href={(d) => `/denomination/${d}${scope}`} all={{ label: `All ${fmt(c.denominations)} denominations`, href: `/denominations${scope}` }} />
               <FacetColumn title="Metal" items={page.materials} href={(m) => `/material/${m}${scope}`} />
               <FacetColumn
-                title="Rulers and dynasts"
+                title={capitalise(noun.many)}
                 items={page.people.slice(0, 8).map((p) => ({ id: p.id, name: p.name, n: p.n }))}
-                href={(p) => `/ruler/${p}`}
-                all={{ label: `All ${fmt(c.people)} rulers`, href: `/rulers${scope}` }}
+                href={(p) => `/person/${p}`}
+                all={{ label: `All ${fmt(c.people)} ${noun.many}`, href: `/people${scope}` }}
               />
             </Section>
           </>

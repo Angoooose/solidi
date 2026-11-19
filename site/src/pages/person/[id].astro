@@ -1,6 +1,6 @@
 ---
 /*
- * Ruler page: /ruler/trajan. Server-rendered from D1; "Show more" is a plain link and the filter
+ * Person page: /person/trajan. Server-rendered from D1; "Show more" is a plain link and the filter
  * selects (an island) navigate to a new URL.
  */
 import { env } from "cloudflare:workers"
@@ -20,13 +20,19 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { IN_NAME, OWN, PAGE_SIZE, getRuler, parseQuery } from "@/lib/ruler"
+import { IN_NAME, OWN, PAGE_SIZE, getPerson, parseQuery } from "@/lib/person"
 import { capitalise, typePath } from "@/lib/format"
+import { peopleNoun } from "@/lib/categories"
 
 const id = Astro.params.id ?? ""
 const query = parseQuery(Astro.url.searchParams)
-const ruler = await getRuler(env.DB, id, query)
-if (!ruler) Astro.response.status = 404
+const person = await getPerson(env.DB, id, query)
+if (!person) Astro.response.status = 404
+// "Emperors" under Roman Imperial, to that collection's people list; "People" when uncategorised.
+const home = person?.categoryPath.at(-1)
+const peopleCrumb = home
+  ? { label: capitalise(peopleNoun(home.id).many), href: `/people?collection=${home.id}` }
+  : { label: "People", href: "/people" }
 
 /* A URL for this page with some parameters changed; null removes one. Used with data-keep-scroll. */
 const link = (changes: Record<string, string | number | null>) => {
@@ -38,25 +44,25 @@ const link = (changes: Record<string, string | number | null>) => {
   return `${url.pathname}${url.search}`
 }
 
-const filters = ruler
+const filters = person
   ? [
-      { label: "Struck", param: "struck", value: query.struck, options: ruler.struckFacet, available: ruler.available.struck },
-      { label: "Portrait", param: "portrait", value: query.portrait, options: ruler.portraitFacet, available: ruler.available.portrait },
-      { label: "Issued by", param: "issuer", value: query.issuer, options: ruler.issuerFacet, available: ruler.available.issuer },
-      { label: "Denomination", param: "denomination", value: query.denomination, options: ruler.denominationFacet, available: ruler.available.denomination },
-      { label: "Date", param: "date", value: query.period, options: ruler.periodFacet, available: ruler.available.period },
+      { label: "Struck", param: "struck", value: query.struck, options: person.struckFacet, available: person.available.struck },
+      { label: "Portrait", param: "portrait", value: query.portrait, options: person.portraitFacet, available: person.available.portrait },
+      { label: "Issued by", param: "issuer", value: query.issuer, options: person.issuerFacet, available: person.available.issuer },
+      { label: "Denomination", param: "denomination", value: query.denomination, options: person.denominationFacet, available: person.available.denomination },
+      { label: "Date", param: "date", value: query.period, options: person.periodFacet, available: person.available.period },
     ]
   : []
 ---
 
-<Base title={ruler?.name ?? "Ruler not found"}>
-  <SiteHeader current="Collections" />
+<Base title={person?.name ?? "Person not found"}>
+  <SiteHeader current="People" />
   {
-    !ruler ? (
+    !person ? (
       <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] py-24">
-        <h1 class="m-0 font-serif text-display font-normal">Ruler not found</h1>
+        <h1 class="m-0 font-serif text-display font-normal">Person not found</h1>
         <p class="mt-6 text-body text-stone">
-          There is no ruler <span class="text-ink">{id}</span>.
+          There is no person <span class="text-ink">{id}</span>.
         </p>
       </main>
     ) : (
@@ -65,7 +71,7 @@ const filters = ruler
         <section class="flex flex-col gap-8 pt-10">
           <Breadcrumb>
             <BreadcrumbList>
-              {ruler.categoryPath.map((c) => (
+              {person.categoryPath.map((c) => (
                 <>
                   <BreadcrumbItem>
                     <BreadcrumbLink href={`/category/${c.id}`}>{c.name}</BreadcrumbLink>
@@ -74,11 +80,11 @@ const filters = ruler
                 </>
               ))}
               <BreadcrumbItem>
-                <BreadcrumbLink href="/rulers">Rulers</BreadcrumbLink>
+                <BreadcrumbLink href={peopleCrumb.href}>{peopleCrumb.label}</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>{ruler.name}</BreadcrumbPage>
+                <BreadcrumbPage>{person.name}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -86,17 +92,17 @@ const filters = ruler
           <div class="flex flex-wrap items-end justify-between gap-x-20 gap-y-6">
             <div class="flex min-w-0 flex-[1_1_560px] flex-col gap-4">
               <div class="flex flex-wrap items-baseline gap-x-7 gap-y-2">
-                <h1 class="m-0 font-serif text-display font-normal">{ruler.name}</h1>
-                {(ruler.ruled ?? ruler.lived) && <span class="text-subtitle text-graphite">{capitalise((ruler.ruled ?? ruler.lived)!)}</span>}
+                <h1 class="m-0 font-serif text-display font-normal">{person.name}</h1>
+                {(person.ruled ?? person.lived) && <span class="text-subtitle text-graphite">{capitalise((person.ruled ?? person.lived)!)}</span>}
               </div>
-              {ruler.lead && (
+              {person.lead && (
                 <p class="m-0 max-w-[56ch] font-serif text-reading text-pretty">
-                  {ruler.lead}
-                  {ruler.article && (
+                  {person.lead}
+                  {person.article && (
                     <>
                       {" "}
                       <a
-                        href={ruler.article.url}
+                        href={person.article.url}
                         rel="noopener"
                         class="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline"
                       >
@@ -106,25 +112,25 @@ const filters = ruler
                   )}
                 </p>
               )}
-              {ruler.article && (
-                <span class="text-credit text-stone">Text from Wikipedia, {ruler.article.licence}</span>
+              {person.article && (
+                <span class="text-credit text-stone">Text from Wikipedia, {person.article.licence}</span>
               )}
             </div>
 
             <DataList className="min-w-[300px] flex-[0_1_440px]">
-              {ruler.ruled && <DataRow label="Ruled">{ruler.ruled}</DataRow>}
-              {ruler.lived && <DataRow label="Lived">{ruler.lived}</DataRow>}
-              {ruler.mainMint && (
-                <DataRow label="Main mint" href={`/mint/${ruler.mainMint.id}`}>
-                  {ruler.mainMint.name}
+              {person.ruled && <DataRow label="Ruled">{person.ruled}</DataRow>}
+              {person.lived && <DataRow label="Lived">{person.lived}</DataRow>}
+              {person.mainMint && (
+                <DataRow label="Main mint" href={`/mint/${person.mainMint.id}`}>
+                  {person.mainMint.name}
                 </DataRow>
               )}
-              {ruler.family.map((g) => (
+              {person.family.map((g) => (
                 <DataRow label={g.relation}>
                   {g.people.map((p, i) => (
                     <>
                       {i > 0 && ", "}
-                      <RowLink href={`/ruler/${p.id}`}>{p.name}</RowLink>
+                      <RowLink href={`/person/${p.id}`}>{p.name}</RowLink>
                     </>
                   ))}
                 </DataRow>
@@ -134,15 +140,15 @@ const filters = ruler
         </section>
 
         {/* Their portrait across the reign, as a timeline: a rule with a dot per portrait */}
-        {ruler.portraits.length >= 2 && (
+        {person.portraits.length >= 2 && (
           <section class="flex flex-col gap-8 border-t border-hairline pt-18 mt-16">
             <h2 class="m-0 font-serif text-heading font-normal">
-              {ruler.name}'s portrait{ruler.portraitSpan && `, ${ruler.portraitSpan.replace(/^AD /, "")}`}
+              {person.name}'s portrait{person.portraitSpan && `, ${person.portraitSpan.replace(/^AD /, "")}`}
             </h2>
             <div class="scroll-fade-x scrollbar-thin overflow-x-auto pb-2">
               <ol class="relative m-0 grid min-w-[880px] list-none grid-cols-6 gap-x-6 p-0">
                 <span aria-hidden="true" class="absolute inset-x-0 top-[4px] h-px bg-hairline" />
-                {ruler.portraits.map((p) => (
+                {person.portraits.map((p) => (
                   <li class="relative">
                     <a href={typePath(p.typeId)} class="group flex flex-col">
                       <span aria-hidden="true" class="block size-[9px] rounded-full bg-ink" />
@@ -154,7 +160,7 @@ const filters = ruler
                       <span class="relative mt-5 block aspect-square bg-plinth">
                         <img
                           src={p.src}
-                          alt={`${ruler.name}, ${p.years ?? ""}`}
+                          alt={`${person.name}, ${p.years ?? ""}`}
                           loading="lazy"
                           class="absolute inset-0 size-full object-contain p-5 mix-blend-multiply"
                         />
@@ -164,7 +170,7 @@ const filters = ruler
                 ))}
               </ol>
             </div>
-            <PhotoCredit photos={ruler.portraitCredits} />
+            <PhotoCredit photos={person.portraitCredits} />
           </section>
         )}
 
@@ -172,10 +178,10 @@ const filters = ruler
         <section id="coinage" class="flex scroll-mt-6 flex-col gap-8 pt-18 pb-24">
           <div class="flex flex-col gap-3">
             <h2 class="m-0 font-serif text-heading font-normal">Coinage</h2>
-            {ruler.inNameCount > 0 && (
+            {person.inNameCount > 0 && (
               <p class="m-0 max-w-[64ch] text-body text-graphite">
-                {ruler.inNameCount.toLocaleString("en")} {ruler.inNameCount === 1 ? "type names" : "types name"} {ruler.name} on the coin
-                but {ruler.inNameCount === 1 ? "was" : "were"} struck by others: later rulers, cities, magistrates, or issuers the
+                {person.inNameCount.toLocaleString("en")} {person.inNameCount === 1 ? "type names" : "types name"} {person.name} on the coin
+                but {person.inNameCount === 1 ? "was" : "were"} struck by others: later rulers, cities, magistrates, or issuers the
                 catalogue does not record.{" "}
                 <a
                   data-keep-scroll
@@ -192,9 +198,9 @@ const filters = ruler
             <CoinageFilters client:idle filters={filters} sort={query.sort} />
           </div>
 
-          {ruler.types.length ? (
+          {person.types.length ? (
             <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-10">
-              {ruler.types.map((t) => (
+              {person.types.map((t) => (
                 <TypeCard href={typePath(t.id)} image={t.image} title={t.title} reference={t.reference} meta={t.meta} />
               ))}
             </div>
@@ -202,13 +208,13 @@ const filters = ruler
             <p class="m-0 text-body text-stone">No types match these filters.</p>
           )}
 
-          <PhotoCredit photos={ruler.typeCredits} />
+          <PhotoCredit photos={person.typeCredits} />
 
-          {ruler.total > ruler.types.length && (
+          {person.total > person.types.length && (
             <a data-keep-scroll href={link({ limit: query.limit + PAGE_SIZE })} class={buttonVariants({ variant: "outline", className: "self-center" })}>
                 Show more types
                 <span class="num font-normal text-stone">
-                  {ruler.types.length} of {ruler.total.toLocaleString("en")}
+                  {person.types.length} of {person.total.toLocaleString("en")}
                 </span>
               </a>
           )}

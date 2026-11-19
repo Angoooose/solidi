@@ -1,6 +1,6 @@
 ---
 /*
- * People who issued coins, as reign bars on one time axis: /rulers?collection=seleucid
+ * People who issued coins, as reign bars on one time axis: /people?collection=seleucid
  * ?collection= picks the collection (default: all),
  * ?sort= orders by reign, types or name. The filter box narrows the list in the browser.
  */
@@ -12,10 +12,10 @@ import { Note, Page } from "@/components/collection"
 import { ReignTrack, YearAxis, niceStep, yearTicks } from "@/components/charts"
 import { UrlSelect } from "@/components/url-select"
 import { capitalise, yearRange } from "@/lib/format"
-import { fmt, getCategories, getRulers, peopleNoun, tree, type RulerSort } from "@/lib/categories"
+import { fmt, getCategories, getPeople, peopleNoun, tree, type PeopleSort } from "@/lib/categories"
 
-const SORTS: { value: RulerSort; label: string }[] = [
-  { value: "reign", label: "In order of reign" },
+const SORTS: { value: PeopleSort; label: string }[] = [
+  { value: "reign", label: "By date" },
   { value: "types", label: "Most types first" },
   { value: "name", label: "By name" },
 ]
@@ -25,7 +25,7 @@ const requested = Astro.url.searchParams.get("collection")
 const category = requested ? (t.byId.get(requested) ?? null) : null
 if (requested && !category) Astro.response.status = 404
 
-const rows = requested && !category ? [] : await getRulers(env.DB, category?.id ?? null, sort)
+const rows = requested && !category ? [] : await getPeople(env.DB, category?.id ?? null, sort)
 const noun = peopleNoun(category?.id ?? null)
 
 const starts = rows.flatMap((r) => (r.start != null ? [r.start, r.end ?? r.start] : []))
@@ -44,7 +44,7 @@ const options = [
     .sort((a, b) => [...t.ancestors(a.id), a].map((x) => x.sortOrder).join(".").localeCompare([...t.ancestors(b.id), b].map((x) => x.sortOrder).join(".")))
     .map((c) => ({ value: c.id, label: c.name, count: c.people })),
 ]
-const sortHref = (s: RulerSort) => {
+const sortHref = (s: PeopleSort) => {
   const url = new URL(Astro.url)
   if (s === "reign") url.searchParams.delete("sort")
   else url.searchParams.set("sort", s)
@@ -53,8 +53,8 @@ const sortHref = (s: RulerSort) => {
 const COLS = "md:grid-cols-[minmax(0,300px)_150px_minmax(0,1fr)_64px]"
 ---
 
-<Base title={category ? `${capitalise(noun.many)} · ${category.name}` : "Rulers"}>
-  <SiteHeader current="Collections" />
+<Base title={category ? `${capitalise(noun.many)} · ${category.name}` : "People"}>
+  <SiteHeader current="People" />
   <Page>
     <div class="flex flex-wrap items-baseline gap-x-5 gap-y-2 pt-8">
       <h1 class="m-0 font-serif text-display font-normal">{capitalise(noun.many)}</h1>
@@ -74,7 +74,7 @@ const COLS = "md:grid-cols-[minmax(0,300px)_150px_minmax(0,1fr)_64px]"
 
     <div class:list={["mt-10 hidden items-end gap-6 border-b border-ink pb-2.5 md:grid", COLS]}>
       <a href={sortHref("name")} class:list={["text-label underline-offset-4 hover:underline", sort === "name" ? "text-ink" : "text-stone"]}>Name</a>
-      <a href={sortHref("reign")} class:list={["text-label underline-offset-4 hover:underline", sort === "reign" ? "text-ink" : "text-stone"]}>Reign</a>
+      <a href={sortHref("reign")} class:list={["text-label underline-offset-4 hover:underline", sort === "reign" ? "text-ink" : "text-stone"]}>Dates</a>
       <YearAxis domain={domain} ticks={ticks} />
       <a href={sortHref("types")} class:list={["text-right text-label underline-offset-4 hover:underline", sort === "types" ? "text-ink" : "text-stone"]}>Types</a>
     </div>
@@ -94,7 +94,7 @@ const COLS = "md:grid-cols-[minmax(0,300px)_150px_minmax(0,1fr)_64px]"
           const byCoins = r.datedBy === "coins"
           return (
             <a
-              href={`/ruler/${r.id}`}
+              href={`/person/${r.id}`}
               data-name={r.name.toLowerCase()}
               class:list={[
                 "group relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1 border-b border-hairline py-2.5 transition-[background-color,box-shadow] hover:bg-wash hover:shadow-[-12px_0_0_var(--color-wash),12px_0_0_var(--color-wash)] md:py-[9px]",
@@ -102,7 +102,7 @@ const COLS = "md:grid-cols-[minmax(0,300px)_150px_minmax(0,1fr)_64px]"
               ]}
             >
               <span class="col-start-1 row-start-1 font-serif text-[1.1875rem] leading-[1.2] decoration-1 underline-offset-4 group-hover:underline md:col-start-auto md:row-start-auto">{r.name}</span>
-              <span class:list={["num col-span-2 text-ui md:col-span-1", byCoins ? "text-stone" : "text-ink"]} data-tip={byCoins ? "No reign dates known: the dates of their coins" : undefined}>
+              <span class:list={["num col-span-2 text-ui md:col-span-1", byCoins ? "text-stone" : "text-ink"]} data-tip={byCoins ? "No dates of their own known: the dates of their coins" : undefined}>
                 {reign ?? "—"}
               </span>
               <span class="col-span-2 md:col-span-1">

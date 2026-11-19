@@ -1,6 +1,6 @@
 /*
  * Edge cache for pages that only change when the database is rebuilt: the collection pages, the
- * rulers list and the Collections menu's data. A cached copy is served without running the page
+ * people list and the Collections menu's data. A cached copy is served without running the page
  * or touching D1. Copies are keyed by the database's build time (build_info.built_at), so loading
  * a new database retires them all at once; the build time itself is read at most once a minute
  * per Worker instance.
@@ -10,7 +10,7 @@
 import { defineMiddleware } from "astro:middleware"
 import { env } from "cloudflare:workers"
 
-const CACHED = [/^\/collections\/?$/, /^\/category\/[^/]+\/?$/, /^\/rulers\/?$/, /^\/api\/collections\.json$/]
+const CACHED = [/^\/collections\/?$/, /^\/category\/[^/]+\/?$/, /^\/people\/?$/, /^\/api\/collections\.json$/]
 const TTL = 60 * 60 * 24 // a day; the build key retires copies sooner when the data changes
 const BUILD_CHECK_MS = 60_000
 
@@ -25,6 +25,9 @@ async function buildId(): Promise<string> {
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { request, url } = context
+  // The people pages were once /rulers and /ruler/[id]; keep old links working, query and all.
+  const moved = url.pathname.match(/^\/ruler(s)?(\/.*)?$/)
+  if (moved) return context.redirect(`${moved[1] ? "/people" : "/person"}${moved[2] ?? ""}${url.search}`, 301)
   if (import.meta.env.DEV || request.method !== "GET" || !CACHED.some((re) => re.test(url.pathname))) return next()
 
   const cache = (caches as unknown as { default: Cache }).default
