@@ -197,3 +197,15 @@
   scrollbar-width: thin;
   scrollbar-color: var(--color-field) transparent;
 }
+
+/* Chart marks (components/charts.tsx): ink bars that turn stone under the pointer or its tooltip. */
+@layer components {
+  .chart .bar {
+    fill: var(--color-ink);
+    transition: fill 0.15s ease;
+  }
+  .chart .bar:hover,
+  .chart .bar[data-tip-active] {
+    fill: var(--color-stone);
+  }
+}

@@ -1,0 +1,169 @@
+/*
+ * Charts for the collection pages: server-rendered SVG and HTML, no client JavaScript. Hover is
+ * CSS (a bar darkens); tooltips come from `data-tip` attributes, shown by scripts/tooltip.ts.
+ *
+ * Years are historical (no year 0: -1 is 1 BC, 1 is AD 1). An axis tick at 0 reads "AD 1".
+ */
+import * as React from "react"
+import { scaleLinear } from "d3-scale"
+import { cn } from "@/lib/utils"
+import { year, yearRange } from "@/lib/format"
+import { fmt } from "@/lib/categories"
+
+export type Bin = { start: number; n: number }
+
+export const tickLabel = (y: number) => (y === 0 ? "AD 1" : year(y))
+
+/** Tick years every `step` (50, 100, 200…) inside [from, to]. */
+export function yearTicks([from, to]: [number, number], step: number): number[] {
+  const out = []
+  for (let y = Math.ceil(from / step) * step; y <= to; y += step) out.push(y)
+  return out
+}
+
+/** A step giving about `target` ticks over the span. */
+export function niceStep([from, to]: [number, number], target = 6): number {
+  const raw = (to - from) / target
+  return [10, 25, 50, 100, 200, 250, 500].find((s) => s >= raw) ?? 1000
+}
+
+/** "320–311 BC · 48 types": a bin's tooltip. */
+export function binLabel(start: number, width: number, n: number): string {
+  const range = start === 0 ? yearRange(1, width - 1) : yearRange(start, start + width - 1)
+  const count = n < 0.5 ? "under 1 type" : `${fmt(n)} ${Math.round(n) === 1 ? "type" : "types"}`
+  return `${range} · ${count}`
+}
+
+/* Each type is spread evenly over its possible dates, so a bin can hold a fraction of one. */
+const BAR_GAP = 0.08
+
+/**
+ * A row's sparkline (collection lists): 720×40, stretched to the column. Shared `domain` and
+ * `yMax` across rows so heights and positions compare. Bars are at least 2px so a bin with a
+ * single type still shows.
+ */
+export function Sparkline({
+  bins,
+  binWidth,
+  domain,
+  yMax,
+  ticks,
+  label,
+  className,
+}: {
+  bins: Bin[]
+  binWidth: number
+  domain: [number, number]
+  yMax: number
+  ticks: number[]
+  label: string
+  className?: string
+}) {
+  const W = 720, H = 40, TOP = 4
+  const x = scaleLinear().domain(domain).range([0, W])
+  const y = scaleLinear().domain([0, yMax]).range([0, H - TOP])
+  const bw = x(domain[0] + binWidth) - x(domain[0])
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" role="img" aria-label={label} className={cn("chart block overflow-visible", className)}>
+      {ticks.map((t) => (
+        <line key={t} x1={x(t)} x2={x(t)} y1={0} y2={H} className="stroke-hairline" vectorEffect="non-scaling-stroke" />
+      ))}
+      <line x1={0} x2={W} y1={H - 0.5} y2={H - 0.5} className="stroke-field" vectorEffect="non-scaling-stroke" />
+      {bins.map((b) => {
+        const h = Math.max(2, y(b.n))
+        return (
+          <rect key={b.start} x={x(b.start) + bw * BAR_GAP / 2} width={bw * (1 - BAR_GAP)} y={H - h} height={h} rx={1.5} data-tip={binLabel(b.start, binWidth, b.n)} className="bar" />
+        )
+      })}
+    </svg>
+  )
+}
+
+/** Year labels above or below a chart, placed at the same percentages as its ticks. */
+export function YearAxis({ domain, ticks, className }: { domain: [number, number]; ticks: number[]; className?: string }) {
+  const pct = (t: number) => ((t - domain[0]) / (domain[1] - domain[0])) * 100
+  return (
+    <span aria-hidden="true" className={cn("relative block h-[18px]", className)}>
+      {ticks.map((t) => (
+        <span key={t} className="num absolute -translate-x-1/2 text-label whitespace-nowrap text-stone" style={{ left: `${pct(t)}%` }}>
+          {tickLabel(t)}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+/**
+ * The full histogram on a collection page ("Types by decade"): bars with horizontal gridlines,
+ * count labels on the right and year labels below.
+ */
+export function Histogram({ bins, binWidth, label }: { bins: Bin[]; binWidth: number; label: string }) {
+  if (!bins.length) return null
+  const W = 1280, H = 200, TOP = 12
+  const domain: [number, number] = [bins[0].start, bins[bins.length - 1].start + binWidth]
+  const max = Math.max(...bins.map((b) => b.n))
+  const y = scaleLinear().domain([0, max]).nice(5).range([H, TOP])
+  const yTicks = y.ticks(5).filter((t) => t > 0)
+  const x = scaleLinear().domain(domain).range([0, W])
+  const bw = x(domain[0] + binWidth) - x(domain[0])
+  const ticks = yearTicks(domain, niceStep(domain))
+  const pct = (v: number) => `${(y(v) / H) * 100}%`
+  return (
+    <div>
+      <div className="grid grid-cols-[1fr_40px] gap-3">
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" role="img" aria-label={label} className="chart block overflow-visible">
+          {yTicks.map((t) => (
+            <line key={t} x1={0} x2={W} y1={y(t)} y2={y(t)} className="stroke-hairline" vectorEffect="non-scaling-stroke" />
+          ))}
+          <line x1={0} x2={W} y1={H - 0.5} y2={H - 0.5} className="stroke-ink" vectorEffect="non-scaling-stroke" />
+          {bins.map((b) => (
+            <rect key={b.start} x={x(b.start) + bw * BAR_GAP / 2} width={bw * (1 - BAR_GAP)} y={y(b.n)} height={H - y(b.n)} rx={2} data-tip={binLabel(b.start, binWidth, b.n)} className="bar" />
+          ))}
+        </svg>
+        <span aria-hidden="true" className="relative">
+          {yTicks.map((t) => (
+            <span key={t} className="num absolute -translate-y-1/2 text-label text-stone" style={{ top: pct(t) }}>
+              {fmt(t)}
+            </span>
+          ))}
+        </span>
+      </div>
+      <YearAxis domain={domain} ticks={ticks} className="mt-2 mr-[52px]" />
+    </div>
+  )
+}
+
+/** One person's reign as a bar on a shared year axis (the rulers list). */
+export function ReignTrack({
+  start,
+  end,
+  domain,
+  ticks,
+  tip,
+  muted = false,
+}: {
+  start: number | null
+  end: number | null
+  domain: [number, number]
+  ticks: number[]
+  tip: string | null
+  muted?: boolean
+}) {
+  const pct = (t: number) => ((t - domain[0]) / (domain[1] - domain[0])) * 100
+  const s = start ?? end
+  const e = end ?? start
+  return (
+    <span className="relative block h-6">
+      {ticks.map((t) => (
+        <span key={t} aria-hidden="true" className="absolute inset-y-0 w-px bg-hairline" style={{ left: `${pct(t)}%` }} />
+      ))}
+      {s != null && e != null && (
+        <span
+          data-tip={tip ?? undefined}
+          className={cn("absolute top-1/2 -mt-[3px] h-1.5 min-w-1.5 rounded-[3px]", muted ? "bg-field" : "bg-ink")}
+          style={{ left: `${pct(Math.min(s, e))}%`, width: `${Math.max(0.5, pct(Math.max(s, e) + 1) - pct(Math.min(s, e)))}%` }}
+        />
+      )}
+    </span>
+  )
+}

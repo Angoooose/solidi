@@ -12,7 +12,8 @@
     "astro": "astro",
     "generate-types": "wrangler types",
     "db:local": "wrangler d1 execute solidi --local --yes --file=../build/trajan/solidi.sql",
-    "db:local:full": "for f in ../build/solidi-*.sql; do wrangler d1 execute solidi --local --yes --file=$f || exit 1; done"
+    "db:local:full": "for f in ../build/solidi-*.sql; do wrangler d1 execute solidi --local --yes --file=$f || exit 1; done",
+    "basemaps": "node scripts/basemaps.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.8",
@@ -27,6 +28,10 @@
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
     "cn": "^0.5.2",
+    "d3-geo": "^3.1.2",
+    "d3-scale": "^4.0.3",
+    "d3-selection": "^3.0.1",
+    "d3-zoom": "^3.0.1",
     "lucide-react": "^1.75.0",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
@@ -38,6 +43,13 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "typescript": "^6.0.3"
+    "@types/d3-geo": "^3.1.1",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-selection": "^3.0.12",
+    "@types/d3-zoom": "^3.0.9",
+    "@types/topojson-client": "^3.1.5",
+    "topojson-client": "^3.1.0",
+    "typescript": "^6.0.3",
+    "world-atlas": "^2.0.2"
   }
 }
