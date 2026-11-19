@@ -1,25 +1,25 @@
 ---
 /*
- * People who issued coins, as reign bars on one time axis: /people?collection=seleucid
+ * People who issued coins, each on one time axis (lived, in office, coins dated): /people?collection=seleucid
  * ?collection= picks the collection (default: all),
- * ?sort= orders by reign, types or name. The filter box narrows the list in the browser.
+ * ?sort= orders by date, types or name. The filter box narrows the list in the browser.
  */
 import { env } from "cloudflare:workers"
 import Base from "@/layouts/Base.astro"
 import SiteHeader from "@/components/SiteHeader.astro"
 import { SiteFooter } from "@/components/site-chrome"
 import { Note, Page } from "@/components/collection"
-import { ReignTrack, YearAxis, niceStep, yearTicks } from "@/components/charts"
+import { PersonTrack, PersonTrackKey, YearAxis, niceStep, yearTicks } from "@/components/charts"
 import { UrlSelect } from "@/components/url-select"
 import { capitalise, yearRange } from "@/lib/format"
 import { fmt, getCategories, getPeople, peopleNoun, tree, type PeopleSort } from "@/lib/categories"
 
 const SORTS: { value: PeopleSort; label: string }[] = [
-  { value: "reign", label: "By date" },
+  { value: "date", label: "By date" },
   { value: "types", label: "Most types first" },
   { value: "name", label: "By name" },
 ]
-const sort = SORTS.find((s) => s.value === Astro.url.searchParams.get("sort"))?.value ?? "reign"
+const sort = SORTS.find((s) => s.value === Astro.url.searchParams.get("sort"))?.value ?? "date"
 const t = tree(await getCategories(env.DB))
 const requested = Astro.url.searchParams.get("collection")
 const category = requested ? (t.byId.get(requested) ?? null) : null
@@ -28,7 +28,8 @@ if (requested && !category) Astro.response.status = 404
 const rows = requested && !category ? [] : await getPeople(env.DB, category?.id ?? null, sort)
 const noun = peopleNoun(category?.id ?? null)
 
-const starts = rows.flatMap((r) => (r.start != null ? [r.start, r.end ?? r.start] : []))
+// The axis spans office and coins; lifetimes are clipped to it.
+const starts = rows.flatMap((r) => [...(r.office ?? []), ...(r.coins ?? [])])
 const from = starts.length ? Math.min(...starts) : -100
 const to = starts.length ? Math.max(...starts) : 100
 const step = niceStep([from, to], 6)
@@ -46,7 +47,7 @@ const options = [
 ]
 const sortHref = (s: PeopleSort) => {
   const url = new URL(Astro.url)
-  if (s === "reign") url.searchParams.delete("sort")
+  if (s === "date") url.searchParams.delete("sort")
   else url.searchParams.set("sort", s)
   return url.pathname + url.search
 }
@@ -72,9 +73,14 @@ const COLS = "md:grid-cols-[minmax(0,300px)_150px_minmax(0,1fr)_64px]"
       <UrlSelect client:idle label="Sort" param="sort" value={sort} options={SORTS} />
     </div>
 
-    <div class:list={["mt-10 hidden items-end gap-6 border-b border-ink pb-2.5 md:grid", COLS]}>
+    {/* The key, over the bars' column. */}
+    <div class:list={["mt-10 grid gap-6", COLS]}>
+      <PersonTrackKey className="md:col-start-3" />
+    </div>
+
+    <div class:list={["mt-4 hidden items-end gap-6 border-b border-ink pb-2.5 md:grid", COLS]}>
       <a href={sortHref("name")} class:list={["text-label underline-offset-4 hover:underline", sort === "name" ? "text-ink" : "text-stone"]}>Name</a>
-      <a href={sortHref("reign")} class:list={["text-label underline-offset-4 hover:underline", sort === "reign" ? "text-ink" : "text-stone"]}>Dates</a>
+      <a href={sortHref("date")} class:list={["text-label underline-offset-4 hover:underline", sort === "date" ? "text-ink" : "text-stone"]}>In office</a>
       <YearAxis domain={domain} ticks={ticks} />
       <a href={sortHref("types")} class:list={["text-right text-label underline-offset-4 hover:underline", sort === "types" ? "text-ink" : "text-stone"]}>Types</a>
     </div>
@@ -90,8 +96,21 @@ const COLS = "md:grid-cols-[minmax(0,300px)_150px_minmax(0,1fr)_64px]"
       </div>
       {
         rows.map((r) => {
-          const reign = yearRange(r.start, r.end)
-          const byCoins = r.datedBy === "coins"
+          const office = r.office && yearRange(...r.office)
+          const coins = r.coins && yearRange(...r.coins)
+          const lived = r.lived && yearRange(...r.lived)
+          const tip = [r.name, lived && `Lived ${lived}`, office && `In office ${office}`, coins && `Coins dated ${coins}`, `${fmt(r.n)} ${r.n === 1 ? "type" : "types"}`]
+            .filter(Boolean)
+            .join("\n")
+          const richTip = {
+            title: r.name,
+            rows: [
+              ...(lived ? [["lived", "Lived", lived]] : []),
+              ...(office ? [["office", "In office", office]] : []),
+              ...(coins ? [["coins", "Coins dated", coins]] : []),
+            ] as [string, string, string][],
+            foot: `${fmt(r.n)} ${r.n === 1 ? "type" : "types"}`,
+          }
           return (
             <a
               href={`/person/${r.id}`}
@@ -102,11 +121,11 @@ const COLS = "md:grid-cols-[minmax(0,300px)_150px_minmax(0,1fr)_64px]"
               ]}
             >
               <span class="col-start-1 row-start-1 font-serif text-[1.1875rem] leading-[1.2] decoration-1 underline-offset-4 group-hover:underline md:col-start-auto md:row-start-auto">{r.name}</span>
-              <span class:list={["num col-span-2 text-ui md:col-span-1", byCoins ? "text-stone" : "text-ink"]} data-tip={byCoins ? "No dates of their own known: the dates of their coins" : undefined}>
-                {reign ?? "—"}
+              <span class:list={["num col-span-2 text-ui md:col-span-1", office ? "text-ink" : "text-stone"]} data-tip={!office && coins ? "No dates in office known: the dates of their coins" : undefined}>
+                {office ?? coins ?? "—"}
               </span>
               <span class="col-span-2 md:col-span-1">
-                <ReignTrack start={r.start} end={r.end} domain={domain} ticks={[]} tip={reign ? `${r.name} · ${reign}${byCoins ? " (coins)" : ""}` : null} muted={byCoins} />
+                <PersonTrack office={r.office} coins={r.coins} lived={r.lived} domain={domain} tip={tip} richTip={richTip} />
               </span>
               <span class="num col-start-2 row-start-1 text-right text-ui md:col-start-auto md:row-start-auto">{fmt(r.n)}</span>
             </a>

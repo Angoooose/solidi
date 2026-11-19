@@ -63,6 +63,8 @@ CREATE TABLE category_person (
   start_year  INTEGER,                     -- their reign, else the span of these types
   end_year    INTEGER,
   dated_by    TEXT,                        -- 'reign', 'coins', or NULL when neither is known
+  coins_start INTEGER,                     -- the span of these types: earliest year any may date to
+  coins_end   INTEGER,                     -- (can run past the reign: posthumous and joint issues)
   image_id    INTEGER REFERENCES image(id),-- their portrait (else an obverse of theirs), top ones only
   PRIMARY KEY (category_id, person_id)
 );
@@ -169,17 +171,22 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
     """)
 
     db.execute(f"""
-        INSERT INTO category_person (category_id, person_id, n, rank, start_year, end_year, dated_by)
+        INSERT INTO category_person (category_id, person_id, n, rank, start_year, end_year, dated_by, coins_start, coins_end)
         WITH pc AS (
-          SELECT u.root, tp.person_id AS pid, count(DISTINCT u.id) AS n, min(u.s) AS s, max(u.e) AS e
-          FROM under u JOIN type_person tp ON tp.type_id = u.id
+          -- The coins' span leaves out types dated wholly before the person was born: misattributions
+          -- in the source (SC 607, of Antiochus II, is filed under Antiochus III).
+          SELECT u.root, tp.person_id AS pid, count(DISTINCT u.id) AS n,
+            min(CASE WHEN b.birth_year IS NULL OR u.e >= b.birth_year THEN u.s END) AS s,
+            max(CASE WHEN b.birth_year IS NULL OR u.e >= b.birth_year THEN u.e END) AS e
+          FROM under u JOIN type_person tp ON tp.type_id = u.id JOIN person b ON b.id = tp.person_id
           WHERE tp.role IN ('authority', 'issuer') AND tp.person_id NOT IN ({not_people})
           GROUP BY 1, 2
         )
         SELECT pc.root, pc.pid, pc.n, row_number() OVER (PARTITION BY pc.root ORDER BY pc.n DESC, pc.pid),
           CASE WHEN p.start_year IS NOT NULL THEN p.start_year ELSE pc.s END,
           CASE WHEN p.start_year IS NOT NULL THEN coalesce(p.end_year, p.start_year) ELSE pc.e END,
-          CASE WHEN p.start_year IS NOT NULL THEN 'reign' WHEN pc.s IS NOT NULL THEN 'coins' END
+          CASE WHEN p.start_year IS NOT NULL THEN 'reign' WHEN pc.s IS NOT NULL THEN 'coins' END,
+          pc.s, pc.e
         FROM pc JOIN person p ON p.id = pc.pid""")
     # Their portrait on a type of theirs in the category, else any obverse of their types there.
     their = """SELECT tp.type_id FROM type_person tp JOIN under u ON u.id = tp.type_id AND u.root = cp.category_id

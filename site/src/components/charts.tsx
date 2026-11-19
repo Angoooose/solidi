@@ -133,37 +133,77 @@ export function Histogram({ bins, binWidth, label }: { bins: Bin[]; binWidth: nu
   )
 }
 
-/** One person's reign as a bar on a shared year axis (the people list). */
-export function ReignTrack({
-  start,
-  end,
+/*
+ * One person on a shared year axis (the people list), in three layers:
+ * - lived: a hairline from birth to death, capped at each end (clipped at the axis's edges)
+ * - coins: a pale band over every year their coins may date to
+ * - office: an ink bar over their reign or magistracy, on top
+ * The coins band shows wherever it runs past the office: coins struck before taking the title
+ * (joint reigns) or in their name after death.
+ */
+export function PersonTrack({
+  office,
+  coins,
+  lived,
   domain,
-  ticks,
   tip,
-  muted = false,
+  richTip,
 }: {
-  start: number | null
-  end: number | null
+  office: [number, number] | null
+  coins: [number, number] | null
+  lived: [number, number] | null
   domain: [number, number]
-  ticks: number[]
   tip: string | null
-  muted?: boolean
+  /** The tooltip as a card with swatches (scripts/tooltip.ts, RichTip). */
+  richTip?: { title: string; rows: [string, string, string][]; foot?: string }
 }) {
-  const pct = (t: number) => ((t - domain[0]) / (domain[1] - domain[0])) * 100
-  const s = start ?? end
-  const e = end ?? start
+  const pct = (t: number) => Math.min(100, Math.max(0, ((t - domain[0]) / (domain[1] - domain[0])) * 100))
+  const box = ([s, e]: [number, number]) => ({ left: `${pct(s)}%`, width: `${Math.max(0.5, pct(e + 1) - pct(s))}%` })
+  // A lifetime wholly off the axis (an early moneyer on a list that starts later) isn't drawn.
+  if (lived && (lived[1] < domain[0] || lived[0] > domain[1])) lived = null
   return (
-    <span className="relative block h-6">
-      {ticks.map((t) => (
-        <span key={t} aria-hidden="true" className="absolute inset-y-0 w-px bg-hairline" style={{ left: `${pct(t)}%` }} />
-      ))}
-      {s != null && e != null && (
+    <span className="group/track relative block h-6" data-tip={tip ?? undefined} data-tip-rich={richTip ? JSON.stringify(richTip) : undefined}>
+      {lived && (
         <span
-          data-tip={tip ?? undefined}
-          className={cn("absolute top-1/2 -mt-[3px] h-1.5 min-w-1.5 rounded-[3px]", muted ? "bg-field" : "bg-ink")}
-          style={{ left: `${pct(Math.min(s, e))}%`, width: `${Math.max(0.5, pct(Math.max(s, e) + 1) - pct(Math.min(s, e)))}%` }}
+          aria-hidden="true"
+          className={cn(
+            "absolute top-1/2 h-px bg-stone/60",
+            lived[0] >= domain[0] && "before:absolute before:-top-[3px] before:left-0 before:h-[7px] before:w-px before:bg-stone/60",
+            lived[1] + 1 <= domain[1] && "after:absolute after:-top-[3px] after:right-0 after:h-[7px] after:w-px after:bg-stone/60"
+          )}
+          style={box(lived)}
         />
       )}
+      {coins && (
+        <span aria-hidden="true" className="absolute top-1/2 -mt-[3px] h-1.5 min-w-1.5 rounded-[3px] bg-field" style={box(coins)} />
+      )}
+      {office && (
+        <span
+          aria-hidden="true"
+          className="absolute top-1/2 -mt-[3px] h-1.5 min-w-1.5 rounded-[3px] bg-ink transition-colors group-hover/track:bg-graphite"
+          style={box(office)}
+        />
+      )}
+    </span>
+  )
+}
+
+/* The key above a people list: one swatch per layer. */
+export function PersonTrackKey({ className }: { className?: string }) {
+  return (
+    <span className={cn("flex flex-wrap items-center gap-x-5 gap-y-1 text-label text-stone", className)}>
+      <span className="flex items-center gap-2">
+        <span aria-hidden="true" className="relative h-[7px] w-5 border-x border-stone/60 before:absolute before:inset-x-0 before:top-[3px] before:h-px before:bg-stone/60" />
+        Lived
+      </span>
+      <span className="flex items-center gap-2">
+        <span aria-hidden="true" className="h-1.5 w-5 rounded-[3px] bg-ink" />
+        In office
+      </span>
+      <span className="flex items-center gap-2">
+        <span aria-hidden="true" className="h-1.5 w-5 rounded-[3px] bg-field" />
+        Coins dated
+      </span>
     </span>
   )
 }

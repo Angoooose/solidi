@@ -288,29 +288,44 @@ export async function getCategoryPage(db: D1Database, id: string): Promise<Categ
 
 /* ---------------------------------------------------------------- people in a collection */
 
-export type PeopleSort = "reign" | "types" | "name"
-export type PeopleRow = { id: string; name: string; n: number; start: number | null; end: number | null; datedBy: string | null }
+export type PeopleSort = "date" | "types" | "name"
+type Span = [number, number]
+export type PeopleRow = {
+  id: string
+  name: string
+  n: number
+  /** In office: a reign, a magistracy, a year as moneyer. */
+  office: Span | null
+  /** Every year their coins in the collection may date to; can run past the office (posthumous, joint issues). */
+  coins: Span | null
+  /** Birth to death, where both are known. */
+  lived: Span | null
+}
 
 /**
  * Everyone who issued coins in a collection (or in all collections), for /people. A type sits in
  * one primary category, so summing a person's top-level counts never counts a type twice.
+ * Ordered by date: when they took office, else when their coins begin.
  */
 export async function getPeople(db: D1Database, categoryId: string | null, sort: PeopleSort): Promise<PeopleRow[]> {
   const order = {
-    reign: `start IS NULL, start, "end", n DESC, name`,
+    date: `coalesce(os, cs) IS NULL, coalesce(os, cs), coalesce(oe, ce), n DESC, name`,
     types: `n DESC, name`,
     name: `name COLLATE NOCASE`,
   }[sort]
+  const person = `p.id, p.name, p.start_year AS os, coalesce(p.end_year, p.start_year) AS oe,
+    CASE WHEN p.death_year >= p.birth_year THEN p.birth_year END AS ls, CASE WHEN p.death_year >= p.birth_year THEN p.death_year END AS le`
   const sql = categoryId
-    ? `SELECT p.id, p.name, cp.n, cp.start_year AS start, cp.end_year AS "end", cp.dated_by AS datedBy
+    ? `SELECT ${person}, cp.n, cp.coins_start AS cs, cp.coins_end AS ce
        FROM category_person cp JOIN person p ON p.id = cp.person_id WHERE cp.category_id = ?1`
-    : `SELECT p.id, p.name, sum(cp.n) AS n, min(cp.start_year) AS start, max(cp.end_year) AS "end",
-         CASE WHEN p.start_year IS NOT NULL THEN 'reign' WHEN min(cp.start_year) IS NOT NULL THEN 'coins' END AS datedBy
+    : `SELECT ${person}, sum(cp.n) AS n, min(cp.coins_start) AS cs, max(cp.coins_end) AS ce
        FROM category_person cp JOIN person p ON p.id = cp.person_id
        JOIN category c ON c.id = cp.category_id AND c.parent_id IS NULL
        WHERE ?1 IS NULL GROUP BY p.id`
-  const { results } = await db.prepare(`SELECT * FROM (${sql}) ORDER BY ${order}`).bind(categoryId).all<PeopleRow>()
-  return results
+  type Raw = { id: string; name: string; n: number; os: number | null; oe: number | null; cs: number | null; ce: number | null; ls: number | null; le: number | null }
+  const { results } = await db.prepare(`SELECT * FROM (${sql}) ORDER BY ${order}`).bind(categoryId).all<Raw>()
+  const span = (s: number | null, e: number | null): Span | null => (s == null ? null : [Math.min(s, e ?? s), Math.max(s, e ?? s)])
+  return results.map((r) => ({ id: r.id, name: r.name, n: r.n, office: span(r.os, r.oe), coins: span(r.cs, r.ce), lived: span(r.ls, r.le) }))
 }
 
 /* ---------------------------------------------------------------- collections as cards */
