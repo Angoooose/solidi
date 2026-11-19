@@ -28,6 +28,7 @@
 @theme {
   --color-*: initial;
   --color-white: #ffffff;    /* page */
+  --color-shelf: #fafaf9;    /* footer ground */
   --color-wash: #f6f6f4;     /* hover background for rows, menu items, options */
   --color-plinth: #f1f1ee;   /* image ground, skeletons, matched letters in a legend */
   --color-hairline: #e7e7e4; /* rules, dividers, chart gridlines */
@@ -176,14 +177,15 @@
   .legend-script {
     font-family: "EB Garamond", "Noto Sans Kharoshthi", "Noto Sans Phoenician", "Noto Sans Brahmi", "Noto Sans Lycian", "Noto Sans Carian", Georgia, serif;
   }
-  /* Links in running prose are always underlined; elsewhere only on hover. */
+  /* Links in running prose (class="prose") are ink, always underlined in field grey, the underline darkening on hover; elsewhere links underline only on hover. */
   .prose a {
+    color: var(--color-ink);
     text-decoration: underline;
     text-decoration-color: var(--color-field);
     text-underline-offset: 3px;
   }
   .prose a:hover {
-    color: var(--color-stone);
+    text-decoration-color: currentColor;
   }
 }
 
