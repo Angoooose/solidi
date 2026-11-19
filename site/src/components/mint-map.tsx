@@ -2,13 +2,14 @@
  * A collection's mints on its basemap, sized by number of types. Server-rendered SVG: the land is
  * a static file (public/maps/<category>.svg, from scripts/basemaps.mjs), the mints are circles
  * drawn here with the same projection. The biggest mints are labelled and drawn in ink, the rest
- * in grey. Tooltips come from data-tip (scripts/tooltip.ts); pan and zoom from scripts/map-zoom.ts.
+ * in grey. Hovering a mint shows a card (data-tip-rich, scripts/tooltip.ts): its region, output and
+ * dates. Pan and zoom come from scripts/map-zoom.ts.
  */
 import * as React from "react"
 import { geoMercator } from "d3-geo"
 import { scaleSqrt } from "d3-scale"
 import { yearRange } from "@/lib/format"
-import { typesLabel, type MapMint } from "@/lib/categories"
+import { fmt, typesLabel, type Category, type MapMint } from "@/lib/categories"
 import basemaps from "@/lib/basemaps.generated.json"
 
 type Basemap = { width: number; height: number; scale: number; translate: [number, number]; center: [number, number] }
@@ -24,16 +25,17 @@ const short = (name: string) => name.split(",")[0].replace(/\s*\(.*\)$/, "")
 const CHAR = 6.6 // average Geist 12px glyph width, for label collision checks
 
 export function MintMap({
-  categoryId,
+  category,
   mints,
   labelled = 12,
   label,
 }: {
-  categoryId: string
+  category: Category
   mints: MapMint[]
   labelled?: number
   label: string
 }) {
+  const categoryId = category.id
   const map = BASEMAPS[categoryId]
   if (!map || !mints.length) return null
   const { width: W, height: H } = map
@@ -71,6 +73,19 @@ export function MintMap({
   }
   const lead = new Set(labels.map((l) => l.id))
 
+  // The hover card: where it is, how much it struck and when.
+  const card = (m: (typeof placed)[number]) => {
+    const dates = yearRange(m.start, m.end)
+    return {
+      title: m.name,
+      subtitle: m.region ?? undefined,
+      rows: [
+        [null, "Types", fmt(m.n)],
+        ...(dates ? [[null, "Struck", dates]] : []),
+      ],
+    }
+  }
+
   return (
     <div className="mint-map relative bg-plinth">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={label} className="block touch-none select-none">
@@ -87,6 +102,7 @@ export function MintMap({
               strokeWidth={1}
               className={lead.has(m.id) ? "mint-dot lead" : "mint-dot"}
               data-tip={[m.name, m.region, yearRange(m.start, m.end), typesLabel(m.n)].filter(Boolean).join(" · ")}
+              data-tip-rich={JSON.stringify(card(m))}
             />
           ))}
           {labels.map((l) => (
