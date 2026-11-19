@@ -48,6 +48,9 @@ const GLOSS_LANG: Record<string, { text: string; reading: string | undefined; tr
   la: { text: "la", reading: "la", tracked: true },
   grc: { text: "grc", reading: "grc", tracked: true },
   pgd: { text: "pgd-Latn", reading: undefined, tracked: false },
+  // Lycian and Carian segments are transliterated words too.
+  xlc: { text: "xlc-Latn", reading: "xlc-Latn", tracked: false },
+  xcr: { text: "xcr-Latn", reading: "xcr-Latn", tracked: false },
 }
 
 /*
@@ -130,10 +133,12 @@ const SCRIPTS: Record<string, { lang: string; dir?: "rtl"; tracked: boolean }> =
   pgd: { lang: "pgd", dir: "rtl", tracked: false },
   phn: { lang: "phn", dir: "rtl", tracked: false },
   pra: { lang: "pra", tracked: false },
+  xlc: { lang: "xlc", tracked: false },
+  xcr: { lang: "xcr", tracked: false },
 }
 
-/** Kharoshthi, Phoenician or Brahmi letters: the page needs the Noto fonts for them (Base.astro `scripts`). */
-export const NEEDS_SCRIPT_FONTS = /[\u{10900}-\u{1091F}\u{10A00}-\u{10A5F}\u{11000}-\u{1107F}]/u
+/** Kharoshthi, Phoenician, Brahmi, Lycian or Carian letters: the page needs the Noto fonts for them (Base.astro `scripts`). */
+export const NEEDS_SCRIPT_FONTS = /[\u{10280}-\u{102DF}\u{10900}-\u{1091F}\u{10A00}-\u{10A5F}\u{11000}-\u{1107F}]/u
 
 /*
  * A legend in any language, without a word-by-word gloss: the text as struck, in its own script

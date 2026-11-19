@@ -3,7 +3,7 @@ import "@/styles/global.css";
 import { ClientRouter } from "astro:transitions";
 interface Props {
   title: string
-  /** The page shows Kharoshthi, Phoenician or Brahmi text: load Noto fonts for those scripts. */
+  /** The page shows Kharoshthi, Phoenician, Brahmi, Lycian or Carian text: load Noto fonts for those scripts. */
   scripts?: boolean
 }
 const { title, scripts = false } = Astro.props;
@@ -23,7 +23,7 @@ const { title, scripts = false } = Astro.props;
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Brahmi&family=Noto+Sans+Kharoshthi&family=Noto+Sans+Phoenician&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Brahmi&family=Noto+Sans+Carian&family=Noto+Sans+Kharoshthi&family=Noto+Sans+Lycian&family=Noto+Sans+Phoenician&display=swap"
         />
       </>
     )}

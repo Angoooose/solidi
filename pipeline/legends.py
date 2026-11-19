@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 
 from pipeline import greek, scripts
-from pipeline.legend_expand import Dictionary, as_rows, coverage, expand
+from pipeline.legend_expand import Dictionary, apply_context_names, as_rows, coverage, expand
 
 LETTER_MAP = {
     "Ꜹ": "AV", "∈": "E", "Ϥ": "V", "Ʈ": "T", "Λ": "L",
@@ -24,7 +24,7 @@ LETTER_MAP = {
 }
 _EDITORIAL = re.compile(r"\([^)]*[a-z.][^)]*\)")      # '(rev.N)' and similar notes
 _WORD_BREAK = re.compile(r"(?<=[\w\]])[-_](?=[\w\[])")   # HONORI-VS -> HONORIVS, NOS-[TRIS] -> NOS[TRIS]
-_SEPARATORS = re.compile(r"[\s\-_/|•·˙.:●*,?…()←' ]+")
+_SEPARATORS = re.compile(r"[\s\-_/|•·˙.:●*,;?…()←' ]+")
 GAP = re.compile(r"\s*(?:\.\.\.+|…|\*)\s*")             # what a user types for unreadable stretches
 
 
@@ -66,7 +66,7 @@ def normalise(legend: str, lang: str = "la") -> str:
     text = _EDITORIAL.sub("", legend)
     if lang == "zxx":
         return " ".join(text.split())
-    if lang in ("pgd", "pra", "phn"):
+    if lang in ("pgd", "pra", "phn", "xlc", "xcr"):
         text = scripts.clean(text)
     elif lang == "grc":
         text = greek.fold(scripts.clean(text))
@@ -91,6 +91,8 @@ def transliterate(normalised: str, lang: str) -> str | None:
         return " ".join(greek.romanise(greek_only).lower().split())
     if lang == "pgd":
         return scripts.romanise_kharoshthi(normalised)
+    if lang == "xlc":
+        return scripts.romanise_lycian(normalised)
     return None
 
 
@@ -101,6 +103,8 @@ def romanised(normalised: str, lang: str = "grc") -> str | None:
         return compact(greek.romanise(normalised))
     if lang == "pgd":
         return compact(scripts.romanise_kharoshthi(normalised))
+    if lang == "xlc":
+        return compact(scripts.romanise_lycian(normalised, ascii_only=True))
     return None
 
 
@@ -125,6 +129,16 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
         if role in ("issuer", "authority", "stated_authority"):
             names.setdefault(type_id, []).append(name)
         persons.setdefault(type_id, []).append((pid, name))
+    # The type's mint (and its city, for a workshop) and regions: civic legends name them.
+    places: dict[str, list[str]] = {}
+    for type_id, name in db.execute(
+            """SELECT t.id, m.name FROM coin_type t JOIN mint m ON m.id = t.mint_id
+               UNION SELECT t.id, pm.name FROM coin_type t JOIN mint m ON m.id = t.mint_id JOIN mint pm ON pm.id = m.parent_id
+               UNION SELECT t.id, r.name FROM coin_type t JOIN mint m ON m.id = t.mint_id JOIN region r ON r.id = m.region_id
+               UNION SELECT tr.type_id, r.name FROM type_region tr JOIN region r ON r.id = tr.region_id"""):
+        places.setdefault(type_id, []).append(name)
+    romanisers = {"grc": greek.romanise, "pgd": lambda w: w,
+                  "xlc": lambda w: scripts.romanise_lycian(w, ascii_only=True)}
     rows = []
     # Coins struck before 27 BC, when Octavian became Augustus, are read with Republican senses.
     for type_id, obv, rev, year, slug in db.execute(
@@ -139,11 +153,12 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
                 segs = None
                 if dictionary and lang == "la":
                     segs = expand(norm, republic if early else dictionary, names.get(type_id), early)
-                elif lang in others:
-                    # Gandhari is glossed from its transliteration, the form its dictionary uses.
-                    text = transliterate(norm, lang) if lang == "pgd" else norm
-                    segs = expand(text, others[lang], lang=lang, persons=persons.get(type_id),
-                                  truncations=languages.get(slug) == "grc")
+                elif lang in others or lang == "xlc":
+                    # Gandhari and Lycian are glossed from their transliteration.
+                    text = transliterate(norm, lang) if lang in ("pgd", "xlc") else norm
+                    segs = expand(text, others.get(lang, Dictionary({})), lang=lang,
+                                  persons=persons.get(type_id), truncations=languages.get(slug) == "grc")
+                    apply_context_names(segs, romanisers[lang], persons.get(type_id), places.get(type_id))
                 if segs:
                     segments = json.dumps(as_rows(segs), ensure_ascii=False)
                     latin = " ".join(s.latin or s.text for s in segs)

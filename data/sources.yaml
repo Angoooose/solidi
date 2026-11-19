@@ -64,6 +64,16 @@ corpora:
     specimen_group: '^([^.]+\.[^.])'
     legend_language: grc       # Latin look-alike text in these legends is Greek
 
+  # Greek city coinage, Archaic to Hellenistic (University of Oxford, ARCH / CHANGE projects).
+  # IDs are mint + reference ('celenderis_kraay_1961_series_iv'): grouped by first letter.
+  iris:
+    name: IRIS typology of Greek coinage
+    dataset: https://greekcoinage.org/iris/
+    id_path: /iris/id/
+    licence: ODbL
+    specimen_group: '^([a-z0-9])'
+    legend_language: grc
+
 # Licence classification for the commercial switch. Matched as substrings of the
 # dataset's licence URL; first match wins. Anything unmatched is treated as not
 # commercial-safe until reviewed.

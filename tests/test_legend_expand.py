@@ -288,3 +288,21 @@ def test_greek_person_links_from_review():
     assert grc("ΑΝΤΙΟΧΟΥ ΕΠΙΦΑΝΟΥΣ ΔΙΟΝΥΣΟΥ", [])[-1].english == "Dionysus"
     # No prefix guessing outside the Hellenistic corpora (ΘΕΩΦΙΛΕ ΝΙΚΑ is 'conquer!').
     assert expand("ΝΙΚΑ", d, lang="grc", truncations=False)[0].kind == "unknown"
+
+
+def test_civic_and_lycian_words_from_the_types_own_names():
+    from pipeline import greek
+    from pipeline.legend_expand import apply_context_names
+    from pipeline.scripts import romanise_lycian
+    segs = expand("ΜΥΡΙΝΑΙΩΝ", Dictionary({}), lang="grc")
+    apply_context_names(segs, greek.romanise, [], ["Myrina", "Aeolis"])
+    assert segs[0].english == "of the people of Myrina"
+    segs = expand("ΚΑΛΧ ΛΥ", Dictionary({}), lang="grc")
+    apply_context_names(segs, greek.romanise, [], ["Calchedon"])
+    assert segs[0].english == "Calchedon" and segs[1].kind == "unknown"      # ΛΥ: not this type's place
+    segs = expand("ΓΑΙΟΥ ΠΑΠΙΡΙΟΥ ΚΑΡΒΩΝΟΣ", Dictionary({}), lang="grc")
+    apply_context_names(segs, greek.romanise, [("c_papirius_carbo", "C. Papirius Carbo")], [])
+    assert [s.person for s in segs[1:]] == ["c_papirius_carbo", "c_papirius_carbo"]
+    segs = expand(romanise_lycian("\U0001028B\U00010292\U00010293\U00010295\U0001028D\U0001028D\U00010286"), Dictionary({}), lang="xlc")
+    apply_context_names(segs, lambda w: romanise_lycian(w, True), [("kuprlli", "Kuprlli")], [])
+    assert segs[0].person == "kuprlli"

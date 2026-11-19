@@ -15,7 +15,29 @@ SCRIPTS = [
     (0x10A00, 0x10A5F, "pgd"),     # Kharoshthi: Gandhari
     (0x11000, 0x1107F, "pra"),     # Brahmi: Prakrit
     (0x10900, 0x1091F, "phn"),     # Phoenician
+    (0x10280, 0x1029F, "xlc"),     # Lycian: the dynasts' coinage
+    (0x102A0, 0x102DF, "xcr"),     # Carian
 ]
+
+
+# Lycian alphabet (Unicode U+10280-1029C), in the conventional transliteration.
+_LYCIAN = {
+    0x10280: "a", 0x10281: "e", 0x10282: "b", 0x10283: "β", 0x10284: "g", 0x10285: "d",
+    0x10286: "i", 0x10287: "w", 0x10288: "z", 0x10289: "θ", 0x1028A: "j", 0x1028B: "k",
+    0x1028C: "q", 0x1028D: "l", 0x1028E: "m", 0x1028F: "n", 0x10290: "m̃", 0x10291: "ñ",
+    0x10292: "u", 0x10293: "p", 0x10294: "κ", 0x10295: "r", 0x10296: "s", 0x10297: "t",
+    0x10298: "τ", 0x10299: "ã", 0x1029A: "ẽ", 0x1029B: "h", 0x1029C: "x",
+}
+_LYCIAN_ASCII = {"β": "b", "θ": "th", "κ": "k", "τ": "t"}
+
+
+def romanise_lycian(text: str, ascii_only: bool = False) -> str:
+    """'𐊋𐊒𐊓𐊕𐊍𐊍𐊆' -> 'kuprlli' (the dynast Kuprlli). `ascii_only` drops the diacritics, for search."""
+    out = "".join(_LYCIAN.get(ord(ch), ch) for ch in text)
+    if ascii_only:
+        out = "".join(_LYCIAN_ASCII.get(ch, ch) for ch in out)
+        out = "".join(ch for ch in unicodedata.normalize("NFD", out) if unicodedata.category(ch) != "Mn")
+    return out
 
 
 def script_language(text: str) -> str | None:

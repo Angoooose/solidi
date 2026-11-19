@@ -170,11 +170,11 @@
 
 @layer components {
   /*
-   * Legends in scripts EB Garamond lacks (Kharoshthi, Phoenician, Brahmi) fall through to Noto.
+   * Legends in scripts EB Garamond lacks (Kharoshthi, Phoenician, Brahmi, Lycian, Carian) fall through to Noto.
    * Those fonts are loaded only on pages that need them (Base.astro `scripts`).
    */
   .legend-script {
-    font-family: "EB Garamond", "Noto Sans Kharoshthi", "Noto Sans Phoenician", "Noto Sans Brahmi", Georgia, serif;
+    font-family: "EB Garamond", "Noto Sans Kharoshthi", "Noto Sans Phoenician", "Noto Sans Brahmi", "Noto Sans Lycian", "Noto Sans Carian", Georgia, serif;
   }
   /* Links in running prose are always underlined; elsewhere only on hover. */
   .prose a {

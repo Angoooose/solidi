@@ -52,6 +52,16 @@ def parse_ric_label(label: str | None) -> tuple[str | None, str | None]:
     return m.group(1), m.group(3)
 
 
+_LOCAL_NOMISMA = re.compile(r"^https?://localhost(?::\d+)?/fuseki/nomisma/([A-Za-z0-9_.\-]+)$")
+
+
+def repair_uri(uri: str) -> str:
+    """Some partners publish Nomisma IDs as links into their own local copy of Nomisma
+    ('http://localhost:8080/fuseki/nomisma/aristai_athens'): point them back at Nomisma."""
+    m = _LOCAL_NOMISMA.match(uri)
+    return NOMISMA_ID + m.group(1) if m else uri
+
+
 def is_nomisma(uri: str) -> bool:
     return normalise_uri(uri).startswith(normalise_uri(NOMISMA_ID))
 

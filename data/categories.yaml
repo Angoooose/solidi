@@ -6,12 +6,16 @@
 #   work:         reference work ('ric', 'rrc', 'price1991')
 #   authorities:  any of these Nomisma person or organisation IDs as authority
 #   from_year / to_year: the type's dates fall inside this range (negative = BC)
+#   to_start_year: the type began in or before this year
 # Every condition given must hold.
 
 categories:
   - id: greek
     name: Greek
     children:
+      - id: archaic-classical
+        name: Archaic and Classical
+        description: Greek city coinage from the first coins (c. 630 BC) to the death of Alexander (323 BC).
       - id: hellenistic
         name: Hellenistic
         description: Coinage of the kingdoms that followed Alexander, from Philip II of Macedon (359 BC) to the Roman conquest of the East.
@@ -33,6 +37,9 @@ categories:
           - id: bactrian-indo-greek
             name: Bactrian and Indo-Greek Kingdoms
             description: The Greek kings of Bactria and north-west India, c. 250 BC to the 1st century AD.
+          - id: hellenistic-cities
+            name: Cities and Leagues
+            description: Civic and federal coinage of the Hellenistic world, alongside the kingdoms.
   - id: roman
     name: Roman
     children:
@@ -61,6 +68,12 @@ rules:
     dataset: pco
   - category: bactrian-indo-greek
     dataset: bigr
+  # Iris types by date: begun before Alexander's death (323 BC) are Archaic and Classical.
+  - category: archaic-classical
+    dataset: iris
+    to_start_year: -324
+  - category: hellenistic-cities
+    dataset: iris
   - category: roman-imperial
     dataset: ocre
   # Imperatorial follows the collector convention (Sear, Roman Coins and their Values; Sear,

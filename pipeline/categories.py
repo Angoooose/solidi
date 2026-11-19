@@ -28,6 +28,8 @@ def _matches(rule: dict, t: dict) -> bool:
         return False
     if "to_year" in rule and (t["end"] is None or t["end"] > rule["to_year"]):
         return False
+    if "to_start_year" in rule and (t["start"] is None or t["start"] > rule["to_start_year"]):
+        return False
     return True
 
 

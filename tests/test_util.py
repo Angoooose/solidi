@@ -124,3 +124,10 @@ def test_wikidata_dates_need_year_precision():
     assert exact({"birth": "-0300-01-01T00:00:00Z", "birth_precision": "9"}, "birth")
     assert not exact({"birth": "0500-01-01T00:00:00Z", "birth_precision": "7"}, "birth")   # 5th century
     assert not exact({"birth": "0500-01-01T00:00:00Z"}, "birth")
+
+
+def test_local_nomisma_links_are_repaired():
+    from pipeline.util import repair_uri
+    assert repair_uri("http://localhost:8080/fuseki/nomisma/aristai_athens") == "http://nomisma.org/id/aristai_athens"
+    assert repair_uri("http://localhost:8080/fuseki/nomisma/data?graph=default") == "http://localhost:8080/fuseki/nomisma/data?graph=default"
+    assert repair_uri("http://nomisma.org/id/rome") == "http://nomisma.org/id/rome"

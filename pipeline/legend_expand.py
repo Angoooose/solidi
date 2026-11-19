@@ -10,6 +10,7 @@ so the original is never hidden or guessed at.
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -339,6 +340,63 @@ def apply_greek(segments: list[Segment], dictionary: Dictionary,
                 current = seg.person
             else:
                 seg.person = current
+    return segments
+
+
+def fold_name(text: str) -> str:
+    """A loose key for comparing a transliterated legend word with a Latin-spelled name:
+    'MYRINAION' and 'Myrina' -> 'MIRINAION' / 'MIRINA'; 'KALCH' / 'Calchedon' -> 'CALC' / 'CALCEDON'."""
+    t = re.sub(r"[^A-Z]", "", text.upper())
+    for a, b in (("OU", "U"), ("PH", "F"), ("TH", "T"), ("CH", "C"), ("KH", "C"), ("K", "C"), ("X", "C"),
+                 ("Y", "I"), ("U", "I"), ("V", "I"), ("J", "I")):
+        t = t.replace(a, b)
+    return t[1:] if t.startswith("H") else t
+
+
+def apply_context_names(segments: list[Segment], romanise, persons: list[tuple[str, str]] | None,
+                        places: list[str] | None) -> list[Segment]:
+    """Unknown words in Greek, Lycian and other non-Latin legends, read from the type's own mint,
+    region and people: civic coins name the city (ΜΥΡΙΝΑΙΩΝ, KAΛX, ΛY), Lycian ones the dynast
+    (kuprlli). A word matches a name when their folded forms agree on the first four letters (or
+    the whole shorter one); two-letter abbreviations may only match the type's own mint or region."""
+    candidates: list[tuple[str, str, str | None, str]] = []      # (kind, display, person id, folded)
+    for place in places or []:
+        word = place.split(" (")[0].split(",")[0]
+        candidates.append(("place", word, None, fold_name(word.split()[0])))
+    for pid, name in persons or []:
+        for w in re.sub(r"[\[\]()]", "", name).split():
+            if w[:1].isupper() and len(w) > 2 and not w.endswith("."):
+                candidates.append(("person", w, pid, fold_name(w)))
+    if not candidates:
+        return segments
+    for seg in segments:
+        if seg.kind != "unknown":
+            continue
+        tok = fold_name(romanise(seg.text))
+        if len(tok) < 2:
+            continue
+        best: dict[tuple, int] = {}
+        for kind, display, pid, folded in candidates:
+            if len(tok) < 3 and kind != "place" or not folded:
+                continue
+            common = len(os.path.commonprefix([tok, folded]))
+            need = 3 if kind == "place" else 4           # Cyme / ΚΥΜΑΙΩΝ agree on three letters
+            if common >= max(2, min(need, len(tok), len(folded))):
+                key = (kind, display, pid)
+                best[key] = max(best.get(key, 0), common)
+        if not best:
+            continue
+        top = max(best.values())
+        winners = [k for k, v in best.items() if v == top]
+        if len({(k[1], k[2]) for k in winners}) != 1:
+            continue                                     # two different names fit equally: don't guess
+        kind, display, pid = winners[0]
+        if kind == "place":
+            plural = seg.text.endswith(("ΩΝ", "ΑΝ"))
+            seg.english, seg.kind = (f"of the people of {display}" if plural else display), "place"
+        else:
+            seg.english, seg.kind, seg.person = display, "name", pid
+        # No written-out form: we know what the word names, not how it is spelled in full.
     return segments
 
 

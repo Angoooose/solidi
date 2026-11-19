@@ -161,7 +161,7 @@ def test_licence_overrides_apply_regardless_of_trailing_slash(db):
 
 def test_legends_have_a_language(db):
     assert one(db, """SELECT COUNT(*) FROM legend
-                      WHERE language NOT IN ('la', 'grc', 'pgd', 'pra', 'phn', 'zxx')""")[0] == 0
+                      WHERE language NOT IN ('la', 'grc', 'pgd', 'pra', 'phn', 'xlc', 'xcr', 'zxx')""")[0] == 0
     # Indo-Greek reverses are Kharoshthi, romanised for search.
     if one(db, "SELECT COUNT(*) FROM legend WHERE language = 'pgd'")[0]:
         assert one(db, "SELECT COUNT(*) FROM legend WHERE language = 'pgd' AND romanised LIKE 'MAHARAIASA%'")[0] > 500

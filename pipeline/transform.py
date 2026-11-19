@@ -11,7 +11,7 @@ import pyoxigraph as ox
 
 from pipeline.stage import Graph, all_values, first, iri, label, nodes, refs
 from pipeline.util import (
-    commercial_ok, entity_id, external_system, is_nomisma, normalise_uri, parse_reference,
+    commercial_ok, entity_id, external_system, is_nomisma, normalise_uri, parse_reference, repair_uri,
     parse_year, plausible_url, plausible_weight, reference_sort_key, short_hash,
 )
 
@@ -74,6 +74,9 @@ class Builder:
         return self._concepts[uri]
 
     def resolve(self, props: dict, curie: str) -> list[tuple[str, bool]]:
+        return [(repair_uri(u), unsure) for u, unsure in self._resolve(props, curie)]
+
+    def _resolve(self, props: dict, curie: str) -> list[tuple[str, bool]]:
         """Concept references as (iri, uncertain). The source writes uncertain values as a
         nested record: [ rdf:value nm:rome ; un:hasUncertainty nm:uncertain_value ]."""
         out = []
@@ -295,7 +298,9 @@ class Builder:
                     if PERSON in classes:
                         if pid := self.ensure_person(ref):
                             people.append((tid, pid, role))
-                    elif ORGANIZATION in classes:
+                    elif ORGANIZATION in classes or (classes and is_nomisma(ref)):
+                        # Leagues, peoples and tribes: Nomisma sometimes types them as an ethnic,
+                        # a mint or a bare concept (the Derrones, the Tynteni). All issue as groups.
                         if oid := self.ensure_simple("organization", ref):
                             orgs.append((tid, oid, role))
                     else:
@@ -431,6 +436,8 @@ class Builder:
 
             def num(curie: str) -> float | None:
                 v = first(p, curie)
+                if v is not None and (not v.strip() or v.strip("() ").lower() in ("not assigned", "not assignable")):
+                    return None          # 'not recorded', not a bad number
                 try:
                     return float(v) if v is not None else None
                 except ValueError:
