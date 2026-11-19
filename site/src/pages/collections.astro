@@ -1,0 +1,115 @@
+---
+/*
+ * Every collection: /collections. Grouped by region and period (the tree),
+ * or as one list by size or date (?order=). Each row has a histogram of its types by date on an
+ * axis and scale shared by the whole page, so periods and output compare at a glance.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import { SiteFooter } from "@/components/site-chrome"
+import { CollectionRow, Note, Page, RowsHead } from "@/components/collection"
+import { YearAxis, yearTicks } from "@/components/charts"
+import { UrlSelect } from "@/components/url-select"
+import { yearRange } from "@/lib/format"
+import { getBins, getCategories, getPreviews, tree, typesLabel, type Category } from "@/lib/categories"
+
+const ORDERS = [
+  { value: "region", label: "By region and period" },
+  { value: "largest", label: "Largest first" },
+  { value: "oldest", label: "Oldest first" },
+]
+const order = ORDERS.find((o) => o.value === Astro.url.searchParams.get("order"))?.value ?? "region"
+
+const t = tree(await getCategories(env.DB))
+const leaves = t.leaves(null)
+const [bins, previews] = await Promise.all([getBins(env.DB, leaves.map((l) => l.id), 25), getPreviews(env.DB, t, leaves)])
+const total = t.children(null).reduce((n, c) => n + c.types, 0)
+
+const from = Math.min(...leaves.map((l) => l.start ?? Infinity))
+const to = Math.max(...leaves.map((l) => l.end ?? -Infinity))
+const domain: [number, number] = [Math.floor(from / 25) * 25, Math.ceil((to + 1) / 25) * 25]
+const ticks = yearTicks(domain, 200)
+const yMax = Math.max(1, ...leaves.flatMap((l) => (bins.get(l.id) ?? []).map((b) => b.n)))
+
+/* Under a top-level collection: its leaves, with a subheading before each nested collection's. */
+type Item = { kind: "sub"; cat: Category } | { kind: "row"; cat: Category }
+const itemsUnder = (id: string): Item[] =>
+  t.children(id).flatMap((c): Item[] => (t.isLeaf(c.id) ? [{ kind: "row", cat: c }] : [{ kind: "sub", cat: c }, ...itemsUnder(c.id)]))
+
+const flat =
+  order === "largest"
+    ? [...leaves].sort((a, b) => b.types - a.types)
+    : order === "oldest"
+      ? [...leaves].sort((a, b) => (a.start ?? Infinity) - (b.start ?? Infinity) || b.types - a.types)
+      : null
+const row = (c: Category) => ({
+  href: `/category/${c.id}`,
+  photo: previews.get(c.id)?.photo ?? null,
+  name: c.name,
+  dates: yearRange(c.start, c.end),
+  description: c.description,
+  bins: bins.get(c.id) ?? [],
+  binWidth: 25,
+  domain,
+  yMax,
+  ticks,
+  count: c.types,
+})
+---
+
+<Base title="Collections">
+  <SiteHeader current="Collections" />
+  <Page>
+    <div class="flex flex-wrap items-end justify-between gap-6 pt-8">
+      <div class="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+        <h1 class="m-0 font-serif text-display font-normal">Collections</h1>
+        <Note className="text-ui">{typesLabel(total)} in {leaves.length} collections</Note>
+      </div>
+      <UrlSelect client:idle label="Order" param="order" value={order} options={ORDERS} />
+    </div>
+
+    {
+      flat ? (
+        <section>
+          <RowsHead first="Collection" domain={domain} ticks={ticks} className="mt-14 border-b border-ink pb-3.5" />
+          {flat.map((c) => (
+            <CollectionRow {...row(c)} />
+          ))}
+        </section>
+      ) : (
+        t.children(null).map((top, i) => (
+          <section>
+            <div class:list={["grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 border-b border-ink pb-3.5 md:grid-cols-[468px_minmax(0,1fr)_72px]", i === 0 ? "pt-14" : "pt-20"]}>
+              <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <h2 class="m-0 font-serif text-heading font-normal">
+                  <a href={`/category/${top.id}`} class="underline-offset-4 hover:underline">{top.name}</a>
+                </h2>
+                <Note>{[yearRange(top.start, top.end), typesLabel(top.types)].filter(Boolean).join(" · ")}</Note>
+              </div>
+              <YearAxis domain={domain} ticks={ticks} className="relative top-[5px] hidden md:block" />
+              <span class="text-right text-label text-stone">Types</span>
+            </div>
+            {itemsUnder(top.id).map((item) =>
+              item.kind === "sub" ? (
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-hairline pt-9 pb-3">
+                  <h3 class="m-0 font-serif text-[1.5rem] leading-[1.15] font-normal">
+                    <a href={`/category/${item.cat.id}`} class="underline-offset-4 hover:underline">{item.cat.name}</a>
+                  </h3>
+                  <Note>{[yearRange(item.cat.start, item.cat.end), typesLabel(item.cat.types)].filter(Boolean).join(" · ")}</Note>
+                </div>
+              ) : (
+                <CollectionRow {...row(item.cat)} />
+              )
+            )}
+          </section>
+        ))
+      )
+    }
+  </Page>
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+</script>
