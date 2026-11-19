@@ -250,6 +250,7 @@ class Builder:
         type_uris = [u for u in self.g.subjects_of_type("nmo:TypeSeriesItem")
                      if corpus["dataset"] in all_values(self.g.props(u), "void:inDataset")]
         dataset_id = self.db.execute("SELECT id FROM dataset WHERE slug = ?", (corpus_key,)).fetchone()[0]
+        type_overrides = {normalise_uri(k): v for k, v in (self.config.get("type_overrides") or {}).items()}
         rows, people, orgs, subjects, denoms, mats = [], [], [], [], [], []
         references, matches, regions, symbols = [], [], [], []
         for uri in type_uris:
@@ -316,6 +317,10 @@ class Builder:
                     mats.append((tid, mid))
 
             start, end = parse_year(first(p, "nmo:hasStartDate")), parse_year(first(p, "nmo:hasEndDate"))
+            if fix := type_overrides.get(normalise_uri(uri)):
+                # Source errors confirmed by hand (data/sources.yaml type_overrides).
+                start, end = fix.get("start_year", start), fix.get("end_year", end)
+                self.warnings["type dates corrected by type_overrides"] += 1
             if start is not None and end is not None and start > end:
                 # SCO writes some BC ranges backwards (start 204 BC, end 210 BC): same interval.
                 self.warnings["type dates given end first, swapped"] += 1
