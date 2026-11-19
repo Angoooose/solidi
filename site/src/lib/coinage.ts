@@ -35,7 +35,7 @@ export const PERIOD: Filter = { name: "period", match: (v) => `(coalesce(t.start
 export const ISSUER: Filter = { name: "issuer", match: (v) => `t.id IN (SELECT type_id FROM type_person WHERE role IN ('authority', 'issuer') AND person_id = ${v})` }
 export const MATERIAL: Filter = { name: "material", match: (v) => `t.id IN (SELECT type_id FROM type_material WHERE material_id = ${v})` }
 
-const SLUG = /^[a-z0-9][a-z0-9_.-]*$/
+const SLUG = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/
 
 /** The URL parameters every coinage reads: sort, limit, and a slug or date range reader for filters. */
 export function parseCommon(params: URLSearchParams) {
