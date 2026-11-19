@@ -5,7 +5,7 @@
 import type { LegendSegment } from "@/components/legend"
 import { iiif, imageLicence, secure, yearRange, type Licence } from "@/lib/format"
 import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
-import { CARD_SELECT, REFUSING_HOST, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
+import { CARD_SELECT, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
 
 export type { TypeCardData }
 
@@ -129,6 +129,7 @@ type ImageRow = {
   url: string
   thumbnail_url: string | null
   iiif_service: string | null
+  usable: number
 }
 
 /*
@@ -137,7 +138,7 @@ type ImageRow = {
  */
 const SPECIMEN_ORDER = `
   ORDER BY
-    (SELECT count(*) FROM image WHERE specimen_id = s.id AND url LIKE ${REFUSING_HOST}) > 0,
+    (SELECT count(*) FROM image WHERE specimen_id = s.id AND usable = 0) > 0,
     (SELECT CASE
        WHEN sum(side = 'obverse') > 0 AND sum(side = 'reverse') > 0 THEN 0
        WHEN sum(side = 'combined') > 0 THEN 1
@@ -220,7 +221,7 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
       ),
       // A join, not an id list: D1 allows at most 100 bound parameters and a type can have thousands of coins.
       q(
-        `SELECT i.specimen_id, i.side, i.url, i.thumbnail_url, i.iiif_service FROM image i
+        `SELECT i.specimen_id, i.side, i.url, i.thumbnail_url, i.iiif_service, i.usable FROM image i
          JOIN specimen_type st ON st.specimen_id = i.specimen_id WHERE st.type_id = ? ORDER BY i.id`,
         id
       ),
@@ -268,7 +269,7 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
 
   /* Obverse and reverse if both exist, else one combined photo. Small sizes prefer the museum's thumbnail. */
   const photosFor = (specimenId: string, box: number, small = false): Photo[] => {
-    const rows = (imagesBySpecimen.get(specimenId) ?? []).filter((r) => !r.url.includes("gallica.bnf.fr")) // REFUSING_HOST
+    const rows = (imagesBySpecimen.get(specimenId) ?? []).filter((r) => r.usable)
     const pick = (side: ImageRow["side"]) => rows.find((r) => r.side === side)
     const chosen = [pick("obverse"), pick("reverse")].filter(Boolean) as ImageRow[]
     const list = chosen.length ? chosen : rows.filter((r) => r.side === "combined").slice(0, 1)

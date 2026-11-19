@@ -5,10 +5,10 @@
 import { iiif, secure, shortDescription, yearRange } from "@/lib/format"
 
 /*
- * Image hosts that refused to serve our pages in testing (Gallica returned 403). Their photos are
- * treated as missing. Revisit once BnF replies.
+ * Photos our pages can show: the pipeline flags hosts browsers refuse (Gallica's 403s, Kenom's
+ * ORB-blocked IIIF redirects) as image.usable = 0 (data/sources.yaml unusable_image_hosts).
  */
-export const REFUSING_HOST = `'%gallica.bnf.fr%'`
+export const USABLE = (alias: string) => `${alias}.usable = 1`
 
 export type TypeCardData = {
   id: string
@@ -35,7 +35,7 @@ export type CardRow = {
 /* One reverse photo per type: prefer a reverse, then a combined image; IIIF first. */
 const CARD_IMAGE = (col: string) => `
   (SELECT i.${col} FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-   WHERE st.type_id = t.id AND i.side IN ('reverse', 'combined') AND i.url NOT LIKE ${REFUSING_HOST}
+   WHERE st.type_id = t.id AND i.side IN ('reverse', 'combined') AND ${USABLE("i")}
    ORDER BY i.side = 'combined', i.iiif_service IS NULL LIMIT 1)`
 
 export const CARD_SELECT = `

@@ -12,7 +12,7 @@
  */
 import { iiif, secure, year, yearRange } from "@/lib/format"
 import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
-import { CARD_SELECT, REFUSING_HOST, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
+import { CARD_SELECT, USABLE, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
 
 export const PAGE_SIZE = 30
 const PORTRAITS = 6
@@ -234,13 +234,13 @@ export async function getRuler(db: D1Database, id: string, query: RulerQuery): P
              (SELECT d.name FROM type_denomination td JOIN denomination d ON d.id = td.denomination_id
               WHERE td.type_id = t.id LIMIT 1) AS denomination,
              (SELECT i.url FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-              WHERE st.type_id = t.id AND i.side = 'obverse' AND i.url NOT LIKE ${REFUSING_HOST}
+              WHERE st.type_id = t.id AND i.side = 'obverse' AND ${USABLE("i")}
               ORDER BY i.iiif_service IS NULL LIMIT 1) AS url,
              (SELECT i.iiif_service FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-              WHERE st.type_id = t.id AND i.side = 'obverse' AND i.url NOT LIKE ${REFUSING_HOST}
+              WHERE st.type_id = t.id AND i.side = 'obverse' AND ${USABLE("i")}
               ORDER BY i.iiif_service IS NULL LIMIT 1) AS iiif,
              (SELECT i.id FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-              WHERE st.type_id = t.id AND i.side = 'obverse' AND i.url NOT LIKE ${REFUSING_HOST}
+              WHERE st.type_id = t.id AND i.side = 'obverse' AND ${USABLE("i")}
               ORDER BY i.iiif_service IS NULL LIMIT 1) AS image_id
            FROM coin_type t
            WHERE t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role = 'portrait_obverse')

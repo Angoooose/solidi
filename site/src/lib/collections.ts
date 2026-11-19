@@ -7,7 +7,7 @@
  * served from /api/collections.json with a long cache.
  */
 import { iiif, secure, yearRange } from "@/lib/format"
-import { REFUSING_HOST } from "@/lib/typeCards"
+import { USABLE } from "@/lib/typeCards"
 
 /* Up to six rows of two: as tall as the rail, so every view fits the same panel. */
 const CARDS = 12
@@ -84,7 +84,7 @@ const DESCENDANTS = `
  */
 const PHOTO = (where: string) => `
   (SELECT i.id FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-   WHERE ${where} AND i.url NOT LIKE ${REFUSING_HOST}
+   WHERE ${where} AND ${USABLE("i")}
    ORDER BY i.url LIKE '%kenom.de%', i.thumbnail_url IS NULL, i.iiif_service IS NULL LIMIT 1)`
 
 /* The types of person r.id in category r.cat with one of these roles. */

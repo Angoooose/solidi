@@ -331,6 +331,7 @@ CREATE TABLE image (
   url           TEXT NOT NULL,
   thumbnail_url TEXT,
   iiif_service  TEXT,
+  usable        INTEGER NOT NULL DEFAULT 1, -- 0: browsers can't load it from our pages (sources.yaml)
   UNIQUE (specimen_id, side, url)
 );
 

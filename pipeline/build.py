@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from pipeline import categories, legends, regions, stage, transform
+from pipeline import categories, images, legends, regions, stage, transform
 from pipeline.legend_expand import Dictionary
 from pipeline.checks import checks
 from pipeline.link import wikidata, wikipedia
@@ -57,6 +57,8 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
     categories.load_and_assign(db, ROOT / "data" / "categories.yaml")
     print("regions")
     region_warnings = regions.load_and_apply(db, ROOT / "data" / "regions.yaml")
+    print("images")
+    images.flag_unusable(db, config)
 
     print("check")
     result = checks.run(db)

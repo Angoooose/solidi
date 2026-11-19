@@ -123,3 +123,10 @@ type_overrides:
   # Iris gives start 0520 (AD 520) and end -0519: the issue is 520–519 BC.
   https://greekcoinage.org/iris/id/samos_barron_1966_persian:
     start_year: -520
+
+# Image hosts our pages can't show: their photos are kept but flagged image.usable = 0.
+unusable_image_hosts:
+  - host: gallica.bnf.fr
+    reason: returned 403 to our pages in testing; revisit once BnF replies
+  - host: kenom.de
+    reason: its IIIF URLs redirect through an HTML response, which browsers block (ORB)
