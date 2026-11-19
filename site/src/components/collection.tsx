@@ -1,0 +1,237 @@
+/*
+ * Building blocks of the collection pages. Server-rendered, no client state.
+ */
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { yearRange } from "@/lib/format"
+import { fmt, type Facet, type MintCard, type PersonCard, type Photo } from "@/lib/categories"
+import { Sparkline, YearAxis, type Bin } from "@/components/charts"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
+
+/* Page frame: the header's gutters, a 40px top and 112px bottom. */
+export function Page({ children }: { children: React.ReactNode }) {
+  return <main className="mx-auto max-w-page px-[clamp(20px,4vw,56px)] pt-10 pb-28">{children}</main>
+}
+
+/* A section below the hero: hairline above, 56px either side. */
+export function Section({ className, children, ...props }: React.ComponentProps<"section">) {
+  return (
+    <section className={cn("mt-14 border-t border-hairline pt-14", className)} {...props}>
+      {children}
+    </section>
+  )
+}
+
+/* Section heading (serif h2) with a link or a note on the right. */
+export function SectionHead({ title, link, note }: { title: string; link?: { href: string; label: string }; note?: string }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+      <h2 className="m-0 font-serif text-heading font-normal">{title}</h2>
+      {link && <ActionLink href={link.href}>{link.label}</ActionLink>}
+      {note && <Note>{note}</Note>}
+    </div>
+  )
+}
+
+/* "All 40 rulers": an action link, ink, underlined on hover. */
+export function ActionLink({ className, ...props }: React.ComponentProps<"a">) {
+  return <a className={cn("text-ui text-ink underline-offset-4 hover:underline", className)} {...props} />
+}
+
+export function Note({ className, ...props }: React.ComponentProps<"span">) {
+  return <span className={cn("num text-label text-stone", className)} {...props} />
+}
+
+/* Key numbers under a collection's title. */
+export function Facts({ items }: { items: [string, React.ReactNode][] }) {
+  return (
+    <dl className="m-0 flex flex-wrap gap-x-12 gap-y-4 border-t border-hairline pt-5">
+      {items.map(([label, value]) => (
+        <div key={label}>
+          <dt className="text-label text-stone">{label}</dt>
+          <dd className="num m-0 mt-1 text-body">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+/* A coin photo on the plinth, square. `size` picks the small or large source. */
+export function Plinth({ photo, alt, size, className }: { photo: Photo | null; alt: string; size: "thumb" | "large"; className?: string }) {
+  const src = photo?.[size]
+  return (
+    <span className={cn("block bg-plinth", className)}>
+      {src ? (
+        <img src={src} alt={alt} loading="lazy" decoding="async" className="block aspect-square w-full object-contain mix-blend-multiply" />
+      ) : (
+        <span className="block aspect-square w-full" />
+      )}
+    </span>
+  )
+}
+
+/* A ruler or mint as a card: photo, serif name, then stone lines. */
+function Card({ href, photo, name, lines, small = false }: { href: string; photo: Photo | null; name: string; lines: string[]; small?: boolean }) {
+  return (
+    <a href={href} className="group flex flex-col gap-0.5">
+      <Plinth photo={photo} alt="" size="large" className="p-[14%]" />
+      <span className={cn("mt-2.5 font-serif leading-[1.15] text-ink decoration-1 underline-offset-4 group-hover:underline", small ? "text-[1.125rem]" : "text-reading")}>
+        {name}
+      </span>
+      {lines.map((l) => (
+        <span key={l} className="num text-label text-stone">
+          {l}
+        </span>
+      ))}
+    </a>
+  )
+}
+
+const countLine = (start: number | null, end: number | null, n: number) =>
+  [yearRange(start, end), `${fmt(n)} ${n === 1 ? "type" : "types"}`].filter(Boolean).join(" · ")
+
+export function PersonCardView({ person, small }: { person: PersonCard; small?: boolean }) {
+  return <Card href={`/ruler/${person.id}`} photo={person.photo} name={person.name} lines={[countLine(person.start, person.end, person.n)]} small={small} />
+}
+
+export function MintCardView({ mint, categoryId, small, showRegion = true }: { mint: MintCard; categoryId: string; small?: boolean; showRegion?: boolean }) {
+  return (
+    <Card
+      href={mintHref(mint.id, categoryId)}
+      photo={mint.photo}
+      name={mint.name}
+      lines={[...(showRegion && mint.region ? [mint.region] : []), countLine(mint.start, mint.end, mint.n)]}
+      small={small}
+    />
+  )
+}
+
+export const mintHref = (id: string, categoryId: string) => `/mint/${id}?collection=${categoryId}`
+
+/* The square "373 All moneyers →" tile that ends a row of cards. */
+export function MoreTile({ href, count, label }: { href: string; count: number; label: string }) {
+  return (
+    <a href={href} className="relative flex aspect-square flex-col justify-end border border-hairline p-[18px] text-ui text-ink transition-colors hover:bg-wash">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="absolute top-[18px] right-[18px]">
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </svg>
+      <span className="num font-serif text-[2.5rem] leading-none">{fmt(count)}</span>
+      <span className="mt-1.5">{label}</span>
+    </a>
+  )
+}
+
+/*
+ * One collection as a row with its histogram: photo, name, dates (and description), sparkline,
+ * count. Rows on the same page share the sparkline's axis and scale.
+ */
+export function CollectionRow({
+  href,
+  photo,
+  name,
+  dates,
+  description,
+  bins,
+  binWidth,
+  domain,
+  yMax,
+  ticks,
+  count,
+}: {
+  href: string
+  photo: Photo | null
+  name: string
+  dates: string | null
+  description?: string | null
+  bins: Bin[]
+  binWidth: number
+  domain: [number, number]
+  yMax: number
+  ticks: number[]
+  count: number
+}) {
+  return (
+    <a
+      href={href}
+      className="group grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 border-b border-hairline py-3 transition-[background-color,box-shadow] hover:bg-wash hover:shadow-[-12px_0_0_var(--color-wash),12px_0_0_var(--color-wash)] md:grid-cols-[64px_minmax(0,380px)_minmax(0,1fr)_72px] md:gap-x-6"
+    >
+      <Plinth photo={photo} alt="" size="thumb" className="p-1.5" />
+      <span className="flex min-w-0 flex-col gap-[3px]">
+        <span className="font-serif text-reading leading-[1.15] text-ink decoration-1 underline-offset-4 group-hover:underline">{name}</span>
+        {dates && <span className="num text-label text-stone">{dates}</span>}
+        {description && <span className="line-clamp-2 text-label leading-[1.45] text-graphite">{description}</span>}
+      </span>
+      <Sparkline
+        bins={bins}
+        binWidth={binWidth}
+        domain={domain}
+        yMax={yMax}
+        ticks={ticks}
+        label={`${name}: types by date${dates ? `, ${dates}` : ""}`}
+        className="col-span-3 row-start-2 md:col-span-1 md:row-start-auto"
+      />
+      <span className="num col-start-3 row-start-1 text-right text-body md:col-start-auto md:row-start-auto">{fmt(count)}</span>
+    </a>
+  )
+}
+
+/* The column header over collection rows: "Collection", the year axis, "Types". */
+export function RowsHead({ first, domain, ticks, className }: { first: string; domain: [number, number]; ticks: number[]; className?: string }) {
+  return (
+    <div className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-end gap-6 md:grid-cols-[64px_minmax(0,380px)_minmax(0,1fr)_72px]", className)}>
+      <span className="hidden md:block" />
+      <span className="text-label text-stone">{first}</span>
+      <YearAxis domain={domain} ticks={ticks} className="hidden md:block" />
+      <span className="text-right text-label text-stone">Types</span>
+    </div>
+  )
+}
+
+/* A short ranked list: "Denominations / Tetradrachm 943 / … / All 31 denominations". */
+export function FacetColumn({
+  title,
+  items,
+  href,
+  all,
+}: {
+  title: string
+  items: Facet[]
+  href: (id: string) => string
+  all?: { label: string; href: string }
+}) {
+  if (!items.length) return null
+  return (
+    <div>
+      <h3 className="m-0 mb-3 font-serif text-[1.5rem] leading-[1.15] font-normal">{title}</h3>
+      {items.map((f) => (
+        <a key={f.id} href={href(f.id)} className="group flex justify-between gap-3 py-1 text-ui text-ink">
+          <span className="underline-offset-4 group-hover:underline">{f.name}</span>
+          <span className="num text-stone">{fmt(f.n)}</span>
+        </a>
+      ))}
+      {all && (
+        <a href={all.href} className="mt-1.5 flex py-1 text-ui text-ink underline-offset-4 hover:underline">
+          {all.label}
+        </a>
+      )}
+    </div>
+  )
+}
+
+/* "Collections / Greek / Hellenistic": the way up, not including the page itself. */
+export function Crumbs({ items }: { items: { href: string; label: string }[] }) {
+  return (
+    <Breadcrumb>
+      <BreadcrumbList>
+        {items.map((c, i) => (
+          <React.Fragment key={c.href}>
+            {i > 0 && <BreadcrumbSeparator />}
+            <BreadcrumbItem>
+              <BreadcrumbLink href={c.href}>{c.label}</BreadcrumbLink>
+            </BreadcrumbItem>
+          </React.Fragment>
+        ))}
+      </BreadcrumbList>
+    </Breadcrumb>
+  )
+}

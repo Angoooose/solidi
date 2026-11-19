@@ -1,0 +1,242 @@
+---
+/*
+ * A collection: /category/seleucid. Three layouts:
+ * - parent (Greek, Hellenistic, Roman): its collections as rows with histograms, then each with cards;
+ * - by ruler (kingdoms, Republic, Empire): rulers, types by decade, mint map, denominations;
+ * - by mint (city coinage): mint map, most prolific mints, regions in catalogue order.
+ * Everything comes from the pipeline's summary tables (lib/categories.ts).
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import { SiteFooter } from "@/components/site-chrome"
+import {
+  CollectionRow, Crumbs, Facts, FacetColumn, MintCardView, MoreTile, Note, Page, PersonCardView, Plinth,
+  RowsHead, Section, SectionHead, mintHref,
+} from "@/components/collection"
+import { Histogram, niceStep, yearTicks } from "@/components/charts"
+import { MintMap, hasBasemap } from "@/components/mint-map"
+import { capitalise, yearRange } from "@/lib/format"
+import { cardWorthy, chronological, fmt, getCategoryPage, getPreviews, getCategories, metaLine, peopleNoun, tree, typesLabel } from "@/lib/categories"
+
+const id = Astro.params.id ?? ""
+const page = await getCategoryPage(env.DB, id)
+if (!page) Astro.response.status = 404
+
+const c = page?.category
+const crumbs = page ? [{ href: "/collections", label: "Collections" }, ...page.ancestors.map((a) => ({ href: `/category/${a.id}`, label: a.name }))] : []
+const noun = peopleNoun(id)
+const dates = c ? yearRange(c.start, c.end) : null
+
+// Parent: each collection's row (shared axis and scale) and cards.
+let parent = null
+if (page?.variant === "parent") {
+  const t = tree(await getCategories(env.DB))
+  const previews = await getPreviews(env.DB, t, page.children)
+  const kids = page.children
+  const from = Math.min(...kids.map((k) => k.start ?? Infinity))
+  const to = Math.max(...kids.map((k) => k.end ?? -Infinity))
+  const step = niceStep([from, to], 9)
+  const domain: [number, number] = [Math.floor(from / 25) * 25 - 25, Math.ceil((to + 1) / 25) * 25 + 25]
+  const yMax = Math.max(1, ...kids.flatMap((k) => (page.childBins.get(k.id) ?? []).map((b) => b.n)))
+  parent = { previews, domain, ticks: yearTicks(domain, step), yMax }
+}
+
+// Leaves: cards earliest first, chosen from the most prolific.
+const rulerCards = page ? chronological(page.people.filter(cardWorthy).slice(0, 8)) : []
+const mintCards = page ? page.mints.slice(0, 8) : []
+const hero = page ? (page.variant === "mints" ? page.mints : page.people).find((x) => x.photo)?.photo ?? null : null
+const datedTypes = page ? Math.round(page.bins.reduce((s, b) => s + b.n, 0)) : 0
+const showMap = page && hasBasemap(id) && page.mapMints.length > 0
+const scope = `?collection=${id}`
+---
+
+<Base title={c?.name ?? "Collection not found"}>
+  <SiteHeader current="Collections" />
+  {
+    !page || !c ? (
+      <Page>
+        <h1 class="m-0 font-serif text-display font-normal">Collection not found</h1>
+        <p class="mt-6 text-body text-stone">
+          There is no collection <span class="text-ink">{id}</span>. <a href="/collections" class="text-ink underline-offset-4 hover:underline">See all collections</a>.
+        </p>
+      </Page>
+    ) : page.variant === "parent" && parent ? (
+      <Page>
+        <Crumbs items={crumbs} />
+        <div class="flex flex-wrap items-baseline gap-x-5 gap-y-2 pt-7">
+          <h1 class="m-0 font-serif text-display font-normal">{c.name}</h1>
+          <Note className="text-ui">{[dates, typesLabel(c.types), `${page.children.length} collections`].filter(Boolean).join(" · ")}</Note>
+        </div>
+
+        <div class="mt-12">
+          <RowsHead first="Collection" domain={parent.domain} ticks={parent.ticks} className="border-b border-ink pb-2.5" />
+          {page.children.map((k) => (
+            <CollectionRow
+              href={`/category/${k.id}`}
+              photo={parent.previews.get(k.id)?.photo ?? null}
+              name={k.name}
+              dates={yearRange(k.start, k.end)}
+              bins={page.childBins.get(k.id) ?? []}
+              binWidth={25}
+              domain={parent.domain}
+              yMax={parent.yMax}
+              ticks={parent.ticks}
+              count={k.types}
+            />
+          ))}
+        </div>
+
+        {page.children.map((k) => {
+          const p = parent.previews.get(k.id)
+          return (
+            <Section className="grid gap-8 md:grid-cols-[340px_minmax(0,1fr)] md:gap-14">
+              <div class="flex flex-col gap-3">
+                <h2 class="m-0 font-serif text-heading font-normal">
+                  <a href={`/category/${k.id}`} class="underline-offset-4 hover:underline">{k.name}</a>
+                </h2>
+                <Note>{metaLine(k.start, k.end, k.types)}</Note>
+                {k.description && <p class="m-0 mt-1 text-body leading-[1.55] text-graphite">{k.description}</p>}
+              </div>
+              {p && (
+                <div class="grid grid-cols-2 items-start gap-6 sm:grid-cols-3 lg:grid-cols-5">
+                  {p.cards.map((card) => (
+                    <a href={card.href} class="group flex flex-col gap-0.5">
+                      <Plinth photo={card.photo} alt="" size="large" className="p-[14%]" />
+                      <span class="mt-2.5 font-serif text-[1.125rem] leading-[1.15] decoration-1 underline-offset-4 group-hover:underline">{card.name}</span>
+                      <span class="num text-label text-stone">{card.line}</span>
+                    </a>
+                  ))}
+                  <MoreTile href={p.more.href} count={p.more.count} label={p.more.label} />
+                </div>
+              )}
+            </Section>
+          )
+        })}
+      </Page>
+    ) : (
+      <Page>
+        <Crumbs items={crumbs} />
+        {/* Title, description and key numbers beside one coin. */}
+        <div class="grid items-end gap-10 pt-7 md:grid-cols-[minmax(0,1fr)_420px] md:gap-20">
+          <div class="flex flex-col gap-7">
+            <h1 class="m-0 font-serif text-display font-normal">{c.name}</h1>
+            {c.description && <p class="m-0 max-w-[54ch] text-subtitle leading-[1.55] text-graphite">{c.description}</p>}
+            <Facts
+              items={
+                page.variant === "mints"
+                  ? [["Types", fmt(c.types)], ["Dates", dates ?? "Undated"], ["Mints", fmt(c.mints)], ["Regions", fmt(c.regions)]]
+                  : [["Types", fmt(c.types)], ["Dates", dates ?? "Undated"], [capitalise(noun.many), fmt(c.people)], ["Mints", fmt(c.mints)]]
+              }
+            />
+            <Note>{fmt(c.photographed)} with photographs</Note>
+          </div>
+          {hero && <Plinth photo={hero} alt="" size="large" className="hidden p-12 md:block" />}
+        </div>
+
+        {page.variant === "rulers" ? (
+          <>
+            {rulerCards.length > 0 && (
+              <Section>
+                <SectionHead title={capitalise(noun.many)} link={{ href: `/rulers${scope}`, label: `All ${fmt(c.people)} ${noun.many}` }} />
+                <div class="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-4">
+                  {rulerCards.map((p) => <PersonCardView person={p} />)}
+                </div>
+              </Section>
+            )}
+            {page.bins.length > 0 && (
+              <Section>
+                <SectionHead title="Types by decade" note={`${fmt(datedTypes)} dated types`} />
+                <Histogram bins={page.bins} binWidth={10} label={`${c.name}: types by decade, ${dates}`} />
+              </Section>
+            )}
+            {page.mints.length > 0 && (
+              <Section id="mints">
+                <SectionHead title="Mints" link={{ href: `/mints${scope}`, label: `All ${fmt(c.mints)} mints` }} />
+                <div class:list={["grid items-start gap-12", showMap && "lg:grid-cols-[minmax(0,1fr)_340px]"]}>
+                  {showMap && <MintMap categoryId={id} mints={page.mapMints} label={`Map of ${c.name} mints, sized by number of types`} />}
+                  <div class="border-t border-ink">
+                    {page.mints.slice(0, 9).map((m) => (
+                      <a href={mintHref(m.id, id)} class="group grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 border-b border-hairline py-2.5">
+                        <span class="text-body underline-offset-4 group-hover:underline">{m.name}</span>
+                        <span class="num text-body">{fmt(m.n)}</span>
+                        {m.region && <span class="col-span-2 text-label text-stone">{m.region}</span>}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </Section>
+            )}
+            <Section className="grid gap-14 md:grid-cols-3">
+              <FacetColumn title="Denominations" items={page.denominations} href={(d) => `/denomination/${d}${scope}`} all={{ label: `All ${fmt(c.denominations)} denominations`, href: `/denominations${scope}` }} />
+              <FacetColumn title="Subjects" items={page.subjects} href={(s) => `/subject/${s}${scope}`} all={{ label: `All ${fmt(c.subjects)} subjects`, href: `/subjects${scope}` }} />
+              <FacetColumn title="Metal" items={page.materials} href={(m) => `/material/${m}${scope}`} />
+            </Section>
+          </>
+        ) : (
+          <>
+            {showMap && (
+              <Section id="mints">
+                <SectionHead title="Mints" note={`${fmt(c.mintsLocated)} of ${fmt(c.mints)} located · sized by types`} />
+                <MintMap categoryId={id} mints={page.mapMints} labelled={16} label={`Map of ${c.name} mints, sized by number of types`} />
+              </Section>
+            )}
+            {mintCards.length > 0 && (
+              <Section>
+                <SectionHead title="Most prolific mints" link={{ href: `/mints${scope}`, label: `All ${fmt(c.mints)} mints` }} />
+                <div class="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-4">
+                  {mintCards.map((m) => <MintCardView mint={m} categoryId={id} />)}
+                </div>
+              </Section>
+            )}
+            {page.regionGroups.length > 0 && (
+              <Section>
+                <SectionHead title="Regions" note={`Types per region, in catalogue order`} />
+                <div class="gap-14 sm:columns-2 lg:columns-3">
+                  {page.regionGroups.map((g) => (
+                    <section class="break-inside-avoid pb-9">
+                      <div class="flex items-baseline justify-between gap-4 border-b border-ink pb-2.5">
+                        <h3 class="m-0 font-serif text-[1.5rem] leading-[1.15] font-normal">{g.name}</h3>
+                        <Note>{typesLabel(g.n)}</Note>
+                      </div>
+                      {g.regions.map((r) => {
+                        const named = r.mints.slice(0, 4).map((m) => m.name.split(",")[0])
+                        const rest = r.mints.length - named.length
+                        return (
+                          <a href={`/mints${scope}&region=${r.id}`} class="group grid grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-0.5 border-b border-hairline py-2.5">
+                            <span class="text-body underline-offset-4 group-hover:underline">{r.name}</span>
+                            <Note>{fmt(r.n)}</Note>
+                            <span class="col-span-2 text-label leading-[1.45] text-stone">
+                              {named.join(" · ")}
+                              {rest > 0 && ` and ${rest} more`}
+                            </span>
+                          </a>
+                        )
+                      })}
+                    </section>
+                  ))}
+                </div>
+              </Section>
+            )}
+            <Section className="grid gap-14 md:grid-cols-3">
+              <FacetColumn title="Denominations" items={page.denominations} href={(d) => `/denomination/${d}${scope}`} all={{ label: `All ${fmt(c.denominations)} denominations`, href: `/denominations${scope}` }} />
+              <FacetColumn title="Metal" items={page.materials} href={(m) => `/material/${m}${scope}`} />
+              <FacetColumn
+                title="Rulers and dynasts"
+                items={page.people.slice(0, 8).map((p) => ({ id: p.id, name: p.name, n: p.n }))}
+                href={(p) => `/ruler/${p}`}
+                all={{ label: `All ${fmt(c.people)} rulers`, href: `/rulers${scope}` }}
+              />
+            </Section>
+          </>
+        )}
+      </Page>
+    )
+  }
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+  import "@/scripts/map-zoom"
+</script>

@@ -31,7 +31,11 @@ function photo(r: ImageCols): Photo | null {
   if (!r.url && !r.iiif) return null
   return {
     thumb: secure(r.thumb) ?? iiif(r.iiif, 160) ?? secure(r.url),
-    large: iiif(r.iiif, 600) ?? secure(r.url) ?? secure(r.thumb),
+    // ANS serves ready-made 350px files much faster than its IIIF server renders one.
+    // Its "noscale" originals run to 2 MB; their thumbnail (a 600px copy at Corpus Nummorum) reads as well.
+    large: r.url?.includes(".width350.")
+      ? secure(r.url)
+      : (iiif(r.iiif, 600) ?? (r.url?.includes(".noscale.") && r.thumb ? secure(r.thumb) : (secure(r.url) ?? secure(r.thumb)))),
   }
 }
 const IMAGE_COLS = `i.url, i.thumbnail_url AS thumb, i.iiif_service AS iiif`
@@ -151,6 +155,12 @@ export async function getTopMints(db: D1Database, ids: string[], limit: number):
   return out
 }
 
+/*
+ * People worth a card: not issuers known only by a control mark ("P (Republican Moneyer)",
+ * "Anchor 1 (Republican Moneyer)"); they stay in the lists.
+ */
+export const cardWorthy = (p: { name: string }) => !p.name.endsWith("(Republican Moneyer)")
+
 /** Earliest first; undated last, keeping the given order. */
 export function chronological<T extends { start: number | null }>(list: T[]): T[] {
   return list
@@ -213,7 +223,7 @@ export async function getCategoryPage(db: D1Database, id: string): Promise<Categ
                 WHERE f.category_id = ?1 AND f.kind = '${kind}' ORDER BY f.n DESC, x.name`).bind(id)
   const [bins, people, mints, map, denominations, subjects, materials] = await db.batch([
     db.prepare(`SELECT bin_start AS start, n FROM category_bin WHERE category_id = ?1 AND width = 10 ORDER BY bin_start`).bind(id),
-    db.prepare(`${PERSON_SELECT} WHERE cp.category_id = ?1 AND cp.rank <= 12 ORDER BY cp.rank`).bind(id),
+    db.prepare(`${PERSON_SELECT} WHERE cp.category_id = ?1 AND cp.rank <= 24 ORDER BY cp.rank`).bind(id),
     db.prepare(`${MINT_SELECT} WHERE cm.category_id = ?1 AND cm.rank <= 12 ORDER BY cm.rank`).bind(id),
     // Every mint, for the map and (city coinage) the region index. Coordinates are the city's.
     db.prepare(`SELECT m.id, m.name, cm.n, m.lon, m.lat, cm.start_year AS start, cm.end_year AS "end",
@@ -311,13 +321,13 @@ export async function getPreviews(db: D1Database, t: Tree, cats: Category[]): Pr
   // Every leaf under these collections supplies photos.
   const leafIds = [...new Set(cats.flatMap((c) => t.leaves(c.id).map((l) => l.id)))]
   const [people, mints] = await Promise.all([
-    getTopPeople(db, leafIds.filter((id) => !BY_MINT.has(id)), 12),
+    getTopPeople(db, leafIds.filter((id) => !BY_MINT.has(id)), 24),
     getTopMints(db, leafIds.filter((id) => BY_MINT.has(id)), 12),
   ])
   const leafCards = (id: string): CollectionCard[] =>
     BY_MINT.has(id)
       ? (mints.get(id) ?? []).map((m) => ({ href: `/mint/${m.id}?collection=${id}`, name: m.name, line: metaLine(m.start, m.end, m.n), photo: m.photo }))
-      : chronological(people.get(id) ?? []).map((p) => ({ href: `/ruler/${p.id}`, name: p.name, line: metaLine(p.start, p.end, p.n), photo: p.photo }))
+      : chronological((people.get(id) ?? []).filter(cardWorthy)).map((p) => ({ href: `/ruler/${p.id}`, name: p.name, line: metaLine(p.start, p.end, p.n), photo: p.photo }))
   // The photo for a collection: its most prolific ruler's or mint's.
   const leafPhoto = (id: string): Photo | null =>
     (BY_MINT.has(id) ? mints.get(id) : people.get(id))?.find((x) => x.photo)?.photo ?? null
