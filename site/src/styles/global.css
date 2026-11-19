@@ -208,4 +208,28 @@
   .chart .bar[data-tip-active] {
     fill: var(--color-stone);
   }
+  /* Map mints (components/mint-map.tsx): labelled mints in ink, the rest in a light grey. */
+  .mint-dot {
+    fill: color-mix(in srgb, var(--color-stone) 45%, white);
+    stroke: var(--color-white);
+    transition: fill 0.15s ease;
+  }
+  .mint-dot.lead {
+    fill: var(--color-ink);
+  }
+  .mint-dot:hover,
+  .mint-dot[data-tip-active],
+  .mint-dot:focus-visible {
+    fill: var(--color-stone);
+    outline: none;
+  }
+  .map-label {
+    font: 12px/1 var(--font-sans);
+    fill: var(--color-ink);
+    paint-order: stroke;
+    stroke: var(--color-white);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
 }
