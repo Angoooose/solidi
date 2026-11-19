@@ -15,6 +15,7 @@ from pipeline import categories, legends, stage, transform
 from pipeline.legend_expand import Dictionary
 from pipeline.checks import checks
 from pipeline.link import wikidata, wikipedia
+from pipeline.sources.cn import monograms as cn_monograms
 from pipeline.sources.nomisma import fetch as nomisma_fetch
 from pipeline.sources.numishare import fetch as numishare_fetch
 
@@ -30,6 +31,7 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
     files = nomisma_fetch.fetch(raw, config["nomisma"], refresh=refresh)
     for key, corpus in config["corpora"].items():
         files += numishare_fetch.fetch(raw, key, corpus, authority=authority, refresh=refresh)
+    files += cn_monograms.fetch(raw, files, refresh=refresh)
 
     print(f"stage ({len(files)} files)")
     store = stage.load(files, build_dir / "staged" / "store")
@@ -83,8 +85,11 @@ def main() -> None:
     if args.command == "export-d1":
         from pipeline import export_d1
         src, out = args.build_dir / "solidi.sqlite", args.build_dir / "solidi.sql"
-        counts = export_d1.export(src, out)
-        print(f"{sum(counts.values()):,} rows in {len(counts)} tables -> {out} ({out.stat().st_size / 1e6:.1f} MB)")
+        counts = export_d1.export(src, out, max_bytes=100_000_000)
+        parts = export_d1.export.paths
+        size = sum(p.stat().st_size for p in parts) / 1e6
+        print(f"{sum(counts.values()):,} rows in {len(counts)} tables -> {len(parts)} files "
+              f"{parts[0].name}..{parts[-1].name} ({size:.1f} MB)")
 
 
 if __name__ == "__main__":

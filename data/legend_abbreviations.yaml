@@ -242,6 +242,15 @@ phrases:
   "NVMA POMPIL": {latin: "Numa Pompilius", english: "Numa Pompilius (second king of Rome)", kind: name}
   "ANCVS MARCI": {latin: "Ancus Marcius", english: "Ancus Marcius (fourth king of Rome)", kind: name}
 
+  # --- Roman colonies and municipia (Corpus Nummorum) -------------------------------------------
+  "COL FL PAC DEVLT": {latin: "Colonia Flavia Pacensis Deultum", english: "the Flavian colony of Deultum", kind: place}
+  "COL FL PAC DEVL": {latin: "Colonia Flavia Pacensis Deultum", english: "the Flavian colony of Deultum", kind: place}
+  "AEL MVNICIP COEL": {latin: "Aelium Municipium Coela", english: "the Aelian municipium of Coela", kind: place}
+  "AILI MVNICIPI COILA": {latin: "Aelium Municipium Coela", english: "the Aelian municipium of Coela", kind: place}
+  "C G I P": {latin: "Colonia Gemella Iulia Pariana", english: "the colony of Parium", kind: place}
+  "C F P D": {latin: "Colonia Flavia Pacensis Deultum", english: "the Flavian colony of Deultum", kind: place}
+  "SAB TRANQVILLINA AVG": {latin: "Sabinia Tranquillina Augusta", english: "Sabinia Tranquillina Augusta (empress)", kind: name, gender: f}
+
 words:
   # --- Imperial titles and offices --------------------------------------------------------------
   AVG: {latin: "Augustus", english: "emperor", kind: title, note: "often genitive Augusti in reverse legends (VICTORIA AVG)"}
@@ -1046,3 +1055,6 @@ words:
   PRIV: {latin: "Privernum", english: "Privernum", kind: place}
   ANCVS: {latin: "Ancus", english: "Ancus (Marcius, king of Rome)", kind: name}
   IVLI: {latin: "Iuli", english: "of Julius (Caesar)", kind: name, lemma: "Iulius", note: "DIVI IVLI F = son of the deified Julius"}
+  COL: {latin: "Colonia", english: "colony", kind: place}
+  MVNICIP: {latin: "Municipium", english: "municipium", kind: place}
+  TRANQVILLINA: {latin: "Tranquillina", english: "Tranquillina", kind: name, gender: f}

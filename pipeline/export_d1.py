@@ -58,11 +58,48 @@ def _inserts(db: sqlite3.Connection, table: str) -> list[str]:
     return statements
 
 
-def export(db_path: Path, out_path: Path) -> dict[str, int]:
+class _PartWriter:
+    """Writes statements to out_path, or, with a size cap, to out_path's stem + '-001.sql', '-002.sql'...
+    starting a new part only between statements. Wrangler's local D1 drops the connection on a
+    single file of a few hundred MB; parts of ~100 MB load reliably, in order."""
+
+    def __init__(self, out_path: Path, max_bytes: int | None):
+        self.out_path, self.max_bytes = out_path, max_bytes
+        self.paths: list[Path] = []
+        self.handle = None
+        self.size = 0
+        if max_bytes:
+            for old in out_path.parent.glob(f"{out_path.stem}-*.sql"):
+                old.unlink()
+        self._next()
+
+    def _next(self) -> None:
+        if self.handle:
+            self.handle.close()
+        path = (self.out_path.with_name(f"{self.out_path.stem}-{len(self.paths) + 1:03d}.sql")
+                if self.max_bytes else self.out_path)
+        self.paths.append(path)
+        self.handle = path.open("w", encoding="utf-8")
+        self.size = 0
+
+    def write(self, text: str) -> None:
+        n = len(text.encode())
+        if self.max_bytes and self.size and self.size + n > self.max_bytes:
+            self._next()
+        self.handle.write(text)
+        self.size += n
+
+    def close(self) -> None:
+        self.handle.close()
+
+
+def export(db_path: Path, out_path: Path, max_bytes: int | None = None) -> dict[str, int]:
+    """`max_bytes`: split the SQL into numbered parts of about this size (see _PartWriter)."""
     db = sqlite3.connect(db_path)
     tables, indexes, virtual = _objects(db)
     counts: dict[str, int] = {}
-    with out_path.open("w", encoding="utf-8") as out:
+    out = _PartWriter(out_path, max_bytes)
+    try:
         # Search tables first, then children before parents, so reloading never trips a foreign key.
         for name, _ in virtual:
             out.write(f'DROP TABLE IF EXISTS "{name}";\n')
@@ -79,5 +116,8 @@ def export(db_path: Path, out_path: Path) -> dict[str, int]:
         for name, sql in virtual:
             out.write(sql + ";\n")
             out.write(f"INSERT INTO \"{name}\" (\"{name}\") VALUES ('rebuild');\n")
+    finally:
+        out.close()
     db.close()
+    export.paths = out.paths
     return counts

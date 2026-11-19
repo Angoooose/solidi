@@ -48,3 +48,16 @@ def test_round_trip(tmp_path):
     assert db.execute("SELECT note FROM coin_type WHERE id = 't.1a'").fetchone() == ("it's a variant",)
     hits = db.execute("SELECT count(*) FROM legend_fts WHERE compact LIKE '%TRAIANOAVG29%'").fetchone()
     assert hits == (11,)
+
+
+def test_split_into_parts_loads_in_order(tmp_path):
+    src, sql = tmp_path / "src.sqlite", tmp_path / "out.sql"
+    _source(src)
+    counts = export_d1.export(src, sql, max_bytes=50_000)
+    parts = export_d1.export.paths
+    assert len(parts) > 3 and all(p.name.startswith("out-") for p in parts)
+    db = sqlite3.connect(":memory:")
+    db.execute("PRAGMA foreign_keys = ON")
+    for p in parts:
+        db.executescript(p.read_text())
+    assert db.execute("SELECT count(*) FROM legend").fetchone()[0] == counts["legend"]

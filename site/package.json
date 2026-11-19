@@ -12,7 +12,7 @@
     "astro": "astro",
     "generate-types": "wrangler types",
     "db:local": "wrangler d1 execute solidi --local --yes --file=../build/trajan/solidi.sql",
-    "db:local:full": "wrangler d1 execute solidi --local --yes --file=../build/solidi.sql"
+    "db:local:full": "for f in ../build/solidi-*.sql; do wrangler d1 execute solidi --local --yes --file=$f || exit 1; done"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.8",

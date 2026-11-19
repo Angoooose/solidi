@@ -37,6 +37,9 @@ categories:
           - id: bactrian-indo-greek
             name: Bactrian and Indo-Greek Kingdoms
             description: The Greek kings of Bactria and north-west India, c. 250 BC to the 1st century AD.
+          - id: attalid
+            name: Attalid Kingdom
+            description: Philetaerus and the Attalid kings of Pergamon, 282-133 BC.
           - id: hellenistic-cities
             name: Cities and Leagues
             description: Civic and federal coinage of the Hellenistic world, alongside the kingdoms.
@@ -51,6 +54,11 @@ categories:
         description: >-
           Coinage of the civil wars, 49-27 BC: Caesar, Pompey and his sons, Brutus and Cassius,
           Antony, Lepidus and Octavian, and the moneyers who struck at Rome alongside them.
+      - id: roman-provincial
+        name: Roman Provincial
+        description: >-
+          Coinage struck by the cities and client kings of the Roman provinces under the emperors,
+          mostly in Greek, alongside the imperial mints.
       - id: roman-imperial
         name: Roman Imperial
         description: Coinage of the emperors, from Augustus (27 BC) to the end of the western empire.
@@ -69,6 +77,22 @@ rules:
   - category: bactrian-indo-greek
     dataset: bigr
   # Iris types by date: begun before Alexander's death (323 BC) are Archaic and Classical.
+  # Corpus Nummorum: royal issues by their king, then by date like Iris; Roman-era city coins
+  # (after 27 BC) are Roman Provincial.
+  - category: macedonian-kings
+    dataset: cn
+    authorities: [lysimachus, alexander_iii, philip_ii, philip_iii]
+  - category: attalid
+    dataset: cn
+    authorities: [philetaerus, eumenes_i, attalus_i, eumenes_ii, attalus_ii, attalus_iii]
+  - category: roman-provincial
+    dataset: cn
+    from_year: -27
+  - category: archaic-classical
+    dataset: cn
+    to_start_year: -324
+  - category: hellenistic-cities
+    dataset: cn
   - category: archaic-classical
     dataset: iris
     to_start_year: -324

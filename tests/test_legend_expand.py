@@ -306,3 +306,16 @@ def test_civic_and_lycian_words_from_the_types_own_names():
     segs = expand(romanise_lycian("\U0001028B\U00010292\U00010293\U00010295\U0001028D\U0001028D\U00010286"), Dictionary({}), lang="xlc")
     apply_context_names(segs, lambda w: romanise_lycian(w, True), [("kuprlli", "Kuprlli")], [])
     assert segs[0].person == "kuprlli"
+
+
+def test_greek_imperial_titulature():
+    import yaml
+    from pipeline.legends import normalise
+    imp = Dictionary.load(GREEK).with_overlay(yaml.safe_load((REAL.parent / "legend_greek_imperial.yaml").read_text()))
+    segs = expand(normalise("ΑΥΤ Κ Μ ΑΥΡ ΑΝΤΩΝΕΙΝΟΣ ΣΕΒ", "grc"), imp, lang="grc",
+                  persons=[("caracalla", "Caracalla")], authority="caracalla")
+    assert [s.english for s in segs] == ["Imperator Caesar", "Marcus Aurelius", "Antoninus", "Augustus"]
+    assert segs[2].person == "caracalla"            # his official name, linked to the type's emperor
+    # Hellenistic legends are not read with the Imperial overlay: a lone Κ stays a control letter.
+    assert expand("Κ", Dictionary.load(GREEK), lang="grc", truncations=False)[0].kind == "unknown"
+    assert expand(normalise("ΒΑΣΙΛΕΩΣ ΚΑΙ", "grc"), imp, lang="grc")[1].english == "and"

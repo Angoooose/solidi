@@ -271,7 +271,8 @@ def _epithet_word(english: str | None) -> str:
 
 
 def apply_greek(segments: list[Segment], dictionary: Dictionary,
-                persons: list[tuple[str, str]] | None = None, truncations: bool = True) -> list[Segment]:
+                persons: list[tuple[str, str]] | None = None, truncations: bool = True,
+                authority: str | None = None) -> list[Segment]:
     """Greek and Gandhari royal legends.
 
     - Truncated words (ΑΛΕΞ, ΑΝΤΙΟΧ) read as the dictionary word they begin, if all candidates
@@ -331,8 +332,10 @@ def apply_greek(segments: list[Segment], dictionary: Dictionary,
                 name.person = candidates[0][0]
                 used.append(name.person)
             else:
-                entry = dictionary.lookup_word(name.text) or {}
-                name.person = entry.get("default_person")
+                entry = dictionary.lookup_word(name.text) or dictionary.phrases.get(tuple(name.text.split())) or {}
+                # An emperor's official name (ΑΝΤΩΝΕΙΝΟΣ on a coin of Caracalla) is still the
+                # type's own ruler, whatever we call him.
+                name.person = entry.get("default_person") or (authority if entry.get("ruler") else None)
         # Epithets take the name after them if they come first, else the name before them.
         current = names[0].person if names else None
         for seg in group:
@@ -402,7 +405,8 @@ def apply_context_names(segments: list[Segment], romanise, persons: list[tuple[s
 
 def expand(normalised: str, dictionary: Dictionary, names: list[str] | None = None,
            republic: bool = False, lang: str = "la",
-           persons: list[tuple[str, str]] | None = None, truncations: bool = True) -> list[Segment]:
+           persons: list[tuple[str, str]] | None = None, truncations: bool = True,
+           authority: str | None = None) -> list[Segment]:
     """`republic`: the coin was struck before 27 BC (pass the Republican dictionary too).
     `lang`: 'la', or 'grc'/'pgd' for Greek and Gandhari (transliterated) legends."""
     tokens = normalised.split()
@@ -433,7 +437,7 @@ def expand(normalised: str, dictionary: Dictionary, names: list[str] | None = No
             out.append(Segment(tokens[i], None, None, "unknown"))
             i += 1
     if lang != "la":
-        return apply_greek(out, dictionary, persons, truncations)
+        return apply_greek(out, dictionary, persons, truncations, authority)
     if names:
         apply_names(out, names, dictionary, override=republic)
     out = apply_filiation(out)

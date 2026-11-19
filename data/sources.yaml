@@ -74,6 +74,18 @@ corpora:
     specimen_group: '^([a-z0-9])'
     legend_language: grc
 
+  # Greek civic and Roman provincial coinage of Thrace, Moesia, Mysia and the Troad (BBAW Berlin).
+  # Types are '.../types/20453' or '.../types/cn.nicopolis_ad_nestum.1_ed.6': grouped by the
+  # first two digits, or by 'cn.' and the city's first letter.
+  # Licence CC BY-NC-SA 3.0: excluded from a commercial build. Monograms come from CN's API.
+  cn:
+    name: Corpus Nummorum
+    dataset: https://www.corpus-nummorum.eu/
+    id_path: corpus-nummorum.eu/types/
+    licence: CC BY-NC-SA 3.0
+    specimen_group: '^(\d\d?|cn\.[a-z0-9])'   # a few IDs are one digit; overlapping groups only fetch twice
+    legend_language: grc
+
 # Licence classification for the commercial switch. Matched as substrings of the
 # dataset's licence URL; first match wins. Anything unmatched is treated as not
 # commercial-safe until reviewed.

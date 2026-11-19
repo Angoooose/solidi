@@ -50,8 +50,11 @@ class Builder:
         """Registry a URI belongs to: 'nomisma', a dataset slug, or the host."""
         if is_nomisma(uri):
             return "nomisma"
+        host = lambda u: normalise_uri(u).split("://", 1)[-1].split("/", 1)[0]
         for key, c in self.config["corpora"].items():
             if normalise_uri(uri).startswith(normalise_uri(c["dataset"]) + "/"):
+                return key
+            if host(uri).endswith("." + host(c["dataset"])):      # data.corpus-nummorum.eu -> cn
                 return key
         host = uri.split("://", 1)[-1].split("/", 1)[0]
         return host.removeprefix("www.").replace(".", "-")

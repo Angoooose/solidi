@@ -1,0 +1,238 @@
+# Greek legends of the Roman Empire (struck after 31 BC), laid over legend_greek.yaml.
+#
+# City coins of the eastern provinces give the emperor's titles in Greek, abbreviated much as
+# Latin legends are: ΑΥΤ Κ Μ ΑΥΡ ΑΝΤΩΝΕΙΝΟΣ ΣΕΒ = Imperator Caesar Marcus Aurelius Antoninus
+# Augustus. Single letters (Κ, Μ, Λ) only mean Καῖσαρ, Μᾶρκος, Λούκιος here; on Hellenistic
+# coins they are control letters, so this overlay applies by date, like the Republican one.
+#
+# `ruler: true` marks the emperor's own names: when no person on the type is called that
+# (ΑΝΤΩΝΕΙΝΟΣ on a coin of Caracalla), the word links to the type's authority.
+# Licence: our own work.
+
+phrases:
+  "ΑΥΤ Κ": {full: "Αὐτοκράτωρ Καῖσαρ", english: "Imperator Caesar", kind: title}
+  "ΑΥ Κ": {full: "Αὐτοκράτωρ Καῖσαρ", english: "Imperator Caesar", kind: title}
+  "ΑΥΤ ΚΑΙ": {full: "Αὐτοκράτωρ Καῖσαρ", english: "Imperator Caesar", kind: title}
+  "ΑΥΤ ΚΑΙΣ": {full: "Αὐτοκράτωρ Καῖσαρ", english: "Imperator Caesar", kind: title}
+  "ΑΥΤ ΚΑΙΣΑΡ": {full: "Αὐτοκράτωρ Καῖσαρ", english: "Imperator Caesar", kind: title}
+  "Μ ΑΥΡ": {full: "Μᾶρκος Αὐρήλιος", english: "Marcus Aurelius", kind: name, ruler: true}
+  "Μ ΑΥΡΗ": {full: "Μᾶρκος Αὐρήλιος", english: "Marcus Aurelius", kind: name, ruler: true}
+  "Μ ΑΥΡΗΛ": {full: "Μᾶρκος Αὐρήλιος", english: "Marcus Aurelius", kind: name, ruler: true}
+  "Μ ΑΥΡΗΛΙΟΣ": {full: "Μᾶρκος Αὐρήλιος", english: "Marcus Aurelius", kind: name, ruler: true}
+  "Λ ΣΕΠ": {full: "Λούκιος Σεπτίμιος", english: "Lucius Septimius", kind: name, ruler: true}
+  "Λ ΣΕΠΤ": {full: "Λούκιος Σεπτίμιος", english: "Lucius Septimius", kind: name, ruler: true}
+  "Λ ΣΕΠΤΙ": {full: "Λούκιος Σεπτίμιος", english: "Lucius Septimius", kind: name, ruler: true}
+  "Λ ΣΕΠΤΙΜΙΟΣ": {full: "Λούκιος Σεπτίμιος", english: "Lucius Septimius", kind: name, ruler: true}
+  "Λ ΑΥΡ": {full: "Λούκιος Αὐρήλιος", english: "Lucius Aurelius", kind: name, ruler: true}
+  "Π ΣΕΠ": {full: "Πούβλιος Σεπτίμιος", english: "Publius Septimius", kind: name, ruler: true}
+  "Π ΣΕΠΤ": {full: "Πούβλιος Σεπτίμιος", english: "Publius Septimius", kind: name, ruler: true}
+  "Μ ΟΠΕΛ": {full: "Μᾶρκος Ὀπέλλιος", english: "Marcus Opellius", kind: name, ruler: true}
+  "Μ ΟΠΠΕΛ": {full: "Μᾶρκος Ὀπέλλιος", english: "Marcus Opellius", kind: name, ruler: true}
+  "Μ ΙΟΥΛ": {full: "Μᾶρκος Ἰούλιος", english: "Marcus Julius", kind: name, ruler: true}
+  "Μ ΑΝΤ": {full: "Μᾶρκος Ἀντώνιος", english: "Marcus Antonius", kind: name, ruler: true}
+  "Μ ΑΝΤΩΝΙΟΣ": {full: "Μᾶρκος Ἀντώνιος", english: "Marcus Antonius", kind: name, ruler: true}
+  "Τ ΑΙΛ": {full: "Τίτος Αἴλιος", english: "Titus Aelius", kind: name, ruler: true}
+  "Τ ΑΙΛ ΑΔΡ": {full: "Τίτος Αἴλιος Ἁδριανός", english: "Titus Aelius Hadrianus", kind: name, ruler: true}
+  "ΣΕΒ ΣΕΒΑΣΤΟΥ": {full: "Σεβαστοῦ", english: "of Augustus", kind: title}
+  "ΙΟΥΛΙΑ ΔΟΜΝΑ": {full: "Ἰουλία Δόμνα", english: "Julia Domna", kind: name, ruler: true, gender: f}
+  "ΙΟΥΛΙΑ ΜΑΙΣΑ": {full: "Ἰουλία Μαῖσα", english: "Julia Maesa", kind: name, ruler: true, gender: f}
+  "ΙΟΥΛΙΑ ΜΑΜΑΙΑ": {full: "Ἰουλία Μαμαία", english: "Julia Mamaea", kind: name, ruler: true, gender: f}
+  "ΙΟΥΛΙΑ ΠΑΥΛΑ": {full: "Ἰουλία Παῦλα", english: "Julia Paula", kind: name, ruler: true, gender: f}
+  "ΙΟΥΛΙΑ ΣΟΑΙΜΙΣ": {full: "Ἰουλία Σοαιμίς", english: "Julia Soaemias", kind: name, ruler: true, gender: f}
+  "ΑΚΙΛΙΑ ΣΕΟΥΗΡΑ": {full: "Ἀκυλία Σεουήρα", english: "Aquilia Severa", kind: name, ruler: true, gender: f}
+  "ΦΟΥΡ ΣΑΒ ΤΡΑΝΚΥΛΛΕΙΝΑ": {full: "Φουρία Σαβινία Τρανκυλλεῖνα", english: "Furia Sabinia Tranquillina", kind: name, ruler: true, gender: f}
+  "ΣΑΒ ΤΡΑΝΚΥΛΛΕΙΝΑ": {full: "Σαβινία Τρανκυλλεῖνα", english: "Sabinia Tranquillina", kind: name, ruler: true, gender: f}
+  "ΤΟ Β": {full: "τὸ β'", english: "for the second time", kind: word}
+  "ΤΟ Γ": {full: "τὸ γ'", english: "for the third time", kind: word}
+  "ΔΙΣ ΝΕΩΚΟΡΩΝ": {full: "δὶς νεωκόρων", english: "twice temple-warden", kind: title}
+  "Β ΝΕΩΚΟΡΩΝ": {full: "β' νεωκόρων", english: "twice temple-warden", kind: title}
+  "ΗΓ ΓΑΛΛΟΥ": {full: "ἡγεμονεύοντος Γάλλου", english: "under the governor Gallus", kind: office}
+  "ΥΠ ΑΥΡ": {full: "ὑπὸ Αὐρηλίου", english: "under Aurelius (governor)", kind: office}
+  "ΚΟΙΝΟΝ ΘΡΑΚΩΝ": {full: "κοινὸν Θρᾳκῶν", english: "the league of the Thracians", kind: ethnic}
+  "ΚΟΙΝΟΝ ΜΑΚΕΔΟΝΩΝ": {full: "κοινὸν Μακεδόνων", english: "the league of the Macedonians", kind: ethnic}
+  "ΠΡΩΤΩΝ ΠΟΝΤΟΥ": {full: "πρώτων Πόντου", english: "first of Pontus", kind: title}
+  "ΜΗΤΡΟΠΟΛΕΩΣ ΠΟΝΤΟΥ": {full: "μητροπόλεως Πόντου", english: "of the metropolis of Pontus", kind: title}
+  "ΠΡΟΣ ΙΣΤΡΟΝ": {full: "πρὸς Ἴστρον", english: "on the Ister (Danube)", kind: place, note: "Nicopolis ad Istrum"}
+  "ΠΡΟΣ ΙΣΤΡΩ": {full: "πρὸς Ἴστρῳ", english: "on the Ister (Danube)", kind: place}
+  "ΠΡΟΣ ΙΣΤΡ": {full: "πρὸς Ἴστρον", english: "on the Ister (Danube)", kind: place}
+  "ΠΡΟΣ ΙΣΤ": {full: "πρὸς Ἴστρον", english: "on the Ister (Danube)", kind: place}
+  "ΕΠ ΙΣΤΡΩ": {full: "ἐπ' Ἴστρῳ", english: "on the Ister (Danube)", kind: place}
+  "ΠΡ ΜΕΣΤΩ": {full: "πρὸς Μέστῳ", english: "on the Mestus", kind: place, note: "Nicopolis ad Mestum"}
+  "ΠΡΟΣ ΜΕΣΤΩ": {full: "πρὸς Μέστῳ", english: "on the Mestus", kind: place}
+  "ΙΕΡΑ ΣΥΝΚΛΗΤΟΣ": {full: "ἱερὰ σύγκλητος", english: "the sacred Senate", kind: personification}
+  "ΙΕΡΑ ΣΥΓΚΛΗΤΟΣ": {full: "ἱερὰ σύγκλητος", english: "the sacred Senate", kind: personification}
+  "ΠΥΘΙΑ ΑΥΓΟΥΣΤΙΑ": {full: "Πύθια Αὐγούστεια", english: "the Pythian and Augustan games", kind: formula}
+
+words:
+  # Titles
+  ΑΥΤ: {full: "Αὐτοκράτωρ", english: "Imperator", kind: title}
+  ΑΥ: {full: "Αὐτοκράτωρ", english: "Imperator", kind: title}
+  ΑΥΤΟ: {full: "Αὐτοκράτωρ", english: "Imperator", kind: title}
+  ΑΥΤΟΚ: {full: "Αὐτοκράτωρ", english: "Imperator", kind: title}
+  ΑΥΤΚ: {full: "Αὐτοκράτωρ Καῖσαρ", english: "Imperator Caesar", kind: title}
+  ΑΥΤΚΡΑ: {full: "Αὐτοκράτωρ", english: "Imperator", kind: title, note: "source spelling"}
+  ΑΥΤΟΚΡΑΤΩΡ: {full: "Αὐτοκράτωρ", english: "Imperator", kind: title}
+  ΑΥΤΟΚΡΑΤΟΡΑ: {full: "Αὐτοκράτορα", english: "Imperator", kind: title}
+  ΑΥΤΟΚΡΑΤΟΡΟΣ: {full: "Αὐτοκράτορος", english: "of the Imperator", kind: title}
+  Κ: {full: "Καῖσαρ", english: "Caesar", kind: title}
+  ΚΑΙΣ: {full: "Καῖσαρ", english: "Caesar", kind: title}
+  ΚΑΙΣΑΡ: {full: "Καῖσαρ", english: "Caesar", kind: title}
+  ΚΑΙΣΑΡΑ: {full: "Καίσαρα", english: "Caesar", kind: title}
+  ΚΑΙΣΑΡΙ: {full: "Καίσαρι", english: "to Caesar", kind: title}
+  ΚΑΙΣΑΡΟΣ: {full: "Καίσαρος", english: "of Caesar", kind: title}
+  ΣΕ: {full: "Σεβαστός", english: "Augustus", kind: title}
+  ΣΕΒ: {full: "Σεβαστός", english: "Augustus", kind: title}
+  ΣΕΒΑ: {full: "Σεβαστός", english: "Augustus", kind: title}
+  ΣΕΒΑΣ: {full: "Σεβαστός", english: "Augustus", kind: title}
+  ΣΕΒΑΣΤΟΣ: {full: "Σεβαστός", english: "Augustus", kind: title}
+  ΣΕΒΑΣΤΟΥ: {full: "Σεβαστοῦ", english: "of Augustus", kind: title}
+  ΣΕΒΑΣΤΗ: {full: "Σεβαστή", english: "Augusta", kind: title, gender: f}
+  ΣΕΒΑΣΤΗΣ: {full: "Σεβαστῆς", english: "of Augusta", kind: title, gender: f}
+  ΑΥΓ: {full: "Αὔγουστος", english: "Augustus", kind: title}
+  ΑΥΓΟ: {full: "Αὔγουστος", english: "Augustus", kind: title}
+  ΑΥΓΟΥΣΤΟΣ: {full: "Αὔγουστος", english: "Augustus", kind: title}
+  ΑΥΓΟΥΣΤΑ: {full: "Αὐγοῦστα", english: "Augusta", kind: title, gender: f}
+  ΕΥΣ: {full: "Εὐσεβής", english: "Pius", kind: epithet}
+  ΕΥΣΕΒΗΣ: {full: "Εὐσεβής", english: "Pius", kind: epithet}
+  ΕΥΤ: {full: "Εὐτυχής", english: "Felix", kind: epithet}
+  ΕΥΤΥΧΗΣ: {full: "Εὐτυχής", english: "Felix", kind: epithet}
+  ΓΕΡ: {full: "Γερμανικός", english: "Germanicus", kind: title}
+  ΓΕΡΜ: {full: "Γερμανικός", english: "Germanicus", kind: title}
+  ΓΕΡΜΑΝΙΚΟΣ: {full: "Γερμανικός", english: "Germanicus", kind: title}
+  ΠΑΡΘ: {full: "Παρθικός", english: "Parthicus", kind: title}
+  ΑΡΜ: {full: "Ἀρμενιακός", english: "Armeniacus", kind: title}
+  ΝΕΩΚΟΡΩΝ: {full: "νεωκόρων", english: "temple-warden", kind: title, note: "city title: warden of the imperial cult temple"}
+  ΝΕΟΚΟΡΩΝ: {full: "νεωκόρων", english: "temple-warden", kind: title}
+  ΝΕΩΚΟΡΟΥ: {full: "νεωκόρου", english: "temple-warden", kind: title}
+  ΝΕΩΚΟ: {full: "νεωκόρων", english: "temple-warden", kind: title}
+  ΔΙΣ: {full: "δίς", english: "twice", kind: word}
+  ΜΗΤΡΟΠΟΛΕΩΣ: {full: "μητροπόλεως", english: "of the metropolis", kind: title}
+  ΜΗΤΡΟΠ: {full: "μητροπόλεως", english: "of the metropolis", kind: title}
+  ΜΗΤΡΟ: {full: "μητροπόλεως", english: "of the metropolis", kind: title}
+  ΜΗΤΡ: {full: "μητροπόλεως", english: "of the metropolis", kind: title}
+  ΠΡΩΤΩΝ: {full: "πρώτων", english: "first", kind: title}
+  ΚΟΙΝΟΝ: {full: "κοινόν", english: "the league", kind: word}
+  ΠΟΝΤΟΥ: {full: "Πόντου", english: "of Pontus", kind: place}
+  ΠΟΝΤ: {full: "Πόντου", english: "of Pontus", kind: place}
+  ΘΡΑΚΩΝ: {full: "Θρᾳκῶν", english: "of the Thracians", kind: ethnic}
+  ΠΥΘΙΑ: {full: "Πύθια", english: "the Pythian games", kind: formula}
+  # Governors: ἡγεμονεύοντος / ὑπατικοῦ / ὑπό
+  ΗΓ: {full: "ἡγεμονεύοντος", english: "under the governor", kind: office}
+  ΗΓΕ: {full: "ἡγεμονεύοντος", english: "under the governor", kind: office}
+  ΗΓΕΜ: {full: "ἡγεμονεύοντος", english: "under the governor", kind: office}
+  ΗΓΕΜΟΝΕΥΟΝΤΟΣ: {full: "ἡγεμονεύοντος", english: "under the governor", kind: office}
+  ΥΠ: {full: "ὑπατικοῦ / ὑπό", english: "under the consular legate", kind: office}
+  ΥΠΑ: {full: "ὑπατικοῦ", english: "under the consular legate", kind: office}
+  ΥΠΑΤ: {full: "ὑπατικοῦ", english: "under the consular legate", kind: office}
+  ΥΠΑΤΙΚΟΥ: {full: "ὑπατικοῦ", english: "under the consular legate", kind: office}
+  ΕΠ: {full: "ἐπί", english: "under", kind: word}
+  ΤΟ: {full: "τό", english: "the", kind: word}
+  # Praenomina and family names in the titulature
+  Μ: {full: "Μᾶρκος", english: "Marcus", kind: name}
+  Λ: {full: "Λούκιος", english: "Lucius", kind: name}
+  Π: {full: "Πούβλιος", english: "Publius", kind: name}
+  Γ: {full: "Γάϊος", english: "Gaius", kind: name}
+  Τ: {full: "Τίτος", english: "Titus", kind: name}
+  ΤΙ: {full: "Τιβέριος", english: "Tiberius", kind: name}
+  ΓΝ: {full: "Γναῖος", english: "Gnaeus", kind: name}
+  ΑΥΡ: {full: "Αὐρήλιος", english: "Aurelius", kind: name, ruler: true}
+  ΑΥΡΗ: {full: "Αὐρήλιος", english: "Aurelius", kind: name, ruler: true}
+  ΑΥΡΗΛ: {full: "Αὐρήλιος", english: "Aurelius", kind: name, ruler: true}
+  ΑΥΡΗΛΙ: {full: "Αὐρήλιος", english: "Aurelius", kind: name, ruler: true}
+  ΑΥΡΗΛΙΟΣ: {full: "Αὐρήλιος", english: "Aurelius", kind: name, ruler: true}
+  ΣΕΠ: {full: "Σεπτίμιος", english: "Septimius", kind: name, ruler: true}
+  ΣΕΠΤ: {full: "Σεπτίμιος", english: "Septimius", kind: name, ruler: true}
+  ΣΕΠΤΙ: {full: "Σεπτίμιος", english: "Septimius", kind: name, ruler: true}
+  ΣΕΠΤΙΜΙΟΣ: {full: "Σεπτίμιος", english: "Septimius", kind: name, ruler: true}
+  ΣΕΠΤΜΙΟΣ: {full: "Σεπτίμιος", english: "Septimius", kind: name, ruler: true, note: "source spelling"}
+  ΙΟΥΛ: {full: "Ἰούλιος", english: "Julius", kind: name, ruler: true}
+  ΙΟΥ: {full: "Ἰούλιος", english: "Julius", kind: name, ruler: true}
+  ΑΙΛ: {full: "Αἴλιος", english: "Aelius", kind: name, ruler: true}
+  ΚΛ: {full: "Κλαύδιος", english: "Claudius", kind: name, ruler: true}
+  ΦΛ: {full: "Φλάβιος", english: "Flavius", kind: name, ruler: true}
+  ΟΥΛΠ: {full: "Οὔλπιος", english: "Ulpius", kind: name, ruler: true}
+  ΟΠΠΕΛ: {full: "Ὀπέλλιος", english: "Opellius", kind: name, ruler: true}
+  ΟΠΕΛ: {full: "Ὀπέλλιος", english: "Opellius", kind: name, ruler: true}
+  # Emperors and empresses (nominative, as on the obverse)
+  ΑΝΤΩΝΕΙΝΟΣ: {full: "Ἀντωνεῖνος", english: "Antoninus", kind: name, ruler: true, note: "Antoninus Pius, Marcus Aurelius, Caracalla, Elagabalus"}
+  ΑΝΤΩΝΙΝΟΣ: {full: "Ἀντωνῖνος", english: "Antoninus", kind: name, ruler: true}
+  ΑΝΤΟΝΕΙΝΟΣ: {full: "Ἀντωνεῖνος", english: "Antoninus", kind: name, ruler: true}
+  ΑΝΤΩΝΕΙΝ: {full: "Ἀντωνεῖνος", english: "Antoninus", kind: name, ruler: true}
+  ΑΝΤΩΝΕΙΝΟΥ: {full: "Ἀντωνείνου", english: "Antoninus", kind: name, case: gen, ruler: true}
+  ΑΝΤΩΝ: {full: "Ἀντωνεῖνος", english: "Antoninus", kind: name, ruler: true}
+  ΑΝΤΩ: {full: "Ἀντωνεῖνος", english: "Antoninus", kind: name, ruler: true}
+  ΑΝΤ: {full: "Ἀντωνεῖνος", english: "Antoninus", kind: name, ruler: true}
+  ΣΕΥΗΡΟΣ: {full: "Σευῆρος", english: "Severus", kind: name, ruler: true}
+  ΣΕΟΥΗΡΟΣ: {full: "Σεουῆρος", english: "Severus", kind: name, ruler: true}
+  ΣΕΥΗΡ: {full: "Σευῆρος", english: "Severus", kind: name, ruler: true}
+  ΣΕΟΥΗΡ: {full: "Σεουῆρος", english: "Severus", kind: name, ruler: true}
+  ΣΕΥΗ: {full: "Σευῆρος", english: "Severus", kind: name, ruler: true}
+  ΣΕΥ: {full: "Σευῆρος", english: "Severus", kind: name, ruler: true}
+  ΣΕΒΗΡΟΣ: {full: "Σεβῆρος", english: "Severus", kind: name, ruler: true}
+  ΚΟΜΟΔΟΣ: {full: "Κόμοδος", english: "Commodus", kind: name, ruler: true}
+  ΚΟΜΜΟΔΟΣ: {full: "Κόμμοδος", english: "Commodus", kind: name, ruler: true}
+  ΓΕΤΑΣ: {full: "Γέτας", english: "Geta", kind: name, ruler: true}
+  ΓΕΤΑ: {full: "Γέτα", english: "Geta", kind: name, ruler: true}
+  ΓΟΡΔΙΑΝΟΣ: {full: "Γορδιανός", english: "Gordian", kind: name, ruler: true}
+  ΓΟΡΔΙΑΝΟΝ: {full: "Γορδιανόν", english: "Gordian", kind: name, ruler: true}
+  ΦΙΛΙΠΠΟΣ: {full: "Φίλιππος", english: "Philip", kind: name, ruler: true}
+  ΑΛΕΞΑΝΔΡΟΣ: {full: "Ἀλέξανδρος", english: "Alexander", kind: name, ruler: true, note: "Severus Alexander"}
+  ΑΛΕΖΑΝΔΡΟΣ: {full: "Ἀλέξανδρος", english: "Alexander", kind: name, ruler: true, note: "source spelling"}
+  ΜΑΚΡΙΝΟΣ: {full: "Μακρῖνος", english: "Macrinus", kind: name, ruler: true}
+  ΔΙΑΔΟΥΜΕΝΙΑΝΟΣ: {full: "Διαδουμενιανός", english: "Diadumenian", kind: name, ruler: true}
+  ΤΡΑΙΑΝΟΣ: {full: "Τραϊανός", english: "Trajan", kind: name, ruler: true}
+  ΑΔΡΙΑΝΟΣ: {full: "Ἁδριανός", english: "Hadrian", kind: name, ruler: true}
+  ΑΔΡΙΑ: {full: "Ἁδριανός", english: "Hadrian", kind: name, ruler: true}
+  ΑΔΡΙ: {full: "Ἁδριανός", english: "Hadrian", kind: name, ruler: true}
+  ΟΥΗΡΟΣ: {full: "Οὐῆρος", english: "Verus", kind: name, ruler: true}
+  ΓΑΛΛΙΗΝΟΣ: {full: "Γαλλιηνός", english: "Gallienus", kind: name, ruler: true}
+  ΔΕΚΙΟΣ: {full: "Δέκιος", english: "Decius", kind: name, ruler: true}
+  ΙΟΥΛΙΑ: {full: "Ἰουλία", english: "Julia", kind: name, ruler: true, gender: f}
+  ΔΟΜΝΑ: {full: "Δόμνα", english: "Domna", kind: name, ruler: true, gender: f}
+  ΦΑΥΣΤΕΙΝΑ: {full: "Φαυστεῖνα", english: "Faustina", kind: name, ruler: true, gender: f}
+  ΚΡΙΣΠΕΙΝΑ: {full: "Κρισπεῖνα", english: "Crispina", kind: name, ruler: true, gender: f}
+  ΠΛΑΥΤΙΛΛΑ: {full: "Πλαυτίλλα", english: "Plautilla", kind: name, ruler: true, gender: f}
+  ΤΡΑΝΚΥΛΛΕΙΝΑ: {full: "Τρανκυλλεῖνα", english: "Tranquillina", kind: name, ruler: true, gender: f}
+  ΤΡΑΝΚΥΛΛΙΝΑ: {full: "Τρανκυλλῖνα", english: "Tranquillina", kind: name, ruler: true, gender: f}
+  ΠΑΥΛΑ: {full: "Παῦλα", english: "Paula", kind: name, ruler: true, gender: f}
+  ΣΕΒΗΡΑ: {full: "Σεβήρα", english: "Severa", kind: name, ruler: true, gender: f}
+  ΜΑΜΑΙΑ: {full: "Μαμαία", english: "Mamaea", kind: name, ruler: true, gender: f}
+  ΜΑΙΣΑ: {full: "Μαῖσα", english: "Maesa", kind: name, ruler: true, gender: f}
+  ΩΤΑΚΙΛΙΑ: {full: "Ὠτακιλία", english: "Otacilia", kind: name, ruler: true, gender: f}
+  ΣΕΟΥΗΡΑ: {full: "Σεουήρα", english: "Severa", kind: name, ruler: true, gender: f}
+  ΑΥΤΟΚΡ: {full: "Αὐτοκράτωρ", english: "Imperator", kind: title}
+  ΣΕΒΑΣΤ: {full: "Σεβαστή", english: "Augusta", kind: title}
+  ΣΕΒΑΣΤΟΝ: {full: "Σεβαστόν", english: "Augustus", kind: title}
+  ΜΑΡ: {full: "Μᾶρκος", english: "Marcus", kind: name}
+  ΝΕΡ: {full: "Νέρβας", english: "Nerva", kind: name, ruler: true}
+  ΤΡΑΙ: {full: "Τραϊανός", english: "Trajan", kind: name, ruler: true}
+  ΙΟΥΛΙΟΣ: {full: "Ἰούλιος", english: "Julius", kind: name, ruler: true}
+  ΜΑΚΡΕΙΝΟΣ: {full: "Μακρεῖνος", english: "Macrinus", kind: name, ruler: true}
+  ΟΠΕΛΛΙ: {full: "Ὀπέλλιος", english: "Opellius", kind: name, ruler: true}
+  ΜΑΞΙΜΙΝΟΣ: {full: "Μαξιμῖνος", english: "Maximinus", kind: name, ruler: true}
+  ΜΑΞΙΜΟΣ: {full: "Μάξιμος", english: "Maximus", kind: name, ruler: true}
+  ΟΥΑΛΕΡΙΑΝΟΣ: {full: "Οὐαλεριανός", english: "Valerian", kind: name, ruler: true}
+  # Civic words: magistrates, festivals, cults
+  ΕΠΙ: {full: "ἐπί", english: "under", kind: word, note: "with a magistrate's name: in the term of"}
+  ΣΤΡ: {full: "στρατηγοῦ", english: "the strategos", kind: office}
+  ΣΤΡΑ: {full: "στρατηγοῦ", english: "the strategos", kind: office}
+  ΣΤΡΑΤΗΓΟΥ: {full: "στρατηγοῦ", english: "the strategos", kind: office}
+  ΑΡΧ: {full: "ἄρχοντος", english: "the archon", kind: office}
+  ΑΡΧΟΝΤΟΣ: {full: "ἄρχοντος", english: "the archon", kind: office}
+  ΕΠΙΜΕ: {full: "ἐπιμελουμένου", english: "in the charge of", kind: office}
+  ΕΓΔΙΚΟΥ: {full: "ἐγδίκου", english: "the ekdikos (city advocate)", kind: office}
+  ΚΤΙΣΤΗΣ: {full: "κτίστης", english: "the founder", kind: title}
+  ΟΜΟΝΟΙΑ: {full: "ὁμόνοια", english: "concord", kind: personification}
+  ΙΕΡΑ: {full: "ἱερά", english: "sacred", kind: word}
+  ΣΥΝΚΛΗΤΟΣ: {full: "σύγκλητος", english: "the Senate", kind: personification}
+  ΣΩΤΕΙΡΑ: {full: "Σώτειρα", english: "Saviour (goddess)", kind: epithet, gender: f}
+  ΑΘΗΝΑΣ: {full: "Ἀθηνᾶς", english: "of Athena", kind: deity}
+  ΗΡΑΚΛΕΟΥΣ: {full: "Ἡρακλέους", english: "of Heracles", kind: deity}
+  ΑΚΤΙΑ: {full: "Ἄκτια", english: "the Actian games", kind: formula}
+  ΑΛΕΞΑΝΔΡΕΙΑ: {full: "Ἀλεξάνδρεια", english: "the Alexandrian games", kind: formula}
+  ΑΛΕΖΑΝΔΡΙΑ: {full: "Ἀλεξάνδρεια", english: "the Alexandrian games", kind: formula, note: "source spelling"}
+  ΦΙΛΑΔΕΛΦΕΙΑ: {full: "Φιλαδέλφεια", english: "the Philadelphian games", kind: formula}
+  # City titles common on Thracian and Moesian coins
+  ΤΡΑΙΑΝΗΣ: {full: "Τραϊανῆς", english: "Traiana", kind: place, note: "Augusta Traiana and other cities named for Trajan"}
+  ΟΥΛΠΙΑΣ: {full: "Οὐλπίας", english: "Ulpia", kind: place, note: "city epithet: Ulpia (Trajan)"}
+  ΟΥΛΠΙΑΝ: {full: "Οὐλπιανῆς", english: "Ulpia", kind: place}

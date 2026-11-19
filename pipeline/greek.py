@@ -21,6 +21,7 @@ LOOKALIKE = {
     "L": "Λ", "D": "Δ", "G": "Γ", "S": "Σ", "F": "Φ", "R": "Ρ",
     "Ϲ": "Σ", "ϲ": "Σ", "Ϛ": "ΣΤ", "Є": "Ε", "∈": "Ε", "Ɛ": "Ε", "ϵ": "Ε", "ς": "Σ",
     "Ϳ": "Ι", "Ꞷ": "Ω", "W": "Ω", "Ф": "Φ", "ф": "Φ",     # Cyrillic Ф typed for Φ (ФΙΛΕΤΑΙΡΟΥ)
+    "ᛈ": "Σ", "エ": "Ζ",     # CN: runic ᛈ for lunate sigma, katakana エ for Ζ (ΚΥエΙΚΗΝΩΝ)
 }
 
 # Typing slips that change a letter, fixed so search finds them: Latin X typed for Ξ in

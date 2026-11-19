@@ -86,3 +86,14 @@ def test_latin_legend_with_greek_workshop_numeral_is_latin():
 def test_greek_alternative_readings_keep_the_first():
     from pipeline.legends import normalise
     assert normalise("BAC\u0399 or BACI\u039b A\u039bE\u039e or A\u039bE\u039eA", "grc") == "\u0392\u0391\u03a3\u0399 \u0391\u039b\u0395\u039e"
+
+
+def test_cn_resolved_letters_and_ligatures_stay_in_the_word():
+    from pipeline.legends import normalise
+    g = lambda s: normalise(s, "grc")
+    assert g("\u039a\u0391\u0399(\u03f9)") == "\u039a\u0391\u0399\u03a3"
+    assert g("\u039d\u0395\u03a9\u039a\u039f\u03a1(\u03a9,\u039f)V") == "\u039d\u0395\u03a9\u039a\u039f\u03a1\u03a9\u03a5"
+    assert g("\u0391\u039d\u03a4\u03a9*\u039d\u0395*\u0399\u039d\u039f\u03f9") == "\u0391\u039d\u03a4\u03a9\u039d\u0395\u0399\u039d\u039f\u03a3"
+    assert g("\u039a\u03a5\u30a8\u0399\u039a\u0397\u039d\u03a9\u039d") == "\u039a\u03a5\u0396\u0399\u039a\u0397\u039d\u03a9\u039d"
+    assert normalise("C IVL VER MAXIMVS C(A)ES") == "C IVL VER MAXIMVS CAES"
+    assert normalise("IMP CAES (rev.N) TRAIANO") == "IMP CAES TRAIANO"      # editorial notes still go

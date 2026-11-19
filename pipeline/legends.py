@@ -61,9 +61,18 @@ def language(legend: str, default: str = "la") -> str:
     return "la"
 
 
+# Letters resolved inside a word, CN-style: ΚΑΙ(Σ), ΦΙΛΙΠΠΟΠΟΛ(Ε)ΙΤΩΝ, C(A)ES; with alternatives,
+# ΝΕΩΚΟΡ(Ω,Ο)Υ, the first. Ligatures marked inside a word: ΑΝΤΩ*ΝΕ*ΙΝΟΣ.
+_INWORD_PARENS = re.compile(r"(?<=[^\W\d_])\(([^()\s,;]+)(?:[,;][^()]*)?\)|\(([^()\s,;]+)(?:[,;][^()]*)?\)(?=[^\W\d_])")
+_INWORD_STAR = re.compile(r"(?<=[^\W\d_])\*(?=[^\W\d_])|(?<=\s)\*(?=[^\W\d_]+\*)|(?<=[^\W\d_])\*(?=\s|$)")
+
+
 def normalise(legend: str, lang: str = "la") -> str:
     """'D N HONORI-VS•P•F•AVG' -> 'D N HONORIVS P F AVG'; Greek: 'BAΣΙΛΕΩΣ ANTIOXOY' -> 'ΒΑΣΙΛΕΩΣ ΑΝΤΙΟΧΟΥ'."""
     text = _EDITORIAL.sub("", legend)
+    if lang != "zxx":
+        text = _INWORD_PARENS.sub(lambda m: m.group(1) or m.group(2), text)
+        text = _INWORD_STAR.sub("", text)
     if lang == "zxx":
         return " ".join(text.split())
     if lang in ("pgd", "pra", "phn", "xlc", "xcr"):
@@ -120,14 +129,22 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
     data = Path(__file__).resolve().parent.parent / "data"
     others = {lang: Dictionary.load(data / f"legend_{name}.yaml")
               for lang, name in (("grc", "greek"), ("pgd", "gandhari")) if (data / f"legend_{name}.yaml").exists()}
+    # Greek legends of the Roman Empire (after 31 BC): emperors' titles in Greek, read by date.
+    greek_imperial = None
+    if "grc" in others and (data / "legend_greek_imperial.yaml").exists():
+        greek_imperial = others["grc"].with_overlay(
+            yaml.safe_load((data / "legend_greek_imperial.yaml").read_text(encoding="utf-8")) or {})
     names: dict[str, list[str]] = {}
     persons: dict[str, list[tuple[str, str]]] = {}
+    authority: dict[str, str] = {}
     for type_id, pid, name, role in db.execute(
             """SELECT tp.type_id, p.id, p.name, tp.role FROM type_person tp JOIN person p ON p.id = tp.person_id
                ORDER BY tp.type_id, CASE tp.role WHEN 'stated_authority' THEN 0 WHEN 'authority' THEN 1
                                     WHEN 'issuer' THEN 2 ELSE 3 END, p.id"""):
         if role in ("issuer", "authority", "stated_authority"):
             names.setdefault(type_id, []).append(name)
+        if role in ("authority", "stated_authority"):
+            authority.setdefault(type_id, pid)
         persons.setdefault(type_id, []).append((pid, name))
     # The type's mint (and its city, for a workshop) and regions: civic legends name them.
     places: dict[str, list[str]] = {}
@@ -141,10 +158,12 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
                   "xlc": lambda w: scripts.romanise_lycian(w, ascii_only=True)}
     rows = []
     # Coins struck before 27 BC, when Octavian became Augustus, are read with Republican senses.
-    for type_id, obv, rev, year, slug in db.execute(
-            """SELECT t.id, t.obv_legend, t.rev_legend, COALESCE(t.end_year, t.start_year), d.slug
+    for type_id, obv, rev, year, start, slug in db.execute(
+            """SELECT t.id, t.obv_legend, t.rev_legend, COALESCE(t.end_year, t.start_year),
+                      COALESCE(t.start_year, t.end_year), d.slug
                FROM coin_type t JOIN dataset d ON d.id = t.dataset_id"""):
         early = year is not None and year < -27
+        imperial = start is not None and start >= -31
         for side, legend in (("obverse", obv), ("reverse", rev)):
             legend = scripts.clean(legend) if legend else legend     # stray bidi marks (SCO Phoenician)
             lang = language(legend, languages.get(slug, "la")) if legend else "la"
@@ -156,8 +175,9 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
                 elif lang in others or lang == "xlc":
                     # Gandhari and Lycian are glossed from their transliteration.
                     text = transliterate(norm, lang) if lang in ("pgd", "xlc") else norm
-                    segs = expand(text, others.get(lang, Dictionary({})), lang=lang,
-                                  persons=persons.get(type_id), truncations=languages.get(slug) == "grc")
+                    d = greek_imperial if (lang == "grc" and imperial and greek_imperial) else others.get(lang, Dictionary({}))
+                    segs = expand(text, d, lang=lang, persons=persons.get(type_id),
+                                  truncations=languages.get(slug) == "grc", authority=authority.get(type_id))
                     apply_context_names(segs, romanisers[lang], persons.get(type_id), places.get(type_id))
                 if segs:
                     segments = json.dumps(as_rows(segs), ensure_ascii=False)
