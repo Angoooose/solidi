@@ -8,15 +8,17 @@ Workshops count as their city's mint (Seleucia on the Tigris II -> Seleucia).
 - category_bin     histogram counts, each type spread evenly over the years it may date to
 - category_facet   every denomination, subject and material, with counts
 - category_person  every issuing person, with counts, dates and (for the top ones) a photo
-- category_mint    every mint, with counts, dates and (for the top ones) a photo
+- category_mint    every mint, with counts, dates, 25-year histogram and (for the top ones) a photo
 """
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections import defaultdict
 
 BIN_WIDTHS = (10, 25)
+MINT_BIN = 25
 # Photos are chosen only for the people and mints a page shows as cards.
 PICTURED = 24
 # Person records that stand for no one: unsigned Republican issues.
@@ -76,6 +78,7 @@ CREATE TABLE category_mint (
   start_year  INTEGER,
   end_year    INTEGER,
   image_id    INTEGER REFERENCES image(id),-- an obverse struck there, top ones only
+  bins        TEXT,                        -- JSON [[bin_start, n], …]: 25-year bins, as category_bin
   PRIMARY KEY (category_id, mint_id)
 );
 """
@@ -202,6 +205,15 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
         SELECT u.root, u.mint, count(*), row_number() OVER (PARTITION BY u.root ORDER BY count(*) DESC, u.mint),
                min(u.s), max(u.e)
         FROM under u WHERE u.mint IS NOT NULL GROUP BY 1, 2""")
+    # Each mint's histogram (the mints list's sparklines), kept as a small JSON column rather than
+    # a row per bin: the list reads every mint's at once.
+    mint_bins: dict[tuple[str, str], dict[int, float]] = defaultdict(lambda: defaultdict(float))
+    for root, mint, s, e in db.execute("SELECT root, mint, s, e FROM under WHERE mint IS NOT NULL AND s IS NOT NULL"):
+        for b, share in _spread(s, e, MINT_BIN):
+            mint_bins[(root, mint)][b] += share
+    db.executemany("UPDATE category_mint SET bins = ? WHERE category_id = ? AND mint_id = ?",
+                   [(json.dumps([[b, round(n, 2)] for b, n in sorted(bins.items())], separators=(",", ":")), root, mint)
+                    for (root, mint), bins in mint_bins.items()])
     db.execute(f"""
         UPDATE category_mint AS cm SET image_id =
           {PHOTO.format(types="SELECT u.id FROM under u WHERE u.root = cm.category_id AND u.mint = cm.mint_id")}
