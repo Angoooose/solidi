@@ -1,6 +1,5 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { SearchField } from "./search"
 import { IMAGE_CREDITS_URL } from "@/lib/credits"
 
 /* Wordmark: the one place besides Latin legends where capitals are used. */
@@ -28,36 +27,6 @@ export function NavLink({
       className={cn("text-ui text-stone transition-colors hover:text-ink aria-[current=page]:text-ink", className)}
       {...props}
     />
-  )
-}
-
-const MAIN_NAV = [
-  ["Rulers", "/rulers"],
-  ["Mints", "/mints"],
-  ["Denominations", "/denominations"],
-  ["Subjects", "/subjects"],
-  ["Map", "/map"],
-] as const
-
-export function SiteHeader({ current }: { current?: string }) {
-  return (
-    <header className="border-b border-hairline">
-      <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-11 gap-y-4 px-[clamp(20px,4vw,56px)] py-4">
-        <Wordmark />
-        <nav aria-label="Main" className="flex flex-wrap gap-x-7">
-          {MAIN_NAV.map(([label, href]) => (
-            <NavLink key={href} href={href} current={current === label}>
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-        <SearchField className="w-full sm:ml-auto sm:w-auto sm:min-w-[220px] sm:flex-[0_1_320px]" placeholder="Reference, legend or ruler" shortcut="⌘K" />
-        <nav aria-label="Site" className="flex gap-x-7">
-          <NavLink href="/about">About</NavLink>
-          <NavLink href="/sources">Sources</NavLink>
-        </nav>
-      </div>
-    </header>
   )
 }
 

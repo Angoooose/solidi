@@ -5,7 +5,8 @@
  */
 import { env } from "cloudflare:workers"
 import Base from "@/layouts/Base.astro"
-import { SiteHeader, SiteFooter } from "@/components/site-chrome"
+import SiteHeader from "@/components/SiteHeader.astro"
+import { SiteFooter } from "@/components/site-chrome"
 import { DataList, DataRow, RowLink } from "@/components/data"
 import { TypeCard } from "@/components/coin"
 import { PhotoCredit } from "@/components/credits"
@@ -49,7 +50,7 @@ const filters = ruler
 ---
 
 <Base title={ruler?.name ?? "Ruler not found"}>
-  <SiteHeader current="Rulers" />
+  <SiteHeader current="Collections" />
   {
     !ruler ? (
       <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] py-24">

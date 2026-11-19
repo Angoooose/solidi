@@ -1,0 +1,25 @@
+---
+/*
+ * Site header. Server-rendered except the main nav, an island (its Collections menu opens on hover).
+ * The inner box is positioned so the menu's panel hangs from it, centred in the page.
+ */
+import { Wordmark, NavLink } from "@/components/site-chrome"
+import { MainNav, type MainNavCurrent } from "@/components/main-nav"
+import { SearchField } from "@/components/search"
+
+interface Props {
+  current?: MainNavCurrent
+}
+const { current } = Astro.props
+---
+<header class="border-b border-hairline">
+  <div class="relative mx-auto flex max-w-page flex-wrap items-center gap-x-11 gap-y-4 px-[clamp(20px,4vw,56px)] py-4">
+    <Wordmark />
+    <MainNav client:load current={current} />
+    <SearchField className="w-full sm:ml-auto sm:w-auto sm:min-w-[220px] sm:flex-[0_1_320px]" placeholder="Reference, legend or ruler" shortcut="⌘K" />
+    <nav aria-label="Site" class="flex gap-x-7">
+      <NavLink href="/about">About</NavLink>
+      <NavLink href="/sources">Sources</NavLink>
+    </nav>
+  </div>
+</header>

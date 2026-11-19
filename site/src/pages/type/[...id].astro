@@ -5,7 +5,8 @@
  */
 import { env } from "cloudflare:workers"
 import Base from "@/layouts/Base.astro"
-import { SiteHeader, SiteFooter, SectionHeading } from "@/components/site-chrome"
+import SiteHeader from "@/components/SiteHeader.astro"
+import { SiteFooter, SectionHeading } from "@/components/site-chrome"
 import { DataList, DataRow, RowLink } from "@/components/data"
 import { CoinPair, TypeCard } from "@/components/coin"
 import { SpecimenTable } from "@/components/specimens"
