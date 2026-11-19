@@ -7,7 +7,7 @@
  * served from /api/collections.json.
  */
 import {
-  BY_MINT, chronological, getCategories, getTopMints, getTopPeople, metaLine, peopleNoun, tree, typesLabel,
+  BY_MINT, cardWorthy, chronological, getCategories, getTopMints, getTopPeople, metaLine, peopleNoun, tree, typesLabel,
   type Category, type Photo,
 } from "@/lib/categories"
 
@@ -78,7 +78,7 @@ export async function getCollectionsMenu(db: D1Database): Promise<CollectionsMen
       return (mints.get(c.id) ?? []).map((m) => ({ name: m.name, href: `/mint/${m.id}?collection=${c.id}`, meta: metaLine(m.start, m.end, m.n), image: thumb(m.photo) }))
     }
     const min = Math.max(MIN_TYPES, c.types * MIN_SHARE)
-    return chronological((people.get(c.id) ?? []).filter((p) => p.n >= min)).map((p) => ({
+    return chronological((people.get(c.id) ?? []).filter((p) => p.n >= min && cardWorthy(p))).map((p) => ({
       name: p.name, href: `/ruler/${p.id}`, meta: metaLine(p.start, p.end, p.n), image: thumb(p.photo),
     }))
   }

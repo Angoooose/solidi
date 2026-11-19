@@ -49,9 +49,10 @@ export function MintMap({
     .filter((m) => Number.isFinite(m.x) && m.x >= -20 && m.x <= W + 20 && m.y >= -20 && m.y <= H + 20)
 
   // Labels for the biggest mints: right of the circle, else left, above or below, skipping any
-  // that would overlap a label already placed or run off the frame.
+  // that would overlap a label or circle already placed, or run off the frame.
   type Box = { x0: number; y0: number; x1: number; y1: number }
-  const boxes: Box[] = []
+  // Labels may cover grey mints, never a labelled one's circle.
+  const boxes: Box[] = placed.slice(0, labelled).map((m) => ({ x0: m.x - m.r, y0: m.y - m.r, x1: m.x + m.r, y1: m.y + m.r }))
   const overlaps = (b: Box) => boxes.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0)
   const labels: { id: string; x: number; y: number; dx: number; dy: number; anchor: "start" | "end" | "middle"; text: string }[] = []
   for (const m of placed.slice(0, labelled)) {

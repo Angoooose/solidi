@@ -18,7 +18,7 @@ from collections import defaultdict
 
 BIN_WIDTHS = (10, 25)
 # Photos are chosen only for the people and mints a page shows as cards.
-PICTURED = 12
+PICTURED = 24
 # Person records that stand for no one: unsigned Republican issues.
 NOT_PEOPLE = ("anonymous",)
 
@@ -78,12 +78,20 @@ CREATE TABLE category_mint (
 );
 """
 
-# A photo id for types matching `types` (a subquery), preferring one that has both a IIIF service
-# (sharp at any size) and a thumbnail (fast in menus).
-PHOTO = """
+# Holders whose photos are tightly cropped on a plain ground, best first: they read well as cards.
+# Others follow; Princeton's IIIF images are whole-sheet scans with the coin small in the frame.
+PHOTO_HOSTS = ("numismatics.org", "britishmuseum.org", "ikmk.smb.museum", "corpus-nummorum.eu",
+               "ashmus.ox.ac.uk", "khm.at", "fitzmuseum.cam.ac.uk")
+LAST_HOSTS = ("princeton.edu",)
+_HOST_RANK = " ".join(f"WHEN i.url LIKE '%{h}%' THEN {n}" for n, h in enumerate(PHOTO_HOSTS)) + \
+    " " + " ".join(f"WHEN i.url LIKE '%{h}%' THEN 99" for h in LAST_HOSTS)
+
+# A photo id for types matching `types` (a subquery): a preferred holder first, then one with both
+# a IIIF service (sharp at any size) and a thumbnail (fast in menus).
+PHOTO = f"""
   (SELECT i.id FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-   WHERE st.type_id IN ({types}) AND i.side = 'obverse' AND i.usable = 1
-   ORDER BY i.iiif_service IS NULL, i.thumbnail_url IS NULL, i.id LIMIT 1)"""
+   WHERE st.type_id IN ({{types}}) AND i.side = 'obverse' AND i.usable = 1
+   ORDER BY CASE {_HOST_RANK} ELSE 50 END, i.iiif_service IS NULL, i.thumbnail_url IS NULL, i.id LIMIT 1)"""
 
 
 def _spread(start: int, end: int, width: int) -> list[tuple[int, float]]:
