@@ -79,12 +79,14 @@ export function MainNav({ current }: { current?: MainNavCurrent }) {
     >
       <NavigationMenuList className="h-full flex-wrap items-stretch gap-x-7">
         <NavigationMenuItem className="flex">
+          {/* A link to /collections: hovering opens the menu, clicking goes to the page. */}
           <NavigationMenuTrigger
+            asChild
             data-active={current === "Collections" ? "" : undefined}
             onPointerEnter={menu.load}
             onFocus={menu.load}
           >
-            Collections
+            <a href="/collections">Collections</a>
           </NavigationMenuTrigger>
           <NavigationMenuContent>
             <CollectionsPanel {...menu} />
