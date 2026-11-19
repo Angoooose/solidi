@@ -38,7 +38,7 @@ export function binLabel(start: number, width: number, n: number): string {
 const BAR_GAP = 0.08
 
 /**
- * A row's sparkline (collection lists): 720×40, stretched to the column. Shared `domain` and
+ * A row's sparkline (collection lists): 720×40 (or `height`), stretched to the column. Shared `domain` and
  * `yMax` across rows so heights and positions compare. Bars are at least 2px so a bin with a
  * single type still shows.
  */
@@ -49,6 +49,7 @@ export function Sparkline({
   yMax,
   ticks,
   label,
+  height = 40,
   className,
 }: {
   bins: Bin[]
@@ -57,9 +58,10 @@ export function Sparkline({
   yMax: number
   ticks: number[]
   label: string
+  height?: number
   className?: string
 }) {
-  const W = 720, H = 40, TOP = 4
+  const W = 720, H = height, TOP = 4
   const x = scaleLinear().domain(domain).range([0, W])
   const y = scaleLinear().domain([0, yMax]).range([0, H - TOP])
   const bw = x(domain[0] + binWidth) - x(domain[0])

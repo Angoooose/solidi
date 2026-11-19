@@ -1,7 +1,8 @@
 /*
  * Basemaps for the collection pages' mint maps: `npm run basemaps` after a database build.
  *
- * For each collection with located mints, fits a Mercator projection to its mints and writes
+ * For each collection with located mints (and "all", for /mints), fits a Mercator projection to
+ * its mints and writes
  *   public/maps/<category>.svg            land (Natural Earth 1:50m) clipped to the frame, a static file
  *   src/lib/basemaps.generated.json       the frame size and projection, so pages place mints on it
  * Pages draw the mints over the basemap themselves; the basemap never changes per request.
@@ -17,25 +18,37 @@ const SITE = join(dirname(fileURLToPath(import.meta.url)), "..")
 const DB = join(SITE, "..", "build", "solidi.sqlite")
 const BY_MINT = new Set(["archaic-classical", "hellenistic-cities", "roman-provincial"])
 // Map frames: beside a mint list (kingdoms), or full width (city coinage).
-const FRAME = { rulers: [940, 560], mints: [1328, 620] }
+const FRAME = { rulers: [940, 560], mints: [1328, 620], all: [1328, 600] }
+/*
+ * The all-mints map stops short of Bactria and India: a handful of mints there would shrink the
+ * Mediterranean, where nearly all the rest are, to a strip. /mints says how many lie further east.
+ * The mint page's locator map is a window onto this map, so it is drawn with a little margin.
+ */
+export const ALL_EAST = 60
 const PAD = 36
 
 const topo = JSON.parse(readFileSync(join(SITE, "node_modules/world-atlas/land-50m.json"), "utf8"))
 const land = feature(topo, topo.objects.land)
 
 const db = new DatabaseSync(DB, { readOnly: true })
-const leaves = db.prepare(`SELECT c.id FROM category c WHERE NOT EXISTS (SELECT 1 FROM category k WHERE k.parent_id = c.id)`).all()
+const categories = db.prepare(`SELECT c.id, NOT EXISTS (SELECT 1 FROM category k WHERE k.parent_id = c.id) AS leaf FROM category c`).all()
 const mintsOf = db.prepare(`SELECT m.lon, m.lat FROM category_mint cm JOIN mint m ON m.id = cm.mint_id
                             WHERE cm.category_id = ? AND m.lat IS NOT NULL AND m.lon IS NOT NULL`)
+const allMints = db.prepare(`SELECT DISTINCT m.lon, m.lat FROM category_mint cm JOIN mint m ON m.id = cm.mint_id
+                             WHERE m.lat IS NOT NULL AND m.lon IS NOT NULL AND m.lon < ${ALL_EAST}`)
 
 const outDir = join(SITE, "public", "maps")
 rmSync(outDir, { recursive: true, force: true })
 mkdirSync(outDir, { recursive: true })
 const meta = {}
-for (const { id } of leaves) {
-  const points = mintsOf.all(id).map((m) => [m.lon, m.lat])
+const maps = [
+  ...categories.map(({ id, leaf }) => ({ id, points: mintsOf.all(id), frame: leaf && !BY_MINT.has(id) ? "rulers" : "mints" })),
+  { id: "all", points: allMints.all(), frame: "all" },
+]
+for (const { id, points: rows, frame: kind } of maps) {
+  const points = rows.map((m) => [m.lon, m.lat])
   if (!points.length) continue
-  const [w, h] = FRAME[BY_MINT.has(id) ? "mints" : "rulers"]
+  const [w, h] = FRAME[kind]
   // A lone mint or a tight cluster would zoom in to street level: frame at least 8° each way.
   const lons = points.map((p) => p[0]), lats = points.map((p) => p[1])
   const cx = (Math.min(...lons) + Math.max(...lons)) / 2, cy = (Math.min(...lats) + Math.max(...lats)) / 2

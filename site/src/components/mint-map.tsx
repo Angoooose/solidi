@@ -4,19 +4,31 @@
  * drawn here with the same projection. The biggest mints are labelled and drawn in ink, the rest
  * in grey. Hovering a mint shows a card (data-tip-rich, scripts/tooltip.ts): its region, output and
  * dates. Pan and zoom come from scripts/map-zoom.ts.
+ *
+ * With `focus`, it is a still locator map instead (the mint page): a window onto the basemap
+ * centred on one mint, drawn alone, with no pan or zoom.
  */
 import * as React from "react"
 import { geoMercator } from "d3-geo"
 import { scaleSqrt } from "d3-scale"
 import { yearRange } from "@/lib/format"
-import { fmt, typesLabel, type Category, type MapMint } from "@/lib/categories"
+import { fmt, typesLabel, type MapMint } from "@/lib/categories"
 import basemaps from "@/lib/basemaps.generated.json"
 
 type Basemap = { width: number; height: number; scale: number; translate: [number, number]; center: [number, number] }
 const BASEMAPS = basemaps as unknown as Record<string, Basemap>
 
-export function hasBasemap(categoryId: string) {
-  return categoryId in BASEMAPS
+/** A basemap is keyed by collection id, or "all" for every mint. */
+export function hasBasemap(key: string) {
+  return key in BASEMAPS
+}
+
+/** Whether a point falls on a basemap (the all-mints map stops short of Bactria and India). */
+export function onBasemap(key: string, lon: number, lat: number) {
+  const map = BASEMAPS[key]
+  if (!map) return false
+  const [x, y] = geoMercator().scale(map.scale).translate(map.translate).center(map.center)([lon, lat]) ?? [NaN, NaN]
+  return x >= 0 && x <= map.width && y >= 0 && y <= map.height
 }
 
 /** Short name for a label: "Abdera, Thrace" -> "Abdera". */
@@ -25,21 +37,25 @@ const short = (name: string) => name.split(",")[0].replace(/\s*\(.*\)$/, "")
 const CHAR = 6.6 // average Geist 12px glyph width, for label collision checks
 
 export function MintMap({
-  category,
+  basemap,
   mints,
   labelled = 12,
   label,
+  focus,
 }: {
-  category: Category
+  /** The collection id, or "all". */
+  basemap: string
   mints: MapMint[]
   labelled?: number
   label: string
+  /** A locator map: this window (in screen px, zoomed `zoom` times) centred on the one mint given. */
+  focus?: { width: number; height: number; zoom: number }
 }) {
-  const categoryId = category.id
-  const map = BASEMAPS[categoryId]
+  const map = BASEMAPS[basemap]
   if (!map || !mints.length) return null
   const { width: W, height: H } = map
   const project = geoMercator().scale(map.scale).translate(map.translate).center(map.center)
+  if (focus) return <Locator basemap={basemap} map={map} mint={mints[0]} project={project} label={label} {...focus} />
   const max = Math.max(...mints.map((m) => m.n))
   const r = scaleSqrt().domain([0, max]).range([2.5, 17])
 
@@ -90,7 +106,7 @@ export function MintMap({
     <div className="mint-map relative bg-plinth">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={label} className="block touch-none select-none">
         <g data-zoom>
-          <image href={`/maps/${categoryId}.svg`} width={W} height={H} />
+          <image href={`/maps/${basemap}.svg`} width={W} height={H} />
           {/* Biggest first, so small mints sit on top and stay hoverable. */}
           {placed.map((m) => (
             <circle
@@ -127,6 +143,50 @@ export function MintMap({
           </svg>
         </button>
       </div>
+    </div>
+  )
+}
+
+/*
+ * The mint page's map: the basemap seen through a window centred on the mint, the mint drawn alone
+ * with its name. Sizes are divided by the zoom so the dot and label read at their usual size.
+ */
+function Locator({
+  basemap,
+  map,
+  mint,
+  project,
+  label,
+  width,
+  height,
+  zoom,
+}: {
+  basemap: string
+  map: Basemap
+  mint: MapMint
+  project: ReturnType<typeof geoMercator>
+  label: string
+  width: number
+  height: number
+  zoom: number
+}) {
+  const [x, y] = project([mint.lon, mint.lat]) ?? [NaN, NaN]
+  if (!Number.isFinite(x)) return null
+  const w = width / zoom, h = height / zoom
+  // Keep the window on the map: a coastal mint sits off-centre rather than beside blank space.
+  const x0 = Math.min(Math.max(0, x - w / 2), map.width - w)
+  const y0 = Math.min(Math.max(0, y - h / 2), map.height - h)
+  const k = 1 / zoom
+  const right = x + 90 * k < x0 + w
+  return (
+    <div className="mint-map relative bg-plinth">
+      <svg viewBox={`${x0} ${y0} ${w} ${h}`} width="100%" role="img" aria-label={label} className="block">
+        <image href={`/maps/${basemap}.svg`} width={map.width} height={map.height} />
+        <circle cx={x} cy={y} r={5 * k} strokeWidth={k} className="mint-dot lead" />
+        <text x={x + (right ? 10 : -10) * k} y={y + 4 * k} textAnchor={right ? "start" : "end"} className="map-label" style={{ fontSize: 13 * k, strokeWidth: 3 * k }}>
+          {short(mint.name)}
+        </text>
+      </svg>
     </div>
   )
 }

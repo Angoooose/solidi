@@ -1,0 +1,233 @@
+---
+/*
+ * Every mint:
+ * /mints?collection=roman-imperial&sort=date. A map of them all, then by region (a heading per
+ * region group, its top mints, a link to the rest: ?region=italy), or one list by date opened,
+ * types or name. ?q= narrows the list by name.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import SiteFooter from "@/components/SiteFooter.astro"
+import { Note, Page, RowsHead } from "@/components/collection"
+import { MintListRow } from "@/components/mint-row"
+import { YearAxis, niceStep, yearTicks } from "@/components/charts"
+import { MintMap, hasBasemap, onBasemap } from "@/components/mint-map"
+import { UrlSelect } from "@/components/url-select"
+import { buttonVariants } from "@/components/ui/button"
+import { fmt, typesLabel } from "@/lib/categories"
+import { MINT_BIN, getMints, type MintRow, type MintsSort } from "@/lib/mints"
+
+const SORTS: { value: MintsSort; label: string }[] = [
+  { value: "region", label: "By region" },
+  { value: "date", label: "By date opened" },
+  { value: "types", label: "Most types first" },
+  { value: "name", label: "By name" },
+]
+/** Mints per region heading, and per page of a single list. */
+const PER_REGION = 8
+const PAGE_SIZE = 120
+
+const params = Astro.url.searchParams
+const sort = SORTS.find((s) => s.value === params.get("sort"))?.value ?? "region"
+const requested = params.get("collection")
+const q = (params.get("q") ?? "").trim()
+const limitParam = Number(params.get("limit"))
+const limit = Number.isInteger(limitParam) && limitParam > 0 ? Math.min(limitParam, 2000) : PAGE_SIZE
+
+const list = await getMints(env.DB, requested, sort)
+if (!list) Astro.response.status = 404
+const category = list?.category ?? null
+const t = list?.tree
+
+// One region group (?region=italy): every mint under it.
+const regionId = sort === "region" ? params.get("region") : null
+const region = regionId ? list?.groups.find((g) => g.id === regionId) : undefined
+if (regionId && list && !region) Astro.response.status = 404
+
+const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+const matches = (m: MintRow) => !q || fold(m.name).includes(fold(q))
+/** What the page lists: region groups (top few each, or one in full), or a single list. */
+const grouped = list && sort === "region" && !q
+const groups = grouped ? (regionId ? (region ? [region] : []) : list.groups) : []
+const flat = list && !grouped ? list.rows.filter(matches) : []
+const shown = flat.slice(0, limit)
+
+// One axis for every row on the page.
+const all = list?.rows ?? []
+const starts = all.flatMap((m) => m.bins.map((b) => b.start))
+const from = starts.length ? Math.min(...starts) : -600
+const to = starts.length ? Math.max(...starts) + MINT_BIN : 500
+const step = niceStep([from, to], 6)
+const domain: [number, number] = [Math.floor(from / step) * step, Math.ceil(to / step) * step]
+const ticks = yearTicks(domain, step).filter((tk) => tk > domain[0] && tk < domain[1])
+
+// The map: the collection's basemap, or every mint's.
+const basemap = category?.id ?? "all"
+const mapMints = (list?.mapMints ?? []).filter((m) => !regionId || !!region?.mints.some((r) => r.id === m.id))
+const onMap = hasBasemap(basemap) ? mapMints.filter((m) => onBasemap(basemap, m.lon, m.lat)) : []
+const farEast = mapMints.length - onMap.length
+const totalShown = region ? region.mints.length : all.length
+
+const options = t
+  ? [
+      { value: "all", label: "All collections" },
+      ...t.all
+        .filter((c) => c.mints > 0)
+        .sort((a, b) => [...t.ancestors(a.id), a].map((x) => x.sortOrder).join(".").localeCompare([...t.ancestors(b.id), b].map((x) => x.sortOrder).join(".")))
+        .map((c) => ({ value: c.id, label: c.name, count: c.mints })),
+    ]
+  : []
+
+/** This page's URL with some parameters changed; null removes one. */
+const link = (changes: Record<string, string | number | null>) => {
+  const url = new URL(Astro.url)
+  for (const [k, v] of Object.entries(changes)) {
+    if (v == null) url.searchParams.delete(k)
+    else url.searchParams.set(k, String(v))
+  }
+  return url.pathname + url.search
+}
+const mintHref = (id: string) => `/mint/${id}${category ? `?collection=${category.id}` : ""}`
+const byDate = sort === "date"
+const title = category ? `Mints · ${category.name}` : region ? `Mints · ${region.name}` : "Mints"
+const heading = region ? region.name : "Mints"
+const summary = !list
+  ? `No collection called ${requested}`
+  : regionId && !region
+    ? `No region called ${regionId}`
+  : region
+    ? `${fmt(region.mints.length)} ${region.mints.length === 1 ? "mint" : "mints"} · ${typesLabel(region.n)}${category ? ` in ${category.name}` : ""}`
+    : category
+      ? `${fmt(all.length)} striking ${category.name} coins`
+      : `${fmt(all.length)} mints in every collection`
+---
+
+<Base title={title}>
+  <SiteHeader current="Mints" />
+  <Page>
+    {regionId && (
+      <a href={link({ region: null })} class="text-ui text-stone underline-offset-4 hover:text-ink hover:underline">← All regions</a>
+    )}
+    <div class:list={["flex flex-wrap items-baseline gap-x-5 gap-y-2", region ? "pt-4" : "pt-8"]}>
+      <h1 class="m-0 font-serif text-display font-normal">{heading}</h1>
+      <Note className="text-ui">{summary}</Note>
+    </div>
+
+    {list && (
+      <form method="get" action="/mints" class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3" data-mint-search>
+        <label class="flex h-12 min-w-[240px] flex-1 items-center gap-2.5 border border-field px-3.5 focus-within:border-ink">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" class="text-ink"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+          <input type="search" name="q" value={q} transition:persist="mint-search" placeholder="Find a mint" aria-label="Find a mint" class="min-w-0 flex-1 border-0 bg-transparent text-ui text-ink outline-0 placeholder:text-stone" />
+        </label>
+        {category && <input type="hidden" name="collection" value={category.id} />}
+        {sort !== "region" && <input type="hidden" name="sort" value={sort} />}
+        <UrlSelect client:idle label="Collection" param="collection" value={category?.id ?? "all"} options={options} />
+        <UrlSelect client:idle label="Sort" param="sort" value={sort} options={SORTS} />
+      </form>
+    )}
+
+    {list && onMap.length > 0 && !q && !regionId && (
+      <section class="mt-10 hidden md:block">
+        <MintMap
+          basemap={basemap}
+          mints={onMap}
+          labelled={region ? 12 : 20}
+          label={`Map of ${region ? `mints in ${region.name}` : category ? `${category.name} mints` : "every mint"}, sized by number of types`}
+        />
+        <Note className="mt-3 block">
+          {fmt(mapMints.length)} of {fmt(totalShown)} mints located · sized by {category ? `${category.name} types` : "types"}
+          {farEast > 0 && ` · ${fmt(farEast)} further east, in Bactria and India`}
+        </Note>
+      </section>
+    )}
+
+    {grouped && !region && (
+      <nav aria-label="Regions" class="mt-7 hidden gap-x-10 md:grid md:grid-cols-3 lg:grid-cols-5">
+        {groups.map((g) => (
+          <a href={`#${g.id}`} class="group flex justify-between gap-3 border-b border-hairline py-2 text-ui text-ink">
+            <span class="underline-offset-4 group-hover:underline">{g.name}</span>
+            <span class="num text-stone">{fmt(g.mints.length)}</span>
+          </a>
+        ))}
+      </nav>
+    )}
+
+    {
+      groups.map((g, i) => (
+        <section id={g.id} class="scroll-mt-6">
+          <div class:list={["grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 border-b border-ink pb-3.5 md:grid-cols-[minmax(0,544px)_minmax(0,1fr)_72px]", region || i > 0 ? "pt-18" : "pt-14"]}>
+            <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <h2 class="m-0 font-serif text-heading font-normal">{region ? "Every mint" : g.name}</h2>
+              <Note>{`${fmt(g.mints.length)} ${g.mints.length === 1 ? "mint" : "mints"} · ${typesLabel(g.n)}`}</Note>
+            </div>
+            <YearAxis domain={domain} ticks={ticks} className="relative top-[5px] hidden md:block" />
+            <span class="hidden text-right text-label text-stone md:block">Types</span>
+          </div>
+          {(region ? g.mints : g.mints.slice(0, PER_REGION)).map((m) => (
+            <MintListRow mint={m} href={mintHref(m.id)} byDate={byDate} domain={domain} ticks={ticks} />
+          ))}
+          {!region && g.mints.length > PER_REGION && (
+            <a href={link({ region: g.id })} class="group flex items-baseline justify-between border-b border-hairline py-3.5 text-ui text-ink transition-[background-color,box-shadow] hover:bg-wash hover:shadow-[-12px_0_0_var(--color-wash),12px_0_0_var(--color-wash)]">
+              <span class="underline-offset-4 group-hover:underline">All mints in {g.name}</span>
+              <span class="num text-stone">{fmt(g.mints.length - PER_REGION)} more</span>
+            </a>
+          )}
+        </section>
+      ))
+    }
+
+    {list && !grouped && (
+      <section style={byDate ? "--aside: 140px" : undefined}>
+        <RowsHead first={q ? `${fmt(flat.length)} ${flat.length === 1 ? "mint" : "mints"} matching “${q}”` : "Mint"} aside={byDate ? "Dates" : "Collections"} domain={domain} ticks={ticks} className="mt-14 border-b border-ink pb-3.5" />
+        {shown.map((m) => (
+          <MintListRow mint={m} href={mintHref(m.id)} byDate={byDate} domain={domain} ticks={ticks} />
+        ))}
+        {!flat.length && <p class="mt-6 text-ui text-stone">No mints match “{q}”.</p>}
+        {flat.length > shown.length && (
+          <div class="mt-8 flex justify-center">
+            <a data-keep-scroll href={link({ limit: limit + PAGE_SIZE })} class={buttonVariants({ variant: "outline" })}>
+              Show more mints
+              <span class="num font-normal text-stone">{fmt(shown.length)} of {fmt(flat.length)}</span>
+            </a>
+          </div>
+        )}
+      </section>
+    )}
+  </Page>
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+  import "@/scripts/map-zoom"
+
+  // Find a mint as you type: after a pause, load the filtered list in place.
+  function setup() {
+    const form = document.querySelector<HTMLFormElement>("[data-mint-search]")
+    const input = form?.querySelector<HTMLInputElement>("input[name=q]")
+    if (!form || !input || form.dataset.ready) return
+    form.dataset.ready = "1"
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const go = () => {
+      const url = new URL(window.location.href)
+      const q = input.value.trim()
+      if (q) url.searchParams.set("q", q)
+      else url.searchParams.delete("q")
+      url.searchParams.delete("limit")
+      url.searchParams.delete("region")
+      document.dispatchEvent(new CustomEvent("solidi:navigate-keep-scroll", { detail: url.pathname + url.search }))
+    }
+    input.addEventListener("input", () => {
+      clearTimeout(timer)
+      timer = setTimeout(go, 350)
+    })
+    form.addEventListener("submit", (e) => {
+      e.preventDefault()
+      clearTimeout(timer)
+      go()
+    })
+  }
+  setup()
+  document.addEventListener("astro:page-load", setup)
+</script>
