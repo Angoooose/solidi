@@ -17,7 +17,7 @@ import re
 import sqlite3
 import unicodedata
 
-from pipeline.summaries import NOT_PEOPLE, PHOTO
+from pipeline.summaries import NOT_PEOPLE, photo
 
 SCHEMA = """
 DROP TABLE IF EXISTS search_entity;
@@ -108,8 +108,8 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
                WHERE tp.person_id = e.id AND tp.role IN ({roles})"""
     db.execute(f"""
         UPDATE search_entity AS e SET image_id = coalesce(
-          {PHOTO.format(types=their.format(roles="'portrait_obverse'"))},
-          {PHOTO.format(types=their.format(roles="'authority', 'issuer'"))})
+          {photo(their.format(roles="'portrait_obverse'"))},
+          {photo(their.format(roles="'authority', 'issuer'"))})
         WHERE e.kind = 'person'""")
 
     # Mints: cities, with their workshops' types (a workshop's page redirects to its city).

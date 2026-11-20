@@ -1,0 +1,45 @@
+# How the subjects list (/subjects) groups subjects. Keys are subject ids (Nomisma's).
+# pipeline/summaries.py reads this; places are found by rule (ids ending _personification, which
+# Nomisma also spells _personfication), so they aren't listed here.
+
+# A Greek god and its Roman counterpart, shown as one row ("Zeus · Jupiter") with each side's
+# types. Checked by hand: Nomisma's skos:related links some that aren't equivalents
+# (Annona-Ceres, Artemis-Minerva, Cybele-Demeter) and lacks Helios-Sol.
+pairs:
+  - [nike, victory]
+  - [zeus, jupiter]
+  - [heracles, hercules]
+  - [athena, minerva]
+  - [helios, sol]
+  - [tyche, fortuna]
+  - [artemis, diana]
+  - [poseidon, neptune]
+  - [hermes, mercury]
+  - [dionysus, bacchus]
+  - [demeter, ceres]
+  - [eros, cupid]
+  - [selene, luna]
+  - [cronus, saturn]
+  - [zeus-ammon, jupiter-ammon]
+
+# Not subjects: a placeholder recorded as one. Their pages exist but no list shows them.
+unlisted:
+  - uncertain_value
+
+# Legend words name subjects in Latin. The legend dictionary (data/legend_abbreviations.yaml)
+# gives each word's dictionary form; where that isn't the subject's own name, map it here.
+latin_names:
+  Victoria: victory
+  Iuppiter: jupiter
+  Iovis: jupiter
+  Iuno: juno
+  Mercurius: mercury
+  Neptunus: neptune
+  Volcanus: vulcan
+  Saturnus: saturn
+  Genius Populi Romani: genius
+  Sol Invictus Comes: sol_invictus
+  Sol Invictus: sol_invictus
+  Fortuna Redux: fortuna
+  Iudaea: judea_personification
+  Constantinopolis: constantinopolis_personfication

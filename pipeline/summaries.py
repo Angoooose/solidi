@@ -12,6 +12,9 @@ Workshops count as their city's mint (Seleucia on the Tigris II -> Seleucia).
 - category_denomination  every denomination, with counts, dates, histogram, sizes, weights and a photo
 - denomination_stat      one row per denomination: its metal, totals and sizes for the list and its page
 - denomination_size      for a denomination's top collections, the denominations struck beside it, by size
+- subject_stat           one row per subject: its group, Greek-Roman pair, sides, totals and histogram
+- category_subject       every subject per category, with counts, dates, histogram and a photo
+- subject_legend         legends that name the subject, with counts (VICTORIA AVG on Victory)
 """
 
 from __future__ import annotations
@@ -41,6 +44,14 @@ ALSO_SHARE = 0.1
 DENOMINATIONS_YAML = Path(__file__).resolve().parents[1] / "data" / "denominations.yaml"
 # Names that look like catalogue units; only used to warn about ones the list doesn't cover.
 UNIT_LIKE = re.compile(r"^(AE(\d|\b)|(Large|Small|Reduced|Light|Heavy) AE|Denomination\b|Uncertain\b|Fraction$)|\bunits?\b", re.I)
+# Subjects: Greek-Roman pairs and placeholders (data/subjects.yaml); places are Nomisma's
+# personifications of a land, city or river, by id (Nomisma spells it both ways).
+SUBJECTS_YAML = Path(__file__).resolve().parents[1] / "data" / "subjects.yaml"
+LEGEND_DICTIONARY = Path(__file__).resolve().parents[1] / "data" / "legend_abbreviations.yaml"
+PLACE_ID = re.compile(r"_person(i)?fication$")
+LEGEND_KINDS = ("deity", "personification", "virtue", "place")
+# Legends named by fewer types than this are left off a subject's page.
+LEGEND_MIN = 3
 # Specimen measurements outside these are typos (a 2,740 mm coin).
 DIAMETER_MM = (4, 80)
 WEIGHT_G = (0.05, 500)
@@ -58,6 +69,9 @@ DROP TABLE IF EXISTS category_mint;
 DROP TABLE IF EXISTS category_denomination;
 DROP TABLE IF EXISTS denomination_stat;
 DROP TABLE IF EXISTS denomination_size;
+DROP TABLE IF EXISTS subject_stat;
+DROP TABLE IF EXISTS category_subject;
+DROP TABLE IF EXISTS subject_legend;
 CREATE TABLE category_stat (
   category_id   TEXT PRIMARY KEY REFERENCES category(id),
   types         INTEGER NOT NULL,
@@ -156,6 +170,42 @@ CREATE TABLE denomination_size (
   diameter_n      INTEGER NOT NULL,
   PRIMARY KEY (denomination_id, category_id, other_id)
 );
+CREATE TABLE subject_stat (
+  subject_id      TEXT PRIMARY KEY REFERENCES subject(id),
+  grp             TEXT NOT NULL,           -- 'gods', 'places' or 'unlisted' (not a subject)
+  pair_id         TEXT REFERENCES subject(id), -- its Greek or Roman counterpart (Zeus: Jupiter)
+  types           INTEGER NOT NULL,
+  obverse         INTEGER NOT NULL,        -- types showing it on that side
+  reverse         INTEGER NOT NULL,
+  greek           INTEGER NOT NULL,        -- types in the Greek and in the Roman collections
+  roman           INTEGER NOT NULL,
+  start_year      INTEGER,
+  end_year        INTEGER,
+  bins            TEXT,                    -- JSON [[start, greek, roman], ...], 25-year bins
+  collections     INTEGER NOT NULL,        -- leaf categories
+  people          INTEGER NOT NULL,
+  mints           INTEGER NOT NULL,
+  denominations   INTEGER NOT NULL,
+  specimens       INTEGER NOT NULL,
+  holders         INTEGER NOT NULL,
+  image_id        INTEGER REFERENCES image(id) -- a photo of the side it's on
+);
+CREATE TABLE category_subject (
+  category_id     TEXT NOT NULL REFERENCES category(id),
+  subject_id      TEXT NOT NULL REFERENCES subject(id),
+  n               INTEGER NOT NULL,
+  start_year      INTEGER,
+  end_year        INTEGER,
+  bins            TEXT,                    -- JSON [[start, n], ...], 25-year bins
+  image_id        INTEGER REFERENCES image(id),
+  PRIMARY KEY (category_id, subject_id)
+);
+CREATE TABLE subject_legend (
+  subject_id      TEXT NOT NULL REFERENCES subject(id),
+  legend          TEXT NOT NULL,           -- normalised: 'VICTORIA AVGG'
+  n               INTEGER NOT NULL,        -- types with it on the side showing the subject
+  PRIMARY KEY (subject_id, legend)
+);
 """
 
 # Holders whose photos are tightly cropped on a plain ground, best first: they read well as cards.
@@ -170,8 +220,13 @@ _HOST_RANK = " ".join(f"WHEN i.url LIKE '%{h}%' THEN {n}" for n, h in enumerate(
 # a IIIF service (sharp at any size) and a thumbnail (fast in menus).
 PHOTO = f"""
   (SELECT i.id FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-   WHERE st.type_id IN ({{types}}) AND i.side = 'obverse' AND i.usable = 1
+   WHERE st.type_id IN ({{types}}) AND i.side = {{side}} AND i.usable = 1
    ORDER BY CASE {_HOST_RANK} ELSE 50 END, i.iiif_service IS NULL, i.thumbnail_url IS NULL, i.id LIMIT 1)"""
+
+
+def photo(types: str, side: str = "'obverse'") -> str:
+    """PHOTO for `types` (a subquery), on `side` (an SQL expression)."""
+    return PHOTO.format(types=types, side=side)
 
 
 def _spread(start: int, end: int, width: int) -> list[tuple[int, float]]:
@@ -271,8 +326,8 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
                WHERE tp.person_id = cp.person_id AND tp.role IN ({roles})"""
     db.execute(f"""
         UPDATE category_person AS cp SET image_id = coalesce(
-          {PHOTO.format(types=their.format(roles="'portrait_obverse'"))},
-          {PHOTO.format(types=their.format(roles="'authority', 'issuer'"))})
+          {photo(their.format(roles="'portrait_obverse'"))},
+          {photo(their.format(roles="'authority', 'issuer'"))})
         WHERE cp.rank <= {PICTURED}""")
 
     db.execute("""
@@ -291,15 +346,18 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
                     for (root, mint), bins in mint_bins.items()])
     db.execute(f"""
         UPDATE category_mint AS cm SET image_id =
-          {PHOTO.format(types="SELECT u.id FROM under u WHERE u.root = cm.category_id AND u.mint = cm.mint_id")}
+          {photo("SELECT u.id FROM under u WHERE u.root = cm.category_id AND u.mint = cm.mint_id")}
         WHERE cm.rank <= {PICTURED}""")
     for name in _denominations(db):
         log(f"  warning: {name} looks like a catalogue unit; add it to data/denominations.yaml")
+    for warning in _subjects(db):
+        log(f"  warning: {warning}")
     db.commit()
 
     counts = {t: db.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
               for t in ("category_stat", "category_bin", "category_facet", "category_person", "category_mint",
-                        "category_denomination", "denomination_stat", "denomination_size")}
+                        "category_denomination", "denomination_stat", "denomination_size",
+                        "subject_stat", "category_subject", "subject_legend")}
     log("  " + ", ".join(f"{t} {n:,}" for t, n in counts.items()))
     return counts
 
@@ -323,9 +381,9 @@ def _denomination_lists() -> tuple[set[str], set[str]]:
 
 
 def _denominations(db: sqlite3.Connection) -> list[str]:
-    """Builds the denomination tables; returns names that look like catalogue units but aren't listed."""
+    """category_denomination, denomination_stat and denomination_size (uses build's temp tables).
+    Returns names that look like catalogue units but aren't listed."""
     units, unlisted = _denomination_lists()
-    """category_denomination, denomination_stat and denomination_size (uses build's temp tables)."""
     not_people = ",".join(f"'{p}'" for p in NOT_PEOPLE)
     # Every live type with a denomination: (root category, denomination, type, years, leaf category).
     rows = db.execute("""SELECT u.root, td.denomination_id, u.id, u.s, u.e, u.cat
@@ -371,7 +429,7 @@ def _denominations(db: sqlite3.Connection) -> list[str]:
                     AND (x.n > cd.n OR (x.n = cd.n AND x.denomination_id < cd.denomination_id))) + 1""")
     db.execute(f"""
         UPDATE category_denomination AS cd SET image_id =
-          {PHOTO.format(types="SELECT u.id FROM under u JOIN type_denomination td ON td.type_id = u.id WHERE u.root = cd.category_id AND td.denomination_id = cd.denomination_id")}""")
+          {photo("SELECT u.id FROM under u JOIN type_denomination td ON td.type_id = u.id WHERE u.root = cd.category_id AND td.denomination_id = cd.denomination_id")}""")
 
     # Per denomination, across every collection (each type once).
     by_den: dict[str, dict[str, tuple]] = defaultdict(dict)
@@ -410,7 +468,7 @@ def _denominations(db: sqlite3.Connection) -> list[str]:
     db.executemany(f"INSERT INTO denomination_stat VALUES ({','.join('?' * 18)}, NULL)", stat)
     db.execute(f"""
         UPDATE denomination_stat AS ds SET image_id =
-          {PHOTO.format(types="SELECT td.type_id FROM type_denomination td JOIN live l ON l.id = td.type_id WHERE td.denomination_id = ds.denomination_id")}""")
+          {photo("SELECT td.type_id FROM type_denomination td JOIN live l ON l.id = td.type_id WHERE td.denomination_id = ds.denomination_id")}""")
 
     # Size comparisons: in each of its top leaf collections, the window holding the middle 80% of
     # its types' dates, and the denominations most struck there in that window.
@@ -454,3 +512,126 @@ def _denominations(db: sqlite3.Connection) -> list[str]:
                 size.append((den, leaf, tab, lo, hi, other, d, n))
     db.executemany("INSERT INTO denomination_size VALUES (?, ?, ?, ?, ?, ?, ?, ?)", size)
     return sorted(names[d] for d in by_den if d not in units | unlisted and UNIT_LIKE.search(names[d]))
+
+
+def _subject_config() -> tuple[dict[str, str], set[str], dict[str, str], dict[str, str]]:
+    """(pair of each paired subject, unlisted ids, Latin name -> subject id, legend dictionary form -> lemma)."""
+    import yaml
+    data = yaml.safe_load(SUBJECTS_YAML.read_text(encoding="utf-8")) or {}
+    pairs = {}
+    for greek, roman in data.get("pairs") or ():
+        pairs[greek], pairs[roman] = roman, greek
+    latin = {_legend_form(k): v for k, v in (data.get("latin_names") or {}).items()}
+    words = yaml.safe_load(LEGEND_DICTIONARY.read_text(encoding="utf-8")) or {}
+    lemmas = {}
+    for section in ("phrases", "words"):
+        for entry in (words.get(section) or {}).values():
+            if isinstance(entry, dict) and entry.get("kind") in LEGEND_KINDS and entry.get("latin"):
+                lemmas[_legend_form(entry["latin"])] = _legend_form(entry.get("lemma") or entry["latin"])
+    return pairs, set(data.get("unlisted") or ()), latin, lemmas
+
+
+def _legend_form(text: str) -> str:
+    return " ".join(text.upper().replace("U", "V").replace("J", "I").split())
+
+
+def _subjects(db: sqlite3.Connection) -> list[str]:
+    """subject_stat, category_subject and subject_legend (uses build's temp tables). Returns warnings."""
+    pairs, unlisted, latin, lemmas = _subject_config()
+    not_people = ",".join(f"'{p}'" for p in NOT_PEOPLE)
+    names = dict(db.execute("SELECT id, name FROM subject"))
+    warnings = [f"data/subjects.yaml names {sid}, which isn't a subject"
+                for sid in [*pairs, *unlisted, *latin.values()] if sid not in names]
+
+    # The collection tree's two halves: each category's top ancestor (Greek or Roman).
+    parent = dict(db.execute("SELECT id, parent_id FROM category"))
+    def top(c):
+        while parent.get(c):
+            c = parent[c]
+        return c
+
+    # Every live type showing a subject, once per subject (its sides collected).
+    types: dict[str, dict[str, dict]] = defaultdict(dict)
+    for sid, tid, side, cat, s, e, mint in db.execute("""
+            SELECT ts.subject_id, l.id, ts.side, l.cat, l.s, l.e, l.mint
+            FROM type_subject ts JOIN live l ON l.id = ts.type_id"""):
+        t = types[sid].setdefault(tid, {"sides": set(), "cat": cat, "top": top(cat), "s": s, "e": e, "mint": mint})
+        t["sides"].add(side)
+
+    # Per subject, the counts the other facets need, in SQL.
+    extra = {sid: rest for sid, *rest in db.execute(f"""
+        SELECT ts.subject_id,
+          (SELECT count(DISTINCT tp.person_id) FROM type_subject x JOIN live y ON y.id = x.type_id
+           JOIN type_person tp ON tp.type_id = x.type_id
+           WHERE x.subject_id = ts.subject_id AND tp.role IN ('authority', 'issuer') AND tp.person_id NOT IN ({not_people})),
+          (SELECT count(DISTINCT td.denomination_id) FROM type_subject x JOIN live y ON y.id = x.type_id
+           JOIN type_denomination td ON td.type_id = x.type_id WHERE x.subject_id = ts.subject_id),
+          (SELECT count(DISTINCT st.specimen_id) FROM type_subject x JOIN live y ON y.id = x.type_id
+           JOIN specimen_type st ON st.type_id = x.type_id WHERE x.subject_id = ts.subject_id),
+          (SELECT count(DISTINCT sp.institution_id) FROM type_subject x JOIN live y ON y.id = x.type_id
+           JOIN specimen_type st ON st.type_id = x.type_id JOIN specimen sp ON sp.id = st.specimen_id
+           WHERE x.subject_id = ts.subject_id)
+        FROM type_subject ts GROUP BY 1""")}
+
+    stat = []
+    for sid, ts in types.items():
+        grp = "unlisted" if sid in unlisted else "places" if PLACE_ID.search(sid) else "gods"
+        obverse = sum("obverse" in t["sides"] for t in ts.values())
+        reverse = sum("reverse" in t["sides"] for t in ts.values())
+        greek = sum(t["top"] == "greek" for t in ts.values())
+        bins: dict[int, list[float]] = defaultdict(lambda: [0.0, 0.0])
+        for t in ts.values():
+            if t["s"] is not None:
+                for b, share in _spread(t["s"], t["e"], MINT_BIN):
+                    bins[b][0 if t["top"] == "greek" else 1] += share
+        dated = [t for t in ts.values() if t["s"] is not None]
+        people, dens, specimens, holders = extra.get(sid, (0, 0, 0, 0))
+        stat.append((sid, grp, pairs.get(sid), len(ts), obverse, reverse, greek, len(ts) - greek,
+                     min((t["s"] for t in dated), default=None), max((t["e"] for t in dated), default=None),
+                     json.dumps([[b, round(g, 2), round(r, 2)] for b, (g, r) in sorted(bins.items())], separators=(",", ":")) if bins else None,
+                     len({t["cat"] for t in ts.values()}), people, len({t["mint"] for t in ts.values() if t["mint"]}),
+                     dens, specimens, holders))
+    db.executemany(f"INSERT INTO subject_stat VALUES ({','.join('?' * 17)}, NULL)", stat)
+    # A photo of the side it's usually on: Victory on a reverse, Heracles on an obverse.
+    side = "CASE WHEN ss.reverse >= ss.obverse THEN 'reverse' ELSE 'obverse' END"
+    db.execute(f"""
+        UPDATE subject_stat AS ss SET image_id =
+          {photo(f"SELECT ts.type_id FROM type_subject ts JOIN live l ON l.id = ts.type_id WHERE ts.subject_id = ss.subject_id AND ts.side = {side}", side)}""")
+
+    # Per category and subject.
+    per: dict[tuple[str, str], list[tuple]] = defaultdict(list)
+    for root, sid, tid, s, e in db.execute("""
+            SELECT u.root, ts.subject_id, u.id, u.s, u.e
+            FROM under u JOIN type_subject ts ON ts.type_id = u.id GROUP BY 1, 2, 3"""):
+        per[(root, sid)].append((s, e))
+    db.executemany("INSERT INTO category_subject (category_id, subject_id, n, start_year, end_year, bins) VALUES (?, ?, ?, ?, ?, ?)",
+                   [(root, sid, len(spans), min((s for s, _ in spans if s is not None), default=None),
+                     max((e for s, e in spans if s is not None), default=None), _bins_json([x for x in spans if x[0] is not None]))
+                    for (root, sid), spans in per.items()])
+    db.execute(f"""
+        UPDATE category_subject AS cs SET image_id =
+          {photo("SELECT ts.type_id FROM type_subject ts JOIN under u ON u.id = ts.type_id AND u.root = cs.category_id WHERE ts.subject_id = cs.subject_id AND ts.side = (SELECT CASE WHEN reverse >= obverse THEN 'reverse' ELSE 'obverse' END FROM subject_stat WHERE subject_id = cs.subject_id)",
+                 "(SELECT CASE WHEN reverse >= obverse THEN 'reverse' ELSE 'obverse' END FROM subject_stat WHERE subject_id = cs.subject_id)")}""")
+
+    # Legends naming the subject, on the side showing it: a word whose dictionary form is the
+    # subject's name (VICTORIAE -> Victoria -> Victory). Greek legends name the king, so few match.
+    by_name = {_legend_form(n): sid for sid, n in names.items()}
+    def subject_of(latin_text: str) -> str | None:
+        form = _legend_form(latin_text)
+        lemma = lemmas.get(form, form)
+        return latin.get(lemma) or by_name.get(lemma) or latin.get(form) or by_name.get(form)
+    legends: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for tid, side, normalised, segments, sids in db.execute("""
+            SELECT g.type_id, g.side, g.normalised, g.segments, group_concat(ts.subject_id)
+            FROM legend g JOIN live l ON l.id = g.type_id
+            JOIN type_subject ts ON ts.type_id = g.type_id AND ts.side = g.side
+            WHERE g.language = 'la' AND g.segments IS NOT NULL GROUP BY g.id"""):
+        tagged = set(sids.split(","))
+        for seg in json.loads(segments):
+            if seg.get("kind") in LEGEND_KINDS and seg.get("latin"):
+                sid = subject_of(seg["latin"])
+                if sid in tagged:
+                    legends[(sid, normalised)].add(tid)
+    db.executemany("INSERT INTO subject_legend VALUES (?, ?, ?)",
+                   [(sid, legend, len(tids)) for (sid, legend), tids in legends.items() if len(tids) >= LEGEND_MIN])
+    return warnings
