@@ -8,6 +8,7 @@ import { CollectionRow } from "@/components/collection"
 import { fmt } from "@/lib/categories"
 import { yearRange } from "@/lib/format"
 import { SUBJECT_BIN, type SubjectRow } from "@/lib/subjects"
+import type { Bin } from "@/components/charts"
 
 /* `byDate`: in one leaf collection, where naming the collection would repeat on every row. */
 export function SubjectListRow({ row, href, byDate = false, domain, ticks }: { row: SubjectRow; href: string; byDate?: boolean; domain: [number, number]; ticks: number[] }) {
@@ -61,5 +62,58 @@ export function PlacesGrid({ rows, href }: { rows: SubjectRow[]; href: (id: stri
         </a>
       ))}
     </div>
+  )
+}
+
+/** Which side of the coin shows it: a bar split reverse (ink) and obverse (grey), with the counts under it. */
+export function SideSplit({ obverse, reverse }: { obverse: number; reverse: number }) {
+  const total = obverse + reverse
+  if (!total) return null
+  const sides = [
+    { label: "Reverse", n: reverse, className: "bg-ink" },
+    { label: "Obverse", n: obverse, className: "bg-[color-mix(in_srgb,var(--color-stone)_45%,white)]" },
+  ].filter((s) => s.n > 0)
+  return (
+    <span className="mt-2 flex flex-col gap-1.5">
+      <span aria-hidden="true" className="flex h-1.5 w-full max-w-[240px] gap-px overflow-hidden rounded-[3px]">
+        {sides.map((s) => (
+          <span key={s.label} className={s.className} style={{ flex: s.n }} />
+        ))}
+      </span>
+      <span className="flex gap-4 text-label text-stone">
+        {sides.map((s) => (
+          <span key={s.label}>
+            {s.label} <span className="num text-ink">{fmt(s.n)}</span>
+          </span>
+        ))}
+      </span>
+    </span>
+  )
+}
+
+/* A collection in a subject's "Over time": name, dates, histogram, count. */
+export function SubjectCollectionRow({
+  href,
+  name,
+  dates,
+  ...chart
+}: {
+  href: string
+  name: string
+  dates: string | null
+  bins: Bin[]
+  domain: [number, number]
+  ticks: number[]
+  count: number
+}) {
+  return (
+    <CollectionRow
+      href={href}
+      name={name}
+      dates={<span className="md:hidden">{dates}</span>}
+      aside={<span className="num text-ui text-ink">{dates}</span>}
+      binWidth={SUBJECT_BIN}
+      {...chart}
+    />
   )
 }

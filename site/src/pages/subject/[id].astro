@@ -1,0 +1,222 @@
+---
+/*
+ * Subject page: /subject/zeus. What it was, which side of the coin
+ * shows it and its Greek or Roman counterpart, when and where it was struck, who issued it, its
+ * denominations, mints and the legends naming it, then its coinage with filters
+ * (lib/coinage.ts). ?collection= (from a collection's list) narrows the coinage; ?legend= comes
+ * from "Named in legends"; ?list=people (or denominations, mints, legends) shows a column in full.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import SiteFooter from "@/components/SiteFooter.astro"
+import { Crumbs, FacetColumn, RowsHead, Section } from "@/components/collection"
+import { DataList, DataRow } from "@/components/data"
+import { niceStep, yearTicks } from "@/components/charts"
+import { Coin } from "@/components/denomination"
+import { SideSplit, SubjectCollectionRow } from "@/components/subject"
+import { TypeCard } from "@/components/coin"
+import { PhotoCredit } from "@/components/credits"
+import { CoinageFilters } from "@/components/coinage-filters"
+import { buttonVariants } from "@/components/ui/button"
+import { typePath, yearRange } from "@/lib/format"
+import { fmt } from "@/lib/categories"
+import { PAGE_SIZE, type Facet } from "@/lib/coinage"
+import { SUBJECT_BIN } from "@/lib/subjects"
+import { getSubject, parseQuery } from "@/lib/subject"
+
+/** Each column's shortlist before "All N". */
+const COLUMN = 8
+
+const id = Astro.params.id ?? ""
+const params = Astro.url.searchParams
+const query = parseQuery(params)
+const s = await getSubject(env.DB, id, query)
+if (!s) Astro.response.status = 404
+
+/** This page's URL with some parameters changed; null removes one. */
+const link = (changes: Record<string, string | number | null>, hash = "") => {
+  const url = new URL(Astro.url)
+  for (const [k, v] of Object.entries(changes)) {
+    if (v == null) url.searchParams.delete(k)
+    else url.searchParams.set(k, String(v))
+  }
+  return `${url.pathname}${url.search}${hash}`
+}
+
+// One axis for "Over time".
+const starts = s ? s.collections.flatMap((c) => c.bins.map((b) => b.start)) : []
+const lo = starts.length ? Math.min(...starts) : -100
+const hi = starts.length ? Math.max(...starts) + SUBJECT_BIN : 100
+const step = niceStep([lo, hi], 6)
+const pad = Math.max(10, (hi - lo) * 0.04)
+const domain: [number, number] = [lo - pad, hi + pad]
+const ticks = yearTicks(domain, step)
+
+// Columns: a shortlist, or one in full (?list=people).
+const full = params.get("list")
+const column = (key: string, f: { items: Facet[]; total: number }, noun: string) => ({
+  items: (full === key ? f.items : f.items.slice(0, COLUMN)).map((x) => ({ id: x.value, name: x.label, n: x.count })),
+  all:
+    f.total > COLUMN
+      ? full === key
+        ? { label: `Show the top ${COLUMN}`, href: link({ list: null }, "#columns") }
+        : { label: `All ${fmt(f.total)} ${noun}`, href: link({ list: key }, "#columns") }
+      : undefined,
+})
+
+// A collection chosen elsewhere (a parent, from /subjects?collection=greek) that the facet doesn't list.
+const collectionOptions = s ? [...s.collectionFacet] : []
+if (s && query.collection && !collectionOptions.some((o) => o.value === query.collection)) {
+  collectionOptions.unshift({ value: query.collection, label: query.collection, count: s.total })
+}
+const filters = s
+  ? [
+      { label: "Collection", param: "collection", value: query.collection, options: collectionOptions, available: s.available.collection },
+      { label: "Issued by", param: "issuer", value: query.issuer, options: s.issuerFacet, available: s.available.issuer },
+      { label: "Denomination", param: "denomination", value: query.denomination, options: s.denominationFacet, available: s.available.denomination },
+      { label: "Side", param: "side", value: query.side, options: s.sideFacet, available: s.available.side },
+      // Only from "Named in legends": shown while chosen, so it can be cleared.
+      { label: "Legend", param: "legend", value: query.legend, options: s.legends, available: false },
+    ]
+  : []
+const columns = s ? [s.people.total, s.denominations.total, s.mints.total, s.legends.length].filter((n) => n > 0).length : 0
+---
+
+<Base title={s?.name ?? "Subject not found"}>
+  <SiteHeader current="Subjects" />
+  {
+    !s ? (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] py-24">
+        <h1 class="m-0 font-serif text-display font-normal">Subject not found</h1>
+        <p class="mt-6 text-body text-stone">
+          There is no subject <span class="text-ink">{id}</span>. <a href="/subjects" class="text-ink underline-offset-4 hover:underline">All subjects</a>
+        </p>
+      </main>
+    ) : (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] pb-24">
+        {/* Name, lead, photo and facts */}
+        <section class="flex flex-col gap-8 pt-10">
+          <Crumbs items={[{ href: "/subjects", label: "Subjects" }, ...(s.group ? [{ href: `/subjects?group=${s.group.id}`, label: s.group.name }] : [])]} />
+          <div class="grid gap-x-20 gap-y-10 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
+            <div class="flex min-w-0 flex-col gap-4">
+              <div class="flex flex-wrap items-baseline gap-x-7 gap-y-2">
+                <h1 class="m-0 font-serif text-display font-normal">{s.name}</h1>
+                {yearRange(s.start, s.end) && <span class="num text-subtitle text-graphite">{yearRange(s.start, s.end)}</span>}
+              </div>
+              {s.lead && (
+                <p class="m-0 max-w-[56ch] font-serif text-reading text-pretty">
+                  {s.lead}
+                  {s.article && (
+                    <>
+                      {" "}
+                      <a href={s.article.url} rel="noopener" class="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline">
+                        Read more on Wikipedia ↗
+                      </a>
+                    </>
+                  )}
+                </p>
+              )}
+              {s.article && <span class="text-credit text-stone">Text from Wikipedia, {s.article.licence}</span>}
+            </div>
+            <div class="flex flex-col gap-6">
+              {s.photo && (
+                <div class="flex h-[240px] items-center justify-center bg-plinth [--coin-s:0.86] md:h-[280px] md:[--coin-s:1]">
+                  <Coin photo={s.photo} px={220} alt={`A coin showing ${s.name}`} />
+                </div>
+              )}
+              <DataList>
+                <DataRow label="Types">
+                  {fmt(s.types)}
+                  <SideSplit obverse={s.obverse} reverse={s.reverse} />
+                </DataRow>
+                {s.collections.length > 0 && (
+                  <DataRow label="Struck in" href="#over-time">
+                    {`${fmt(s.collections.length)} ${s.collections.length === 1 ? "collection" : "collections"}`}
+                  </DataRow>
+                )}
+                {s.pair && (
+                  <DataRow label={s.pair.roman ? "In Roman coinage" : "In Greek coinage"}>
+                    <a href={`/subject/${s.pair.id}`} class="underline-offset-4 hover:underline">{s.pair.name}</a>
+                    <span class="text-stone"> · {fmt(s.pair.types)} types</span>
+                  </DataRow>
+                )}
+                {s.specimens > 0 && (
+                  <DataRow label="Specimens">
+                    {`${fmt(s.specimens)}${s.holders ? ` in ${fmt(s.holders)} ${s.holders === 1 ? "museum or collection" : "museums and collections"}` : ""}`}
+                  </DataRow>
+                )}
+              </DataList>
+            </div>
+          </div>
+        </section>
+
+        {/* Over time, one row per collection */}
+        {s.collections.length > 0 && (
+          <Section id="over-time" className="scroll-mt-6">
+            <h2 class="m-0 mb-6 font-serif text-heading font-normal">Over time</h2>
+            <div style="--aside: 150px">
+              <RowsHead first="Collection" aside="Dates" domain={domain} ticks={ticks} className="border-b border-ink pb-3.5" />
+              {s.collections.map((c) => (
+                <SubjectCollectionRow
+                  href={link({ collection: c.category.id, limit: null }, "#coinage")}
+                  name={c.category.name}
+                  dates={yearRange(c.start, c.end)}
+                  bins={c.bins}
+                  domain={domain}
+                  ticks={ticks}
+                  count={c.n}
+                />
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* Who issued it, its denominations, mints and the legends naming it */}
+        {columns > 0 && (
+          <Section id="columns" className={`grid scroll-mt-6 items-start gap-x-14 gap-y-10 sm:grid-cols-2 ${columns > 3 ? "lg:grid-cols-4" : "md:grid-cols-3"}`}>
+            <FacetColumn title="Issued by" {...column("people", s.people, "people")} href={(p) => `/person/${p}`} />
+            <FacetColumn title="Denominations" {...column("denominations", s.denominations, "denominations")} href={(d) => `/denomination/${d}`} />
+            <FacetColumn title="Mints" {...column("mints", s.mints, "mints")} href={(m) => `/mint/${m}`} />
+            <FacetColumn
+              title="Named in legends"
+              {...column("legends", { items: s.legends, total: s.legends.length }, "legends")}
+              href={(l) => link({ legend: l, limit: null }, "#coinage")}
+            />
+          </Section>
+        )}
+
+        {/* Coinage */}
+        <Section id="coinage" className="flex scroll-mt-6 flex-col gap-8">
+          <h2 class="m-0 font-serif text-heading font-normal">Coinage</h2>
+          <div class="border-b border-hairline pb-3">
+            <CoinageFilters client:idle filters={filters} sort={query.sort} />
+          </div>
+          {s.grid.length ? (
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-10">
+              {s.grid.map((t) => (
+                <TypeCard href={typePath(t.id)} image={t.image} title={t.title} reference={t.reference} meta={t.meta} />
+              ))}
+            </div>
+          ) : (
+            <p class="m-0 text-body text-stone">No types match these filters.</p>
+          )}
+          <PhotoCredit photos={s.typeCredits} />
+          {s.total > s.grid.length && (
+            <a data-keep-scroll href={link({ limit: query.limit + PAGE_SIZE })} class={buttonVariants({ variant: "outline", className: "self-center" })}>
+              Show more types
+              <span class="num font-normal text-stone">
+                {fmt(s.grid.length)} of {fmt(s.total)}
+              </span>
+            </a>
+          )}
+        </Section>
+      </main>
+    )
+  }
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+</script>
