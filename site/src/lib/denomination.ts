@@ -11,7 +11,7 @@ import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
 import type { Bin } from "@/components/charts"
 import { lead } from "@/lib/format"
-import { groupName, type MetalGroup } from "@/lib/denominations"
+import { metalGroup, type MetalGroup } from "@/lib/denominations"
 
 const NOT_PEOPLE = `('anonymous')`
 
@@ -42,7 +42,8 @@ export type Denomination = {
   name: string
   lead: string | null
   article: { url: string; licence: string } | null
-  group: { id: MetalGroup; name: string }
+  /** Its heading on /denominations; null for one that isn't listed. */
+  group: { id: MetalGroup; name: string } | null
   material: string | null
   also: string | null
   start: number | null
@@ -147,7 +148,7 @@ export async function getDenomination(db: D1Database, id: string, query: Denomin
     name: d.name,
     lead: lead(art?.extract ?? d.definition, 420),
     article: art ? { url: art.url, licence: art.licence } : null,
-    group: { id: d.grp, name: groupName(d.grp) },
+    group: metalGroup(d.grp) ?? null,
     material: d.material,
     also: d.also,
     start: d.start,

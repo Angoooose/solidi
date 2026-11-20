@@ -95,7 +95,7 @@ const metal = d && [d.material, d.also && `also ${d.also.toLowerCase()}`].filter
       <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] pb-24">
         {/* Name, lead, photo and facts */}
         <section class="flex flex-col gap-8 pt-10">
-          <Crumbs items={[{ href: "/denominations", label: "Denominations" }, { href: `/denominations?metal=${d.group.id}`, label: d.group.name }]} />
+          <Crumbs items={[{ href: "/denominations", label: "Denominations" }, ...(d.group ? [{ href: `/denominations?metal=${d.group.id}`, label: d.group.name }] : [])]} />
           <div class="grid gap-x-20 gap-y-10 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
             <div class="flex min-w-0 flex-col gap-4">
               <div class="flex flex-wrap items-baseline gap-x-7 gap-y-2">

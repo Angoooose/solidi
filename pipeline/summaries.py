@@ -21,6 +21,7 @@ import re
 import sqlite3
 import statistics
 from collections import defaultdict
+from pathlib import Path
 
 BIN_WIDTHS = (10, 25)
 MINT_BIN = 25
@@ -35,9 +36,11 @@ METAL_GROUP = {"av": "gold", "el": "electrum", "ar": "silver", "billon": "silver
                "cu": "bronze", "orichalcum": "bronze", "cupro-nickel": "bronze", "pb": "bronze", "fe": "bronze"}
 # A second material is named ("also silver") when at least this share of the types use it.
 ALSO_SHARE = 0.1
-# The catalogues' placeholder names for bronzes whose ancient name is unknown (AE3, 4 unit,
-# Denomination C, Uncertain value): grouped together rather than under a metal.
-CATALOGUE_UNIT = re.compile(r"^(AE(\d|\b)|(Large|Small|Reduced|Light|Heavy) AE|Denomination\b|Uncertain value$|Fraction$|Silver$)|\bunits?\b", re.I)
+# Which denominations are catalogue units (AE3, 4 unit, Denomination C) and which aren't
+# denominations at all ("Silver", "Uncertain value"): a list checked by hand.
+DENOMINATIONS_YAML = Path(__file__).resolve().parents[1] / "data" / "denominations.yaml"
+# Names that look like catalogue units; only used to warn about ones the list doesn't cover.
+UNIT_LIKE = re.compile(r"^(AE(\d|\b)|(Large|Small|Reduced|Light|Heavy) AE|Denomination\b|Uncertain\b|Fraction$)|\bunits?\b", re.I)
 # Specimen measurements outside these are typos (a 2,740 mm coin).
 DIAMETER_MM = (4, 80)
 WEIGHT_G = (0.05, 500)
@@ -123,7 +126,7 @@ CREATE TABLE category_denomination (
 );
 CREATE TABLE denomination_stat (
   denomination_id TEXT PRIMARY KEY REFERENCES denomination(id),
-  metal_group     TEXT NOT NULL,           -- 'gold', 'electrum', 'silver', 'bronze', or 'units' (catalogue units)
+  metal_group     TEXT NOT NULL,           -- 'gold', 'electrum', 'silver', 'bronze', 'units' (catalogue units) or 'unlisted' (not a denomination)
   material_id     TEXT REFERENCES material(id), -- its most common material
   also_id         TEXT REFERENCES material(id), -- a second one used by a real share of its types
   types           INTEGER NOT NULL,
@@ -290,7 +293,8 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
         UPDATE category_mint AS cm SET image_id =
           {PHOTO.format(types="SELECT u.id FROM under u WHERE u.root = cm.category_id AND u.mint = cm.mint_id")}
         WHERE cm.rank <= {PICTURED}""")
-    _denominations(db)
+    for name in _denominations(db):
+        log(f"  warning: {name} looks like a catalogue unit; add it to data/denominations.yaml")
     db.commit()
 
     counts = {t: db.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
@@ -312,7 +316,15 @@ def _bins_json(spans: list[tuple[int, int]]) -> str | None:
     return json.dumps([[b, round(n, 2)] for b, n in sorted(bins.items())], separators=(",", ":")) if bins else None
 
 
-def _denominations(db: sqlite3.Connection) -> None:
+def _denomination_lists() -> tuple[set[str], set[str]]:
+    import yaml
+    data = yaml.safe_load(DENOMINATIONS_YAML.read_text(encoding="utf-8")) or {}
+    return set(data.get("catalogue_units") or ()), set(data.get("unlisted") or ())
+
+
+def _denominations(db: sqlite3.Connection) -> list[str]:
+    """Builds the denomination tables; returns names that look like catalogue units but aren't listed."""
+    units, unlisted = _denomination_lists()
     """category_denomination, denomination_stat and denomination_size (uses build's temp tables)."""
     not_people = ",".join(f"'{p}'" for p in NOT_PEOPLE)
     # Every live type with a denomination: (root category, denomination, type, years, leaf category).
@@ -386,7 +398,7 @@ def _denominations(db: sqlite3.Connection) -> None:
         total = sum(n for _, n in mats)
         material = mats[0][0] if mats else None
         also = next((m for m, n in mats[1:] if n >= ALSO_SHARE * total), None)
-        group = "units" if CATALOGUE_UNIT.search(names[den]) else METAL_GROUP.get(material or "", "bronze")
+        group = "units" if den in units else "unlisted" if den in unlisted else METAL_GROUP.get(material or "", "bronze")
         specimens = {sid for t in types for sid, *_ in measured.get(t, ())}
         holders = {h for t in types for _, h, *_ in measured.get(t, ()) if h}
         ws, ds = sizes(types)
@@ -408,6 +420,8 @@ def _denominations(db: sqlite3.Connection) -> None:
             leaf_types[leaf][den].append((tid, s, e))
     size = []
     for den, types in by_den.items():
+        if den in unlisted:
+            continue
         per_leaf: dict[str, int] = defaultdict(int)
         for _, _, leaf in types.values():
             per_leaf[leaf] += 1
@@ -424,6 +438,8 @@ def _denominations(db: sqlite3.Connection) -> None:
                 inside = lambda s, e: True
             candidates = []
             for other, ots in leaf_types[leaf].items():
+                if other in unlisted:
+                    continue
                 these = [tid for tid, s, e in ots if inside(s, e)]
                 if not these:
                     continue
@@ -437,3 +453,4 @@ def _denominations(db: sqlite3.Connection) -> None:
             for _, _, other, d, n in candidates[:SIZE_OTHERS + 1]:
                 size.append((den, leaf, tab, lo, hi, other, d, n))
     db.executemany("INSERT INTO denomination_size VALUES (?, ?, ?, ?, ?, ?, ?, ?)", size)
+    return sorted(names[d] for d in by_den if d not in units | unlisted and UNIT_LIKE.search(names[d]))

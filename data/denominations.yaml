@@ -1,0 +1,64 @@
+# How the denominations list (/denominations) files denominations that aren't named for a coin.
+# Keys are denomination ids. Everything not listed here goes under its most common metal.
+# pipeline/summaries.py warns about new names that look like units but aren't listed.
+
+# The catalogues' placeholder names for coins whose ancient name is unknown: sizes (AE3), multiples
+# of an unnamed unit (4 unit) and lettered series (Denomination C). Listed under "Catalogue units".
+catalogue_units:
+  # Late Roman and Greek bronze sizes
+  - ae1
+  - ae2
+  - ae3
+  - ae4
+  - ae3_4
+  - large_ae2
+  - small_ae2
+  - reduced_ae2
+  - ae_large
+  - ae_medium
+  - ae_small
+  - ae_unit
+  - ae_half_unit
+  # Multiples and fractions of an unnamed unit
+  - unit
+  - 2-unit
+  - 3-unit
+  - 4-unit
+  - 5-unit
+  - 6-unit
+  - 7-unit
+  - 8-unit
+  - oneandahalf-unit
+  - half-unit
+  - quarter-unit
+  - sixth-unit
+  - fraction
+  # Lettered series (SCO: Seleucid Coins; BIGR: Bactrian and Indo-Greek)
+  - denomination_aaa_sco
+  - denomination_aa_sco
+  - denomination_a_sco
+  - denomination_ab_sco
+  - denomination_b_sco
+  - denomination_c_sco
+  - denomination_d_sco
+  - denomination_e_sco
+  - denomination_a_bigr
+  - denomination_b_bigr
+  - denomination_c_bigr
+  - denomination_d_bigr
+  - denomination_e_bigr
+  - denomination_f_bigr
+  - denomination_g_bigr
+  - denomination_h_bigr
+  - denomination_i_bigr
+  - denomination_j_bigr
+  - denomination_k_bigr
+  - denomination_l_bigr
+  - denomination_m_bigr
+  - denomination_n_bigr
+
+# Not denominations: a metal recorded as one, or a gap in the record. Their pages still exist
+# (types link to them) but the list and the size comparisons leave them out.
+unlisted:
+  - ar               # "Silver"
+  - uncertain_value  # "Uncertain value"

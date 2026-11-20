@@ -16,8 +16,9 @@ export const METAL_GROUPS = [
   { id: "bronze", name: "Bronze and copper" },
   { id: "units", name: "Catalogue units" },
 ] as const
-export type MetalGroup = (typeof METAL_GROUPS)[number]["id"]
-export const groupName = (id: string) => METAL_GROUPS.find((g) => g.id === id)?.name ?? id
+/** "unlisted": not a denomination ("Silver", "Uncertain value"); its page exists but no list shows it. */
+export type MetalGroup = (typeof METAL_GROUPS)[number]["id"] | "unlisted"
+export const metalGroup = (id: string) => METAL_GROUPS.find((g) => g.id === id)
 
 export type DenominationsSort = "metal" | "types" | "date" | "name"
 
@@ -98,7 +99,7 @@ export async function getDenominations(db: D1Database, categoryId: string | null
          JOIN denomination d ON d.id = x.denomination_id
          LEFT JOIN material m ON m.id = s.material_id LEFT JOIN material a ON a.id = s.also_id
          LEFT JOIN image i ON i.id = x.image_id
-         WHERE ${where}
+         WHERE ${where} AND s.metal_group != 'unlisted'
          ORDER BY ${ORDER[sort]}`
       )
       .bind(category?.id ?? null),
