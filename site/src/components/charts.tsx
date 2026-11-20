@@ -38,21 +38,19 @@ export function binLabel(start: number, width: number, n: number): string {
 }
 
 /**
- * A stacked bin's tooltip: each series' count by its swatch, the total under them (scripts/tooltip.ts,
- * data-tip-rich). A bin with only one series names it in the plain tip instead.
+ * A stacked bin's tooltip: each series it holds by its swatch, and the total when it holds both
+ * (scripts/tooltip.ts, data-tip-rich). `tip` is the plain-text form.
  */
-function stackedTip(b: Bin, width: number, series: [string, string]): { tip: string; rich?: string } {
+function stackedTip(b: Bin, width: number, series: [string, string]): { tip: string; rich: string } {
   const m = b.m ?? 0
-  if (b.n > 0 && m > 0)
-    return {
-      tip: `${binLabel(b.start, width, b.n + m)} (${series[0]} ${typeCount(b.n)}, ${series[1]} ${typeCount(m)})`,
-      rich: JSON.stringify({
-        title: binRange(b.start, width),
-        rows: [["series", series[0], typeCount(b.n)], ["series-alt", series[1], typeCount(m)]],
-        foot: `${typeCount(b.n + m)} in all`,
-      }),
-    }
-  return { tip: `${binLabel(b.start, width, b.n + m)} · ${m > 0 ? series[1] : series[0]}` }
+  const rows = [
+    ...(b.n > 0 || m === 0 ? [["series", series[0], typeCount(b.n)]] : []),
+    ...(m > 0 ? [["series-alt", series[1], typeCount(m)]] : []),
+  ]
+  return {
+    tip: `${binLabel(b.start, width, b.n + m)} (${rows.map(([, name, count]) => `${name} ${count}`).join(", ")})`,
+    rich: JSON.stringify({ title: binRange(b.start, width), rows, ...(rows.length > 1 ? { foot: `${typeCount(b.n + m)} in all` } : {}) }),
+  }
 }
 
 /* Each type is spread evenly over its possible dates, so a bin can hold a fraction of one. */
