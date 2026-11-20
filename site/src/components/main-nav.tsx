@@ -69,16 +69,17 @@ function useCollectionsMenu(): MenuState & { load: () => void } {
 
 const ALL = "all"
 
-export function MainNav({ current }: { current?: MainNavCurrent }) {
+export function MainNav({ current, className }: { current?: MainNavCurrent; className?: string }) {
   const menu = useCollectionsMenu()
   return (
     <NavigationMenu
       aria-label="Main"
       // Static, so the panel hangs from the header (the nearest positioned box), centred in the page.
-      className="static items-stretch self-stretch"
+      className={cn("static items-stretch self-stretch", className)}
       viewportClassName="inset-x-0 px-[clamp(20px,4vw,56px)]"
     >
-      <NavigationMenuList className="h-full flex-wrap items-stretch gap-x-7">
+      {/* Phones: one row that scrolls sideways, bleeding to the screen's edges. */}
+      <NavigationMenuList className="-mx-[clamp(20px,4vw,56px)] h-full items-stretch gap-x-6 overflow-x-auto px-[clamp(20px,4vw,56px)] [scrollbar-width:none] md:mx-0 md:gap-x-7 md:overflow-visible md:px-0 [&>li]:shrink-0 [&>li>a]:py-2.5 md:[&>li>a]:py-4">
         <NavigationMenuItem className="flex">
           {/* A link to /collections: hovering opens the menu, clicking goes to the page. */}
           <NavigationMenuTrigger

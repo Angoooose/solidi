@@ -37,9 +37,9 @@ export const typesLabel = (n: number) => `${fmt(n)} ${Math.round(n) === 1 ? "typ
 export const metaLine = (s: number | null, e: number | null, n: number) => [yearRange(s, e), typesLabel(n)].filter(Boolean).join(" · ")
 
 export type Photo = { thumb: string | null; large: string | null }
-type ImageCols = { url: string | null; thumb: string | null; iiif: string | null }
+export type ImageCols = { url: string | null; thumb: string | null; iiif: string | null }
 /* thumb: small rows and menus (static ~175px files where the holder has them); large: cards. */
-function photo(r: ImageCols): Photo | null {
+export function photo(r: ImageCols): Photo | null {
   if (!r.url && !r.iiif) return null
   return {
     thumb: secure(r.thumb) ?? iiif(r.iiif, 160) ?? secure(r.url),
@@ -50,7 +50,7 @@ function photo(r: ImageCols): Photo | null {
       : (iiif(r.iiif, 600) ?? (r.url?.includes(".noscale.") && r.thumb ? secure(r.thumb) : (secure(r.url) ?? secure(r.thumb)))),
   }
 }
-const IMAGE_COLS = `i.url, i.thumbnail_url AS thumb, i.iiif_service AS iiif`
+export const IMAGE_COLS = `i.url, i.thumbnail_url AS thumb, i.iiif_service AS iiif`
 
 export type Category = {
   id: string

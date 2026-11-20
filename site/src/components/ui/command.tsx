@@ -37,12 +37,15 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  commandProps,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
   className?: string
   showCloseButton?: boolean
+  /** Props for the Command inside, e.g. shouldFilter={false} when results are matched elsewhere. */
+  commandProps?: React.ComponentProps<typeof Command>
 }) {
   return (
     <Dialog {...props}>
@@ -57,7 +60,7 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        <Command>{children}</Command>
+        <Command {...commandProps}>{children}</Command>
       </DialogContent>
     </Dialog>
   )

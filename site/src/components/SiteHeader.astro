@@ -1,11 +1,15 @@
 ---
 /*
- * Site header. Server-rendered except the main nav, an island (its Collections menu opens on hover).
+ * Site header. Server-rendered except two islands: the main nav (its Collections menu opens on
+ * hover) and the search button, which opens the ⌘K palette.
  * The inner box is positioned so the menu's panel hangs from it, centred in the page.
+ *
+ * One row from md up: wordmark, nav, search. Phones: the wordmark and a search icon, then the nav
+ * as a row that scrolls sideways. About and Sources live in the footer.
  */
-import { Wordmark, NavLink } from "@/components/site-chrome"
+import { Wordmark } from "@/components/site-chrome"
 import { MainNav, type MainNavCurrent } from "@/components/main-nav"
-import { SearchField } from "@/components/search"
+import { SearchCommand } from "@/components/search-command"
 
 interface Props {
   current?: MainNavCurrent
@@ -13,13 +17,9 @@ interface Props {
 const { current } = Astro.props
 ---
 <header class="border-b border-hairline">
-  <div class="relative mx-auto flex max-w-page flex-wrap items-center gap-x-11 gap-y-4 px-[clamp(20px,4vw,56px)] py-4">
-    <Wordmark />
-    <MainNav client:load current={current} />
-    <SearchField className="w-full sm:ml-auto sm:w-auto sm:min-w-[220px] sm:flex-[0_1_320px]" placeholder="Reference, legend or ruler" shortcut="⌘K" />
-    <nav aria-label="Site" class="flex gap-x-7">
-      <NavLink href="/about">About</NavLink>
-      <NavLink href="/sources">Sources</NavLink>
-    </nav>
+  <div class="relative mx-auto flex max-w-page flex-wrap items-center gap-x-7 gap-y-1 px-[clamp(20px,4vw,56px)] pt-3 pb-1 md:flex-nowrap md:py-4 lg:gap-x-11">
+    <Wordmark className="order-1" />
+    <SearchCommand client:idle className="order-2 ml-auto md:order-3 lg:min-w-[180px] lg:flex-[0_1_220px]" />
+    <MainNav client:load current={current} className="order-3 w-full md:order-2 md:w-auto" />
   </div>
 </header>
