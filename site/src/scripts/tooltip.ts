@@ -9,7 +9,7 @@
  * rows keyed by a swatch that matches the mark they describe, and a footer. `data-tip` stays as
  * its plain-text form (and is what marks the element as having a tip).
  */
-type Swatch = "lived" | "office" | "coins"
+type Swatch = "lived" | "office" | "coins" | "series" | "series-alt"
 type RichTip = {
   title: string
   subtitle?: string
@@ -25,6 +25,9 @@ const SWATCH: Record<Swatch, string> = {
   lived: "relative h-[7px] w-5 border-x border-stone/60 before:absolute before:inset-x-0 before:top-[3px] before:h-px before:bg-stone/60",
   office: "h-1.5 w-5 rounded-[3px] bg-ink",
   coins: "h-1.5 w-5 rounded-[3px] bg-field",
+  /* A stacked histogram's two series (Sparkline, .bar and .bar-alt). */
+  series: "size-2.5 rounded-[2px] bg-ink",
+  "series-alt": "size-2.5 rounded-[2px] bg-[color-mix(in_srgb,var(--color-stone)_45%,white)]",
 }
 
 function el(tag: string, className: string, text?: string) {

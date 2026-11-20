@@ -157,6 +157,7 @@ export function CollectionRow({
   yMax,
   ticks,
   count,
+  series,
 }: {
   href: string
   /** Leave out for the dense row (no photo column). */
@@ -178,6 +179,8 @@ export function CollectionRow({
   yMax?: number
   ticks: number[]
   count: number
+  /** A stacked histogram's two series, named in its tooltips. */
+  series?: [string, string]
 }) {
   const dense = photo === undefined
   return (
@@ -204,6 +207,7 @@ export function CollectionRow({
         yMax={yMax ?? Math.max(1, ...bins.map((b) => b.n + (b.m ?? 0)))}
         ticks={ticks}
         height={dense ? 28 : undefined}
+        series={series}
         label={`${name}: types by date${typeof dates === "string" ? `, ${dates}` : ""}`}
         className={dense ? "hidden md:block" : "col-span-3 row-start-2 md:col-span-1 md:row-start-auto"}
       />

@@ -28,11 +28,31 @@ export function niceStep([from, to]: [number, number], target = 6): number {
   return [10, 25, 50, 100, 200, 250, 500].find((s) => s >= raw) ?? 1000
 }
 
+const binRange = (start: number, width: number) => (start === 0 ? yearRange(1, width - 1) : yearRange(start, start + width - 1))
+/** "48 types"; a bin can hold a share of a type spread over several bins. */
+const typeCount = (n: number) => (n < 0.5 ? "under 1 type" : `${fmt(n)} ${Math.round(n) === 1 ? "type" : "types"}`)
+
 /** "320–311 BC · 48 types": a bin's tooltip. */
 export function binLabel(start: number, width: number, n: number): string {
-  const range = start === 0 ? yearRange(1, width - 1) : yearRange(start, start + width - 1)
-  const count = n < 0.5 ? "under 1 type" : `${fmt(n)} ${Math.round(n) === 1 ? "type" : "types"}`
-  return `${range} · ${count}`
+  return `${binRange(start, width)} · ${typeCount(n)}`
+}
+
+/**
+ * A stacked bin's tooltip: each series' count by its swatch, the total under them (scripts/tooltip.ts,
+ * data-tip-rich). A bin with only one series names it in the plain tip instead.
+ */
+function stackedTip(b: Bin, width: number, series: [string, string]): { tip: string; rich?: string } {
+  const m = b.m ?? 0
+  if (b.n > 0 && m > 0)
+    return {
+      tip: `${binLabel(b.start, width, b.n + m)} (${series[0]} ${typeCount(b.n)}, ${series[1]} ${typeCount(m)})`,
+      rich: JSON.stringify({
+        title: binRange(b.start, width),
+        rows: [["series", series[0], typeCount(b.n)], ["series-alt", series[1], typeCount(m)]],
+        foot: `${typeCount(b.n + m)} in all`,
+      }),
+    }
+  return { tip: `${binLabel(b.start, width, b.n + m)} · ${m > 0 ? series[1] : series[0]}` }
 }
 
 /* Each type is spread evenly over its possible dates, so a bin can hold a fraction of one. */
@@ -51,6 +71,7 @@ export function Sparkline({
   ticks,
   label,
   height = 40,
+  series,
   className,
 }: {
   bins: Bin[]
@@ -60,6 +81,8 @@ export function Sparkline({
   ticks: number[]
   label: string
   height?: number
+  /** Names for a stacked histogram's two series (`n`, then `m` above it), for the tooltips. */
+  series?: [string, string]
   className?: string
 }) {
   const W = 720, H = height, TOP = 4
@@ -77,11 +100,11 @@ export function Sparkline({
         const w = bw * (1 - BAR_GAP)
         const h = b.n > 0 || !b.m ? Math.max(2, y(b.n)) : 0
         const h2 = b.m ? Math.max(2, y(b.m)) : 0
-        const tip = binLabel(b.start, binWidth, b.n + (b.m ?? 0))
+        const { tip, rich } = series && b.m != null ? stackedTip(b, binWidth, series) : { tip: binLabel(b.start, binWidth, b.n + (b.m ?? 0)), rich: undefined }
         return (
           <React.Fragment key={b.start}>
-            {h > 0 && <rect x={bx} width={w} y={H - h} height={h} rx={1.5} data-tip={tip} className="bar" />}
-            {h2 > 0 && <rect x={bx} width={w} y={H - h - h2} height={h2} rx={1.5} data-tip={tip} className="bar bar-alt" />}
+            {h > 0 && <rect x={bx} width={w} y={H - h} height={h} rx={1.5} data-tip={tip} data-tip-rich={rich} className="bar" />}
+            {h2 > 0 && <rect x={bx} width={w} y={H - h - h2} height={h2} rx={1.5} data-tip={tip} data-tip-rich={rich} className="bar bar-alt" />}
           </React.Fragment>
         )
       })}

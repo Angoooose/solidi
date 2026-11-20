@@ -31,6 +31,7 @@ export function SubjectListRow({ row, href, byDate = false, domain, ticks }: { r
       domain={domain}
       ticks={ticks}
       count={row.n}
+      series={["Greek collections", "Roman collections"]}
     />
   )
 }
