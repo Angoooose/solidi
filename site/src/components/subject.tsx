@@ -82,9 +82,9 @@ export function SideSplit({ obverse, reverse }: { obverse: number; reverse: numb
     .map((s, i) => ({ ...s, color: i === 0 ? "bg-ink" : "bg-[color-mix(in_srgb,var(--color-stone)_45%,white)]" }))
   return (
     <span className="mt-2 flex flex-col gap-1.5">
-      <span aria-hidden="true" className="flex h-1.5 w-full max-w-[240px] gap-px overflow-hidden rounded-[3px]">
+      <span aria-hidden="true" className="flex h-1.5 w-full max-w-[240px] gap-px overflow-hidden">
         {sides.map((s) => (
-          <span key={s.label} className={cn(s.color, "min-w-[3px]")} style={{ flex: s.n }} />
+          <span key={s.label} className={cn(s.color, "min-w-[3px] rounded-[1.5px]")} style={{ flex: s.n }} />
         ))}
       </span>
       <span className="flex flex-wrap gap-x-4 gap-y-1 text-label text-stone">
