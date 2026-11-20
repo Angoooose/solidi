@@ -4,6 +4,7 @@
  * series, and the places grid.
  */
 import * as React from "react"
+import { cn } from "@/lib/utils"
 import { CollectionRow } from "@/components/collection"
 import { fmt } from "@/lib/categories"
 import { yearRange } from "@/lib/format"
@@ -66,24 +67,30 @@ export function PlacesGrid({ rows, href }: { rows: SubjectRow[]; href: (id: stri
   )
 }
 
-/** Which side of the coin shows it: a bar split reverse (ink) and obverse (grey), with the counts under it. */
+/**
+ * Which side of the coin shows it: a bar split by side, the side it's usually on first and in ink,
+ * with each count under it keyed by a swatch matching its segment.
+ */
 export function SideSplit({ obverse, reverse }: { obverse: number; reverse: number }) {
-  const total = obverse + reverse
-  if (!total) return null
+  if (!obverse && !reverse) return null
   const sides = [
-    { label: "Reverse", n: reverse, className: "bg-ink" },
-    { label: "Obverse", n: obverse, className: "bg-[color-mix(in_srgb,var(--color-stone)_45%,white)]" },
-  ].filter((s) => s.n > 0)
+    { label: "Reverse", n: reverse },
+    { label: "Obverse", n: obverse },
+  ]
+    .filter((s) => s.n > 0)
+    .sort((a, b) => b.n - a.n)
+    .map((s, i) => ({ ...s, color: i === 0 ? "bg-ink" : "bg-[color-mix(in_srgb,var(--color-stone)_45%,white)]" }))
   return (
     <span className="mt-2 flex flex-col gap-1.5">
       <span aria-hidden="true" className="flex h-1.5 w-full max-w-[240px] gap-px overflow-hidden rounded-[3px]">
         {sides.map((s) => (
-          <span key={s.label} className={s.className} style={{ flex: s.n }} />
+          <span key={s.label} className={cn(s.color, "min-w-[3px]")} style={{ flex: s.n }} />
         ))}
       </span>
-      <span className="flex gap-4 text-label text-stone">
+      <span className="flex flex-wrap gap-x-4 gap-y-1 text-label text-stone">
         {sides.map((s) => (
-          <span key={s.label}>
+          <span key={s.label} className="flex items-center gap-1.5">
+            <span aria-hidden="true" className={cn("size-2.5 rounded-[2px]", s.color)} />
             {s.label} <span className="num text-ink">{fmt(s.n)}</span>
           </span>
         ))}
