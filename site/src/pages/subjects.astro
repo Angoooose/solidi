@@ -1,0 +1,147 @@
+---
+/*
+ * Every subject: /subjects?collection=seleucid&sort=date. Gods and
+ * personifications as rows with their histograms (a Greek god and its Roman counterpart share a
+ * row, Roman stacked over Greek), then places as a grid. ?group=gods (or places) lists one group
+ * in full.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import SiteFooter from "@/components/SiteFooter.astro"
+import { Note, Page, RowsHead } from "@/components/collection"
+import { GreekRomanKey, PlacesGrid, SubjectListRow } from "@/components/subject"
+import { niceStep, yearTicks } from "@/components/charts"
+import { UrlSelect } from "@/components/url-select"
+import { fmt } from "@/lib/categories"
+import { SUBJECT_BIN, getSubjects, type SubjectsSort } from "@/lib/subjects"
+
+/** Rows (or places) shown per group before "All …". */
+const SHOWN = { gods: 14, places: 24 } as Record<string, number>
+
+const params = Astro.url.searchParams
+const requested = params.get("collection")
+const SORTS: { value: SubjectsSort; label: string }[] = [
+  { value: "types", label: "Most types" },
+  { value: "date", label: "By date" },
+  { value: "name", label: "By name" },
+]
+const sort = SORTS.find((s) => s.value === params.get("sort"))?.value ?? "types"
+
+const list = await getSubjects(env.DB, requested === "all" ? null : requested, sort)
+if (!list) Astro.response.status = 404
+const category = list?.category ?? null
+const t = list?.tree
+
+// One group (?group=places): all of it.
+const groupId = params.get("group")
+const one = groupId ? list?.groups.find((g) => g.id === groupId) : undefined
+if (groupId && list && !one) Astro.response.status = 404
+const groups = list ? (groupId ? (one ? [one] : []) : list.groups) : []
+
+// One axis for every row on the page.
+const starts = list ? list.groups.flatMap((g) => g.rows.flatMap((r) => r.bins.map((b) => b.start))) : []
+const from = starts.length ? Math.min(...starts) : -600
+const to = starts.length ? Math.max(...starts) + SUBJECT_BIN : 500
+const step = niceStep([from, to], 6)
+const domain: [number, number] = [Math.floor(from / step) * step, Math.ceil(to / step) * step]
+const ticks = yearTicks(domain, step).filter((tk) => tk > domain[0] && tk < domain[1])
+
+const options = t
+  ? [
+      { value: "all", label: "All collections" },
+      ...t.all
+        .filter((c) => c.subjects > 0)
+        .sort((a, b) => [...t.ancestors(a.id), a].map((x) => x.sortOrder).join(".").localeCompare([...t.ancestors(b.id), b].map((x) => x.sortOrder).join(".")))
+        .map((c) => ({ value: c.id, label: c.name, count: c.subjects })),
+    ]
+  : []
+
+/** This page's URL with some parameters changed; null removes one. */
+const link = (changes: Record<string, string | number | null>, hash = "") => {
+  const url = new URL(Astro.url)
+  for (const [k, v] of Object.entries(changes)) {
+    if (v == null) url.searchParams.delete(k)
+    else url.searchParams.set(k, String(v))
+  }
+  return url.pathname + url.search + hash
+}
+const leaf = !!category && !!t?.isLeaf(category.id)
+const href = (id: string) => `/subject/${id}${category ? `?collection=${category.id}` : ""}`
+
+const heading = one ? one.name : "Subjects"
+const summary = !list
+  ? `No collection called ${requested}`
+  : groupId && !one
+    ? `No group called ${groupId}`
+    : `${fmt(one ? one.rows.length : list.total)} in ${category ? category.name : "every collection"}`
+---
+
+<Base title={[one?.name ?? "Subjects", category?.name].filter(Boolean).join(" · ")}>
+  <SiteHeader current="Subjects" />
+  <Page>
+    {groupId && <a href={link({ group: null })} class="text-ui text-stone underline-offset-4 hover:text-ink hover:underline">← All subjects</a>}
+    <div class:list={["flex flex-wrap items-baseline gap-x-5 gap-y-2", groupId ? "pt-4" : "pt-8"]}>
+      <h1 class="m-0 font-serif text-display font-normal">{heading}</h1>
+      <Note className="text-ui">{summary}</Note>
+    </div>
+
+    {list && (
+      <form method="get" action="/subjects" class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3">
+        <UrlSelect client:idle label="Collection" param="collection" value={category?.id ?? "all"} options={options} />
+        <UrlSelect client:idle label="Sort" param="sort" value={sort} options={SORTS} />
+      </form>
+    )}
+
+    {!groupId && groups.length > 1 && (
+      <nav aria-label="Kinds" class="mt-7 grid gap-x-10 sm:grid-cols-2">
+        {groups.map((g) => (
+          <a href={`#${g.id}`} class="group flex justify-between gap-3 border-b border-hairline py-2 text-ui text-ink">
+            <span class="underline-offset-4 group-hover:underline">{g.name}</span>
+            <span class="num text-stone">{fmt(g.rows.length)}</span>
+          </a>
+        ))}
+      </nav>
+    )}
+
+    {
+      groups.map((g, i) => {
+        const rows = one ? g.rows : g.rows.slice(0, SHOWN[g.id])
+        return (
+          <section id={g.id} class:list={["scroll-mt-6", one || i > 0 ? "pt-18" : "pt-14"]}>
+            <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-ink pb-3.5">
+              <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <h2 class="m-0 font-serif text-heading font-normal">{one ? "Every subject" : g.name}</h2>
+                <Note>{fmt(g.rows.length)}</Note>
+              </div>
+              {g.id === "gods" && !category && <GreekRomanKey />}
+            </div>
+            {g.id === "places" ? (
+              <div class="mt-5">
+                <PlacesGrid rows={rows} href={href} />
+              </div>
+            ) : (
+              <>
+                <RowsHead first="" domain={domain} ticks={ticks} className="pt-3.5" />
+                {rows.map((r) => (
+                  <SubjectListRow row={r} href={href(r.id)} byDate={leaf} domain={domain} ticks={ticks} />
+                ))}
+              </>
+            )}
+            {!one && g.rows.length > rows.length && (
+              <a href={link({ group: g.id })} class="group mt-5 flex items-baseline justify-between border-b border-hairline py-3.5 text-ui text-ink transition-[background-color,box-shadow] hover:bg-wash hover:shadow-[-12px_0_0_var(--color-wash),12px_0_0_var(--color-wash)]">
+                <span class="underline-offset-4 group-hover:underline">All {g.name.toLowerCase()}</span>
+                <span class="num text-stone">{fmt(g.rows.length - rows.length)} more</span>
+              </a>
+            )}
+          </section>
+        )
+      })
+    }
+  </Page>
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+</script>

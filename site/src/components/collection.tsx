@@ -201,7 +201,7 @@ export function CollectionRow({
         bins={bins}
         binWidth={binWidth}
         domain={domain}
-        yMax={yMax ?? Math.max(1, ...bins.map((b) => b.n))}
+        yMax={yMax ?? Math.max(1, ...bins.map((b) => b.n + (b.m ?? 0)))}
         ticks={ticks}
         height={dense ? 28 : undefined}
         label={`${name}: types by date${typeof dates === "string" ? `, ${dates}` : ""}`}

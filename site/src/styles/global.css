@@ -210,6 +210,14 @@
   .chart .bar[data-tip-active] {
     fill: var(--color-stone);
   }
+  /* A second series stacked above the first (subjects: Roman collections over Greek). */
+  .chart .bar-alt {
+    fill: color-mix(in srgb, var(--color-stone) 45%, white);
+  }
+  .chart .bar-alt:hover,
+  .chart .bar-alt[data-tip-active] {
+    fill: var(--color-graphite);
+  }
   /* Map mints (components/mint-map.tsx): labelled mints in ink, the rest in a light grey. */
   .mint-dot {
     fill: color-mix(in srgb, var(--color-stone) 45%, white);

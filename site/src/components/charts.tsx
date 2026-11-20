@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils"
 import { year, yearRange } from "@/lib/format"
 import { fmt } from "@/lib/categories"
 
-export type Bin = { start: number; n: number }
+/** A histogram bin. `m`: a second series stacked above `n` in grey (subjects: Roman over Greek). */
+export type Bin = { start: number; n: number; m?: number }
 
 export const tickLabel = (y: number) => (y === 0 ? "AD 1" : year(y))
 
@@ -72,9 +73,16 @@ export function Sparkline({
       ))}
       <line x1={0} x2={W} y1={H - 0.5} y2={H - 0.5} className="stroke-field" vectorEffect="non-scaling-stroke" />
       {bins.map((b) => {
-        const h = Math.max(2, y(b.n))
+        const bx = x(b.start) + bw * BAR_GAP / 2
+        const w = bw * (1 - BAR_GAP)
+        const h = b.n > 0 || !b.m ? Math.max(2, y(b.n)) : 0
+        const h2 = b.m ? Math.max(2, y(b.m)) : 0
+        const tip = binLabel(b.start, binWidth, b.n + (b.m ?? 0))
         return (
-          <rect key={b.start} x={x(b.start) + bw * BAR_GAP / 2} width={bw * (1 - BAR_GAP)} y={H - h} height={h} rx={1.5} data-tip={binLabel(b.start, binWidth, b.n)} className="bar" />
+          <React.Fragment key={b.start}>
+            {h > 0 && <rect x={bx} width={w} y={H - h} height={h} rx={1.5} data-tip={tip} className="bar" />}
+            {h2 > 0 && <rect x={bx} width={w} y={H - h - h2} height={h2} rx={1.5} data-tip={tip} className="bar bar-alt" />}
+          </React.Fragment>
         )
       })}
     </svg>
