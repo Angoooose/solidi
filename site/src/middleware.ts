@@ -10,7 +10,7 @@
 import { defineMiddleware } from "astro:middleware"
 import { env } from "cloudflare:workers"
 
-const CACHED = [/^\/collections\/?$/, /^\/mints\/?$/, /^\/mint\/[^/]+\/?$/, /^\/category\/[^/]+\/?$/, /^\/people\/?$/, /^\/api\/collections\.json$/, /^\/api\/search-index\.json$/, /^\/api\/search\.json$/]
+const CACHED = [/^\/collections\/?$/, /^\/mints\/?$/, /^\/mint\/[^/]+\/?$/, /^\/denominations\/?$/, /^\/denomination\/[^/]+\/?$/, /^\/category\/[^/]+\/?$/, /^\/people\/?$/, /^\/api\/collections\.json$/, /^\/api\/search-index\.json$/, /^\/api\/search\.json$/]
 const TTL = 60 * 60 * 24 // a day; the build key retires copies sooner when the data changes
 const BUILD_CHECK_MS = 60_000
 

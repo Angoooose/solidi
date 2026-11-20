@@ -1,0 +1,201 @@
+---
+/*
+ * Every denomination:
+ * /denominations?collection=roman-imperial&sort=date. By metal (a heading per metal, its top
+ * denominations, a link to the rest: ?metal=gold), or one list by types, date or name. A collection
+ * opens with its most struck denominations side by side at relative size. ?q= narrows by name.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import SiteFooter from "@/components/SiteFooter.astro"
+import { Note, Page, RowsHead } from "@/components/collection"
+import { CoinScale, DenominationListRow } from "@/components/denomination"
+import { YearAxis, niceStep, yearTicks } from "@/components/charts"
+import { UrlSelect } from "@/components/url-select"
+import { buttonVariants } from "@/components/ui/button"
+import { fmt, typesLabel } from "@/lib/categories"
+import { DENOMINATION_BIN, getDenominations, type DenominationRow, type DenominationsSort } from "@/lib/denominations"
+
+/** Denominations per metal heading, per page of a single list, and in a collection's size strip. */
+const PER_GROUP = 7
+const PAGE_SIZE = 120
+const STRIP = 9
+
+const params = Astro.url.searchParams
+const requested = params.get("collection")
+// A collection lists most types first (it is short); every collection lists by metal.
+const SORTS: { value: DenominationsSort; label: string }[] = [
+  { value: "metal", label: "By metal" },
+  { value: "types", label: "Most types" },
+  { value: "date", label: "By date" },
+  { value: "name", label: "By name" },
+]
+if (requested && requested !== "all") SORTS.unshift(SORTS.splice(1, 1)[0])
+const sort = SORTS.find((s) => s.value === params.get("sort"))?.value ?? SORTS[0].value
+const q = (params.get("q") ?? "").trim()
+const limitParam = Number(params.get("limit"))
+const limit = Number.isInteger(limitParam) && limitParam > 0 ? Math.min(limitParam, 2000) : PAGE_SIZE
+
+const list = await getDenominations(env.DB, requested === "all" ? null : requested, sort)
+if (!list) Astro.response.status = 404
+const category = list?.category ?? null
+const t = list?.tree
+
+// One metal (?metal=gold): every denomination under it.
+const metalId = sort === "metal" ? params.get("metal") : null
+const metal = metalId ? list?.groups.find((g) => g.id === metalId) : undefined
+if (metalId && list && !metal) Astro.response.status = 404
+
+const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+const matches = (d: DenominationRow) => !q || fold(d.name).includes(fold(q))
+const grouped = list && sort === "metal" && !q
+const groups = grouped ? (metalId ? (metal ? [metal] : []) : list.groups) : []
+const flat = list && !grouped ? list.rows.filter(matches) : []
+const shown = flat.slice(0, limit)
+
+// One axis for every row on the page.
+const all = list?.rows ?? []
+const starts = all.flatMap((d) => d.bins.map((b) => b.start))
+const from = starts.length ? Math.min(...starts) : -600
+const to = starts.length ? Math.max(...starts) + DENOMINATION_BIN : 500
+const step = niceStep([from, to], 6)
+const domain: [number, number] = [Math.floor(from / step) * step, Math.ceil(to / step) * step]
+const ticks = yearTicks(domain, step).filter((tk) => tk > domain[0] && tk < domain[1])
+
+const options = t
+  ? [
+      { value: "all", label: "All collections" },
+      ...t.all
+        .filter((c) => c.denominations > 0)
+        .sort((a, b) => [...t.ancestors(a.id), a].map((x) => x.sortOrder).join(".").localeCompare([...t.ancestors(b.id), b].map((x) => x.sortOrder).join(".")))
+        .map((c) => ({ value: c.id, label: c.name, count: c.denominations })),
+    ]
+  : []
+
+/** This page's URL with some parameters changed; null removes one. */
+const link = (changes: Record<string, string | number | null>) => {
+  const url = new URL(Astro.url)
+  for (const [k, v] of Object.entries(changes)) {
+    if (v == null) url.searchParams.delete(k)
+    else url.searchParams.set(k, String(v))
+  }
+  return url.pathname + url.search
+}
+const href = (id: string) => `/denomination/${id}${category ? `?collection=${category.id}` : ""}`
+// Dates beside the name when listed by date, or in one leaf collection (where the collections column would repeat it).
+const byDate = sort === "date" || (!!category && !!t?.isLeaf(category.id))
+const strip = category && !q && !metalId ? all.filter((d) => d.diameter != null).sort((a, b) => b.n - a.n).slice(0, STRIP) : []
+
+const title = [metal?.name, category?.name].filter(Boolean).join(" · ")
+const heading = metal ? metal.name : "Denominations"
+const summary = !list
+  ? `No collection called ${requested}`
+  : metalId && !metal
+    ? `No metal called ${metalId}`
+    : metal
+      ? `${fmt(metal.rows.length)} ${metal.rows.length === 1 ? "denomination" : "denominations"} · ${typesLabel(metal.n)}${category ? ` in ${category.name}` : ""}`
+      : `${fmt(all.length)} in ${category ? category.name : "every collection"}`
+---
+
+<Base title={title ? `Denominations · ${title}` : "Denominations"}>
+  <SiteHeader current="Denominations" />
+  <Page>
+    {metalId && (
+      <a href={link({ metal: null })} class="text-ui text-stone underline-offset-4 hover:text-ink hover:underline">← All denominations</a>
+    )}
+    <div class:list={["flex flex-wrap items-baseline gap-x-5 gap-y-2", metalId ? "pt-4" : "pt-8"]}>
+      <h1 class="m-0 font-serif text-display font-normal">{heading}</h1>
+      <Note className="text-ui">{summary}</Note>
+    </div>
+
+    {list && (
+      <form method="get" action="/denominations" class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3" data-list-search="metal">
+        <label class="flex h-12 min-w-[240px] flex-1 items-center gap-2.5 border border-field px-3.5 focus-within:border-ink">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" class="text-ink"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+          <input type="search" name="q" value={q} transition:persist="denomination-search" placeholder="Filter denominations" aria-label="Filter denominations" class="min-w-0 flex-1 border-0 bg-transparent text-ui text-ink outline-0 placeholder:text-stone" />
+        </label>
+        {category && <input type="hidden" name="collection" value={category.id} />}
+        {sort !== SORTS[0].value && <input type="hidden" name="sort" value={sort} />}
+        <UrlSelect client:idle label="Collection" param="collection" value={category?.id ?? "all"} options={options} />
+        <UrlSelect client:idle label="Sort" param="sort" value={sort} options={SORTS} />
+      </form>
+    )}
+
+    {strip.length > 1 && (
+      <section class="mt-10">
+        <CoinScale
+          coins={strip.map((d) => ({ id: d.id, name: d.name, diameter: d.diameter!, photo: d.photo, href: href(d.id) }))}
+          max={135}
+          caption={`The ${strip.length} most struck, at relative size · median diameter of measured specimens`}
+        />
+      </section>
+    )}
+
+    {grouped && !metal && (
+      <nav aria-label="Metals" class="mt-7 hidden gap-x-10 md:grid md:grid-cols-3 lg:grid-cols-5">
+        {groups.map((g) => (
+          <a href={`#${g.id}`} class="group flex justify-between gap-3 border-b border-hairline py-2 text-ui text-ink">
+            <span class="underline-offset-4 group-hover:underline">{g.name}</span>
+            <span class="num text-stone">{fmt(g.rows.length)}</span>
+          </a>
+        ))}
+      </nav>
+    )}
+
+    {
+      groups.map((g, i) => (
+        <section id={g.id} class="scroll-mt-6" style={byDate ? "--aside: 140px" : undefined}>
+          <div class:list={["grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 border-b border-ink pb-3.5 md:grid-cols-[minmax(0,calc(392px+var(--aside,240px)))_minmax(0,1fr)_72px]", metal || i > 0 ? "pt-18" : "pt-14"]}>
+            <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <h2 class="m-0 font-serif text-heading font-normal">{metal ? "Every denomination" : g.name}</h2>
+              <Note>{`${fmt(g.rows.length)} ${g.rows.length === 1 ? "denomination" : "denominations"} · ${typesLabel(g.n)}`}</Note>
+            </div>
+            <YearAxis domain={domain} ticks={ticks} className="relative top-[5px] hidden md:block" />
+            <span class="hidden text-right text-label text-stone md:block">Types</span>
+          </div>
+          {(metal ? g.rows : g.rows.slice(0, PER_GROUP)).map((d) => (
+            <DenominationListRow row={d} href={href(d.id)} byDate={byDate} domain={domain} ticks={ticks} />
+          ))}
+          {!metal && g.rows.length > PER_GROUP && (
+            <a href={link({ metal: g.id })} class="group flex items-baseline justify-between border-b border-hairline py-3.5 text-ui text-ink transition-[background-color,box-shadow] hover:bg-wash hover:shadow-[-12px_0_0_var(--color-wash),12px_0_0_var(--color-wash)]">
+              <span class="underline-offset-4 group-hover:underline">All {g.name.toLowerCase()}</span>
+              <span class="num text-stone">{fmt(g.rows.length - PER_GROUP)} more</span>
+            </a>
+          )}
+        </section>
+      ))
+    }
+
+    {list && !grouped && (
+      <section style={byDate ? "--aside: 140px" : undefined}>
+        <RowsHead
+          first={q ? `${fmt(flat.length)} ${flat.length === 1 ? "denomination" : "denominations"} matching “${q}”` : "Denomination"}
+          aside={byDate ? "Dates" : "Collections"}
+          lead
+          domain={domain}
+          ticks={ticks}
+          className="mt-14 border-b border-ink pb-3.5"
+        />
+        {shown.map((d) => (
+          <DenominationListRow row={d} href={href(d.id)} byDate={byDate} domain={domain} ticks={ticks} />
+        ))}
+        {!flat.length && <p class="mt-6 text-ui text-stone">No denominations match “{q}”.</p>}
+        {flat.length > shown.length && (
+          <div class="mt-8 flex justify-center">
+            <a data-keep-scroll href={link({ limit: limit + PAGE_SIZE })} class={buttonVariants({ variant: "outline" })}>
+              Show more denominations
+              <span class="num font-normal text-stone">{fmt(shown.length)} of {fmt(flat.length)}</span>
+            </a>
+          </div>
+        )}
+      </section>
+    )}
+  </Page>
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+  import "@/scripts/list-search"
+</script>

@@ -127,11 +127,19 @@ export function MoreTile({ href, count, label }: { href: string; count: number; 
  *
  * Without a photo it is the mints list's denser row: name and a stone line under it, an `aside`
  * column (the collections it struck for, or its dates), a shorter sparkline that scales to the
- * row's own peak, and no sparkline on phones.
+ * row's own peak, and no sparkline on phones. A dense row can also lead with a small picture
+ * (`lead`: a coin at relative size) and add a column after the sparkline (`extra`: a weight).
  */
 const ROW_COLS = {
   photo: "grid-cols-[48px_minmax(0,1fr)_auto] md:grid-cols-[64px_minmax(0,380px)_minmax(0,1fr)_72px]",
-  dense: "grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,280px)_minmax(0,var(--aside,240px))_minmax(0,1fr)_72px]",
+  dense: "grid-cols-(--cols) md:grid-cols-(--cols-md)",
+}
+/** The dense row's columns, as CSS variables for ROW_COLS.dense. */
+export function denseCols({ lead = false, extra = false }: { lead?: boolean; extra?: boolean } = {}): React.CSSProperties {
+  return {
+    "--cols": `${lead ? "44px " : ""}minmax(0,1fr) auto`,
+    "--cols-md": `${lead ? "64px " : ""}minmax(0,280px) minmax(0,var(--aside,240px)) minmax(0,1fr) ${extra ? "110px " : ""}72px`,
+  } as React.CSSProperties
 }
 
 export function CollectionRow({
@@ -141,6 +149,8 @@ export function CollectionRow({
   dates,
   description,
   aside,
+  lead,
+  extra,
   bins,
   binWidth,
   domain,
@@ -157,6 +167,10 @@ export function CollectionRow({
   description?: string | null
   /** Dense row only: the second column. */
   aside?: React.ReactNode
+  /** Dense row only: a small picture before the name. */
+  lead?: React.ReactNode
+  /** Dense row only: a column after the sparkline (wide screens). */
+  extra?: React.ReactNode
   bins: Bin[]
   binWidth: number
   domain: [number, number]
@@ -173,8 +187,10 @@ export function CollectionRow({
         "group grid items-center gap-x-4 border-b border-hairline transition-[background-color,box-shadow] hover:bg-wash hover:shadow-[-12px_0_0_var(--color-wash),12px_0_0_var(--color-wash)] md:gap-x-6",
         dense ? cn(ROW_COLS.dense, "gap-y-0.5 py-2.5") : cn(ROW_COLS.photo, "gap-y-3 py-3")
       )}
+      style={dense ? denseCols({ lead: lead !== undefined, extra: extra !== undefined }) : undefined}
     >
       {!dense && <Plinth photo={photo} alt="" size="thumb" className="p-1.5" />}
+      {dense && lead !== undefined && <span className="row-span-2 flex items-center justify-center md:row-span-1">{lead}</span>}
       <span className={cn("flex min-w-0 flex-col", dense ? "gap-px" : "gap-[3px]")}>
         <span className={cn("font-serif leading-[1.15] text-ink decoration-1 underline-offset-4 group-hover:underline", dense ? "text-[1.1875rem]" : "text-reading")}>{name}</span>
         {dates && <span className="num text-label text-stone">{dates}</span>}
@@ -191,22 +207,43 @@ export function CollectionRow({
         label={`${name}: types by date${typeof dates === "string" ? `, ${dates}` : ""}`}
         className={dense ? "hidden md:block" : "col-span-3 row-start-2 md:col-span-1 md:row-start-auto"}
       />
-      <span className={cn("num text-right", dense ? "col-start-2 row-start-1 self-start text-ui md:col-start-auto md:row-start-auto md:self-center" : "col-start-3 row-start-1 text-body md:col-start-auto md:row-start-auto")}>
+      {dense && extra !== undefined && <span className="hidden text-right md:block">{extra}</span>}
+      <span className={cn("num text-right", dense ? "[grid-column:-2/-1] row-start-1 self-start text-ui md:[grid-column:auto] md:row-start-auto md:self-center" : "col-start-3 row-start-1 text-body md:col-start-auto md:row-start-auto")}>
         {fmt(count)}
       </span>
     </a>
   )
 }
 
-/* The column header over collection rows: "Collection", the year axis, "Types". `aside` heads the dense rows' second column. */
-export function RowsHead({ first, aside, domain, ticks, className }: { first: string; aside?: string; domain: [number, number]; ticks: number[]; className?: string }) {
+/* The column header over collection rows: "Collection", the year axis, "Types". `aside` heads the dense rows' second column; `lead` and `extra` match the dense rows'. */
+export function RowsHead({
+  first,
+  aside,
+  lead = false,
+  extra,
+  domain,
+  ticks,
+  className,
+}: {
+  first: string
+  aside?: string
+  lead?: boolean
+  extra?: string
+  domain: [number, number]
+  ticks: number[]
+  className?: string
+}) {
   const dense = aside !== undefined
   return (
-    <div className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-end gap-6", dense ? ROW_COLS.dense.split(" ")[1] : "md:grid-cols-[64px_minmax(0,380px)_minmax(0,1fr)_72px]", className)}>
-      {!dense && <span className="hidden md:block" />}
+    <div
+      className={cn("grid items-end gap-6", dense ? ROW_COLS.dense : "grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[64px_minmax(0,380px)_minmax(0,1fr)_72px]", className)}
+      style={dense ? denseCols({ lead, extra: extra !== undefined }) : undefined}
+    >
+      {(!dense || lead) && <span className={dense ? undefined : "hidden md:block"} />}
       <span className="text-label text-stone">{first}</span>
       {dense && <span className="hidden text-label text-stone md:block">{aside}</span>}
       <YearAxis domain={domain} ticks={ticks} className="hidden md:block" />
+      {extra !== undefined && <span className="hidden text-right text-label text-stone md:block">{extra}</span>}
       <span className="text-right text-label text-stone">Types</span>
     </div>
   )
