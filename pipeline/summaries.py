@@ -9,12 +9,17 @@ Workshops count as their city's mint (Seleucia on the Tigris II -> Seleucia).
 - category_facet   every denomination, subject and material, with counts
 - category_person  every issuing person, with counts, dates and (for the top ones) a photo
 - category_mint    every mint, with counts, dates, 25-year histogram and (for the top ones) a photo
+- category_denomination  every denomination, with counts, dates, histogram, sizes, weights and a photo
+- denomination_stat      one row per denomination: its metal, totals and sizes for the list and its page
+- denomination_size      for a denomination's top collections, the denominations struck beside it, by size
 """
 
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
+import statistics
 from collections import defaultdict
 
 BIN_WIDTHS = (10, 25)
@@ -24,12 +29,32 @@ PICTURED = 24
 # Person records that stand for no one: unsigned Republican issues.
 NOT_PEOPLE = ("anonymous",)
 
+# Denominations by metal: each goes under its most common material's group. Billon (debased silver)
+# reads as silver; copper alloys, lead and iron as bronze.
+METAL_GROUP = {"av": "gold", "el": "electrum", "ar": "silver", "billon": "silver", "ae": "bronze",
+               "cu": "bronze", "orichalcum": "bronze", "cupro-nickel": "bronze", "pb": "bronze", "fe": "bronze"}
+# A second material is named ("also silver") when at least this share of the types use it.
+ALSO_SHARE = 0.1
+# The catalogues' placeholder names for bronzes whose ancient name is unknown (AE3, 4 unit,
+# Denomination C, Uncertain value): grouped together rather than under a metal.
+CATALOGUE_UNIT = re.compile(r"^(AE(\d|\b)|(Large|Small|Reduced|Light|Heavy) AE|Denomination\b|Uncertain value$|Fraction$|Silver$)|\bunits?\b", re.I)
+# Specimen measurements outside these are typos (a 2,740 mm coin).
+DIAMETER_MM = (4, 80)
+WEIGHT_G = (0.05, 500)
+# A denomination's page compares it with what its top collections struck at the same time.
+SIZE_COLLECTIONS = 3
+SIZE_OTHERS = 5
+SIZE_MIN_MEASURED = 5
+
 SCHEMA = """
 DROP TABLE IF EXISTS category_stat;
 DROP TABLE IF EXISTS category_bin;
 DROP TABLE IF EXISTS category_facet;
 DROP TABLE IF EXISTS category_person;
 DROP TABLE IF EXISTS category_mint;
+DROP TABLE IF EXISTS category_denomination;
+DROP TABLE IF EXISTS denomination_stat;
+DROP TABLE IF EXISTS denomination_size;
 CREATE TABLE category_stat (
   category_id   TEXT PRIMARY KEY REFERENCES category(id),
   types         INTEGER NOT NULL,
@@ -80,6 +105,53 @@ CREATE TABLE category_mint (
   image_id    INTEGER REFERENCES image(id),-- an obverse struck there, top ones only
   bins        TEXT,                        -- JSON [[bin_start, n], …]: 25-year bins, as category_bin
   PRIMARY KEY (category_id, mint_id)
+);
+CREATE TABLE category_denomination (
+  category_id     TEXT NOT NULL REFERENCES category(id),
+  denomination_id TEXT NOT NULL REFERENCES denomination(id),
+  n               INTEGER NOT NULL,
+  rank            INTEGER NOT NULL,
+  start_year      INTEGER,
+  end_year        INTEGER,
+  bins            TEXT,                    -- JSON [[bin_start, n], …]: 25-year bins
+  diameter        REAL,                    -- median of measured specimens, mm
+  diameter_n      INTEGER NOT NULL,
+  weight          REAL,                    -- median of weighed specimens, g
+  weight_n        INTEGER NOT NULL,
+  image_id        INTEGER REFERENCES image(id), -- an obverse, from a holder whose photos are cropped tight
+  PRIMARY KEY (category_id, denomination_id)
+);
+CREATE TABLE denomination_stat (
+  denomination_id TEXT PRIMARY KEY REFERENCES denomination(id),
+  metal_group     TEXT NOT NULL,           -- 'gold', 'electrum', 'silver', 'bronze', or 'units' (catalogue units)
+  material_id     TEXT REFERENCES material(id), -- its most common material
+  also_id         TEXT REFERENCES material(id), -- a second one used by a real share of its types
+  types           INTEGER NOT NULL,
+  start_year      INTEGER,
+  end_year        INTEGER,
+  bins            TEXT,
+  collections     INTEGER NOT NULL,        -- leaf categories
+  people          INTEGER NOT NULL,
+  mints           INTEGER NOT NULL,
+  subjects        INTEGER NOT NULL,
+  specimens       INTEGER NOT NULL,
+  holders         INTEGER NOT NULL,
+  diameter        REAL,
+  diameter_n      INTEGER NOT NULL,
+  weight          REAL,
+  weight_n        INTEGER NOT NULL,
+  image_id        INTEGER REFERENCES image(id)
+);
+CREATE TABLE denomination_size (
+  denomination_id TEXT NOT NULL REFERENCES denomination(id),
+  category_id     TEXT NOT NULL REFERENCES category(id), -- one of its top leaf collections
+  tab             INTEGER NOT NULL,        -- 1 = the collection with most of its types
+  window_start    INTEGER,                 -- the middle 80% of its dates there
+  window_end      INTEGER,
+  other_id        TEXT NOT NULL REFERENCES denomination(id), -- itself, or one struck there in that window
+  diameter        REAL NOT NULL,           -- median of those measured in the window
+  diameter_n      INTEGER NOT NULL,
+  PRIMARY KEY (denomination_id, category_id, other_id)
 );
 """
 
@@ -218,9 +290,150 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
         UPDATE category_mint AS cm SET image_id =
           {PHOTO.format(types="SELECT u.id FROM under u WHERE u.root = cm.category_id AND u.mint = cm.mint_id")}
         WHERE cm.rank <= {PICTURED}""")
+    _denominations(db)
     db.commit()
 
     counts = {t: db.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
-              for t in ("category_stat", "category_bin", "category_facet", "category_person", "category_mint")}
+              for t in ("category_stat", "category_bin", "category_facet", "category_person", "category_mint",
+                        "category_denomination", "denomination_stat", "denomination_size")}
     log("  " + ", ".join(f"{t} {n:,}" for t, n in counts.items()))
     return counts
+
+
+def _median(values: list[float]) -> float | None:
+    return round(statistics.median(values), 1) if values else None
+
+
+def _bins_json(spans: list[tuple[int, int]]) -> str | None:
+    bins: dict[int, float] = defaultdict(float)
+    for s, e in spans:
+        for b, share in _spread(s, e, MINT_BIN):
+            bins[b] += share
+    return json.dumps([[b, round(n, 2)] for b, n in sorted(bins.items())], separators=(",", ":")) if bins else None
+
+
+def _denominations(db: sqlite3.Connection) -> None:
+    """category_denomination, denomination_stat and denomination_size (uses build's temp tables)."""
+    not_people = ",".join(f"'{p}'" for p in NOT_PEOPLE)
+    # Every live type with a denomination: (root category, denomination, type, years, leaf category).
+    rows = db.execute("""SELECT u.root, td.denomination_id, u.id, u.s, u.e, u.cat
+                         FROM under u JOIN type_denomination td ON td.type_id = u.id""").fetchall()
+    # Measurements per type: (specimen, holder, weight, diameter).
+    measured: dict[str, list[tuple]] = defaultdict(list)
+    for tid, sid, holder, w, d in db.execute("""
+            SELECT st.type_id, s.id, s.institution_id, s.weight_g, s.diameter_mm
+            FROM specimen_type st JOIN specimen s ON s.id = st.specimen_id
+            WHERE st.type_id IN (SELECT type_id FROM type_denomination)"""):
+        w = w if w is not None and WEIGHT_G[0] <= w <= WEIGHT_G[1] else None
+        d = d if d is not None and DIAMETER_MM[0] <= d <= DIAMETER_MM[1] else None
+        measured[tid].append((sid, holder, w, d))
+
+    def sizes(types) -> tuple[list[float], list[float]]:
+        seen, ws, ds = set(), [], []
+        for t in types:
+            for sid, _, w, d in measured.get(t, ()):
+                if sid in seen:
+                    continue
+                seen.add(sid)
+                if w is not None:
+                    ws.append(w)
+                if d is not None:
+                    ds.append(d)
+        return ws, ds
+
+    # Per category and denomination.
+    groups: dict[tuple[str, str], list[tuple]] = defaultdict(list)
+    for root, den, tid, s, e, leaf in rows:
+        groups[(root, den)].append((tid, s, e, leaf))
+    out = []
+    for (root, den), ts in groups.items():
+        ws, ds = sizes(t[0] for t in ts)
+        dated = [(s, e) for _, s, e, _ in ts if s is not None]
+        out.append((root, den, len(ts), min((s for s, _ in dated), default=None), max((e for _, e in dated), default=None),
+                    _bins_json(dated), _median(ds), len(ds), _median(ws), len(ws)))
+    db.executemany("""INSERT INTO category_denomination
+                      (category_id, denomination_id, n, rank, start_year, end_year, bins, diameter, diameter_n, weight, weight_n)
+                      VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)""", out)
+    db.execute("""UPDATE category_denomination AS cd SET rank = (
+                    SELECT count(*) FROM category_denomination x WHERE x.category_id = cd.category_id
+                    AND (x.n > cd.n OR (x.n = cd.n AND x.denomination_id < cd.denomination_id))) + 1""")
+    db.execute(f"""
+        UPDATE category_denomination AS cd SET image_id =
+          {PHOTO.format(types="SELECT u.id FROM under u JOIN type_denomination td ON td.type_id = u.id WHERE u.root = cd.category_id AND td.denomination_id = cd.denomination_id")}""")
+
+    # Per denomination, across every collection (each type once).
+    by_den: dict[str, dict[str, tuple]] = defaultdict(dict)
+    for root, den, tid, s, e, leaf in rows:
+        by_den[den][tid] = (s, e, leaf)
+    names = dict(db.execute("SELECT id, name FROM denomination"))
+    materials = defaultdict(list)
+    for den, mat, n in db.execute("""SELECT td.denomination_id, tm.material_id, count(*) FROM type_denomination td
+                                     JOIN live l ON l.id = td.type_id JOIN type_material tm ON tm.type_id = td.type_id
+                                     GROUP BY 1, 2 ORDER BY 3 DESC, 2"""):
+        materials[den].append((mat, n))
+    counts = {den: (c, p, m, sj) for den, c, p, m, sj in db.execute(f"""
+        SELECT td.denomination_id, count(DISTINCT l.cat),
+          (SELECT count(DISTINCT tp.person_id) FROM type_denomination x JOIN live y ON y.id = x.type_id
+           JOIN type_person tp ON tp.type_id = x.type_id
+           WHERE x.denomination_id = td.denomination_id AND tp.role IN ('authority', 'issuer') AND tp.person_id NOT IN ({not_people})),
+          count(DISTINCT l.mint),
+          (SELECT count(DISTINCT ts.subject_id) FROM type_denomination x JOIN live y ON y.id = x.type_id
+           JOIN type_subject ts ON ts.type_id = x.type_id WHERE x.denomination_id = td.denomination_id)
+        FROM type_denomination td JOIN live l ON l.id = td.type_id GROUP BY 1""")}
+    stat = []
+    for den, types in by_den.items():
+        mats = materials.get(den, [])
+        total = sum(n for _, n in mats)
+        material = mats[0][0] if mats else None
+        also = next((m for m, n in mats[1:] if n >= ALSO_SHARE * total), None)
+        group = "units" if CATALOGUE_UNIT.search(names[den]) else METAL_GROUP.get(material or "", "bronze")
+        specimens = {sid for t in types for sid, *_ in measured.get(t, ())}
+        holders = {h for t in types for _, h, *_ in measured.get(t, ()) if h}
+        ws, ds = sizes(types)
+        dated = [(s, e) for s, e, _ in types.values() if s is not None]
+        c, p, m, sj = counts[den]
+        stat.append((den, group, material, also, len(types), min((s for s, _ in dated), default=None),
+                     max((e for _, e in dated), default=None), _bins_json(dated), c, p, m, sj,
+                     len(specimens), len(holders), _median(ds), len(ds), _median(ws), len(ws)))
+    db.executemany(f"INSERT INTO denomination_stat VALUES ({','.join('?' * 18)}, NULL)", stat)
+    db.execute(f"""
+        UPDATE denomination_stat AS ds SET image_id =
+          {PHOTO.format(types="SELECT td.type_id FROM type_denomination td JOIN live l ON l.id = td.type_id WHERE td.denomination_id = ds.denomination_id")}""")
+
+    # Size comparisons: in each of its top leaf collections, the window holding the middle 80% of
+    # its types' dates, and the denominations most struck there in that window.
+    leaf_types: dict[str, dict[str, list[tuple]]] = defaultdict(lambda: defaultdict(list))
+    for den, types in by_den.items():
+        for tid, (s, e, leaf) in types.items():
+            leaf_types[leaf][den].append((tid, s, e))
+    size = []
+    for den, types in by_den.items():
+        per_leaf: dict[str, int] = defaultdict(int)
+        for _, _, leaf in types.values():
+            per_leaf[leaf] += 1
+        tops = sorted(per_leaf, key=lambda c: (-per_leaf[c], c))[:SIZE_COLLECTIONS]
+        tab = 0
+        for leaf in tops:
+            mids = sorted((s + e) / 2 for _, s, e in leaf_types[leaf][den] if s is not None)
+            if mids:
+                lo, hi = mids[int(0.1 * (len(mids) - 1))], mids[int(round(0.9 * (len(mids) - 1)))]
+                lo, hi = int(5 * round(lo / 5)), int(5 * round(hi / 5))
+                inside = lambda s, e: s is not None and s <= hi and e >= lo
+            else:
+                lo = hi = None
+                inside = lambda s, e: True
+            candidates = []
+            for other, ots in leaf_types[leaf].items():
+                these = [tid for tid, s, e in ots if inside(s, e)]
+                if not these:
+                    continue
+                _, ds = sizes(these)
+                if len(ds) >= SIZE_MIN_MEASURED:
+                    candidates.append((other != den, -len(these), other, _median(ds), len(ds)))
+            candidates.sort()
+            if not candidates or candidates[0][0]:
+                continue  # the denomination itself is unmeasured here
+            tab += 1
+            for _, _, other, d, n in candidates[:SIZE_OTHERS + 1]:
+                size.append((den, leaf, tab, lo, hi, other, d, n))
+    db.executemany("INSERT INTO denomination_size VALUES (?, ?, ?, ?, ?, ?, ?, ?)", size)
