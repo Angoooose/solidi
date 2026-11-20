@@ -10,7 +10,7 @@
  * Alexanders were struck after his death, by his successors and by cities) are part of the ruler's
  * coinage but kept apart by the "Struck" filter.
  */
-import { iiif, secure, year, yearRange } from "@/lib/format"
+import { iiif, lead, secure, year, yearRange } from "@/lib/format"
 import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
 import { USABLE, type TypeCardData } from "@/lib/typeCards"
 import { DENOMINATION, ISSUER, PERIOD, cards, coinage, parseCommon, periods, type Facet, type Filter, type Sort } from "@/lib/coinage"
@@ -110,18 +110,6 @@ function lifespan(birth: number | null, death: number | null): string | null {
   if (death != null) return `died ${year(death)}`
   if (birth != null) return `born ${year(birth)}`
   return null
-}
-
-/** First sentences of an extract, up to about `max` characters, ending on a full stop. */
-function lead(text: string | null, max = 320): string | null {
-  if (!text) return null
-  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g) ?? [text]
-  let out = ""
-  for (const s of sentences) {
-    if (out && out.length + s.length > max) break
-    out += s
-  }
-  return out.trim()
 }
 
 export async function getPerson(db: D1Database, id: string, query: PersonQuery): Promise<Person | null> {

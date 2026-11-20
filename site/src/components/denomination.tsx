@@ -17,9 +17,9 @@ const ROW_MAX = 56
 /** Unmeasured denominations are drawn as an outline at this size. */
 const UNMEASURED_MM = 18
 
-/** A coin photo at `px` across, or a dashed outline where there is no photo. */
+/** A coin photo at `px` across (times --coin-s, set smaller on phones), or a dashed outline where there is no photo. */
 export function Coin({ photo, px, alt = "", className }: { photo: Photo | null; px: number; alt?: string; className?: string }) {
-  const size = { width: `${px}px`, height: `${px}px` }
+  const size = { width: `calc(${px}px * var(--coin-s, 1))`, height: `calc(${px}px * var(--coin-s, 1))` }
   const src = px > 110 ? photo?.large : (photo?.thumb ?? photo?.large)
   return src ? (
     <img src={src} alt={alt} loading="lazy" decoding="async" style={size} className={cn("block object-contain mix-blend-multiply", className)} />
@@ -50,13 +50,13 @@ export function CoinScale({ coins, max, caption }: { coins: ScaleCoin[]; max: nu
   const tallest = Math.round(sorted[0].diameter * scale)
   return (
     <figure className="m-0">
-      <div className="overflow-x-auto bg-plinth">
-        <div className="mx-auto flex w-max items-end gap-6 px-8 pt-10 pb-7 md:gap-10 md:px-12 md:pt-12 md:pb-8">
+      <div className="overflow-x-auto bg-plinth [--coin-s:0.55] md:[--coin-s:1]">
+        <div className="mx-auto flex w-max items-end gap-5 px-5 pt-8 pb-6 md:gap-10 md:px-12 md:pt-12 md:pb-8">
           {sorted.map((c) => {
             const px = Math.round(c.diameter * scale)
             const body = (
               <>
-                <span className="flex items-end" style={{ height: `${tallest}px` }}>
+                <span className="flex items-end" style={{ height: `calc(${tallest}px * var(--coin-s, 1))` }}>
                   <Coin photo={c.photo} px={px} alt={c.name} />
                 </span>
                 <span className="flex flex-col items-center gap-px">
@@ -150,7 +150,6 @@ export function DenominationCollectionRow({
   bins: Bin[]
   domain: [number, number]
   ticks: number[]
-  yMax: number
   count: number
 }) {
   return (

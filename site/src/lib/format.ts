@@ -83,6 +83,22 @@ export function shortDescription(text: string | null | undefined): string | null
   return text.split(/;\s/)[0].trim()
 }
 
+/** Pronunciations in an extract: "The tetradrachm /ˈtetrəˌdræm/ was", "Rome (/roʊm/ ROHM)". */
+const IPA = /\s*\(?\/[^/\s][^/]{0,40}\/(\s+[A-Z-]+)?\)?(?=[\s,;])/g
+
+/** First sentences of an extract, up to about `max` characters, ending on a full stop. */
+export function lead(text: string | null, max = 320): string | null {
+  if (!text) return null
+  // A sentence ends at a stop followed by a space and a capital, so "17.2 grams" and "2.7 million" stay whole.
+  const sentences = text.replace(IPA, "").split(/(?<=[.!?])\s+(?=[A-Z"“‘(])/)
+  let out = ""
+  for (const s of sentences) {
+    if (out && out.length + s.length + 1 > max) break
+    out += (out ? " " : "") + s
+  }
+  return out.trim()
+}
+
 export function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }

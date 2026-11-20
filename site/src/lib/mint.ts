@@ -8,7 +8,8 @@
  * sub-variants (the type counting rule), so they match the mints list.
  */
 import { getCategories, tree, type Category, type MapMint } from "@/lib/categories"
-import { DENOMINATION, ISSUER, MATERIAL, cards, coinage, parseCommon, type Facet, type Filter, type Sort } from "@/lib/coinage"
+import { COLLECTION, DENOMINATION, ISSUER, MATERIAL, cards, coinage, parseCommon, type Facet, type Sort } from "@/lib/coinage"
+import { lead } from "@/lib/format"
 import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
 import type { Bin } from "@/components/charts"
@@ -70,25 +71,7 @@ export type Mint = {
 
 /* Every live type struck at the mint (?1) or one of its workshops. */
 const BASE = `t.replaced_by_id IS NULL AND t.parent_id IS NULL AND t.mint_id IN (SELECT id FROM mint WHERE id = ?1 OR parent_id = ?1)`
-/* A collection and everything under it (a link from a parent collection's list names the parent). */
-const COLLECTION: Filter = {
-  name: "collection",
-  match: (v) => `t.id IN (SELECT tc.type_id FROM type_category tc WHERE tc.is_primary = 1 AND tc.category_id IN (
-    WITH RECURSIVE d(id) AS (SELECT ${v} UNION ALL SELECT c.id FROM category c JOIN d ON c.parent_id = d.id) SELECT id FROM d))`,
-}
 const FILTERS = [COLLECTION, ISSUER, DENOMINATION, MATERIAL]
-
-/** First sentences of an extract, up to about `max` characters, ending on a full stop. */
-function lead(text: string | null, max = 420): string | null {
-  if (!text) return null
-  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g) ?? [text]
-  let out = ""
-  for (const s of sentences) {
-    if (out && out.length + s.length > max) break
-    out += s
-  }
-  return out.trim()
-}
 
 export async function getMint(db: D1Database, id: string, query: MintQuery): Promise<Mint | { redirect: string } | null> {
   const mint = await db
@@ -105,7 +88,7 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
 
   const t = tree(await getCategories(db))
   const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.denomination, query.material])
-  const { one, grid, where } = c
+  const { one } = c
   const facet = (join: string, table: string) =>
     one(`SELECT x.id AS value, x.name AS label, count(DISTINCT t.id) AS count
          FROM coin_type t JOIN ${join} j ON j.type_id = t.id JOIN ${table} x ON x.id = j.${table}_id
@@ -128,9 +111,7 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
       facet("type_denomination", "denomination"),
       facet("type_material", "material"),
       facet("type_subject", "subject"),
-      grid(`SELECT c.id AS value, c.name AS label, count(*) AS count
-            FROM coin_type t JOIN type_category tc ON tc.type_id = t.id AND tc.is_primary = 1 JOIN category c ON c.id = tc.category_id
-            WHERE ${where("collection")} GROUP BY c.id ORDER BY count DESC, c.name`),
+      c.collectionFacet(),
       c.issuerFacet(),
       c.denominationFacet(),
       c.materialFacet(),
@@ -174,7 +155,7 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
     name: mint.name,
     start,
     end,
-    lead: lead(art?.extract ?? mint.definition),
+    lead: lead(art?.extract ?? mint.definition, 420),
     article: art ? { url: art.url, licence: art.licence } : null,
     region: mint.regionId ? { id: mint.regionId, name: mint.region! } : null,
     group: mint.groupId ? { id: mint.groupId, name: mint.groupName! } : null,

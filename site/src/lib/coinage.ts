@@ -35,6 +35,15 @@ export const PERIOD: Filter = { name: "period", match: (v) => `(coalesce(t.start
 export const ISSUER: Filter = { name: "issuer", match: (v) => `t.id IN (SELECT type_id FROM type_person WHERE role IN ('authority', 'issuer') AND person_id = ${v})` }
 export const MATERIAL: Filter = { name: "material", match: (v) => `t.id IN (SELECT type_id FROM type_material WHERE material_id = ${v})` }
 
+/* A collection and everything under it (a link from a parent collection's list names the parent). */
+export const COLLECTION: Filter = {
+  name: "collection",
+  match: (v) => `t.id IN (SELECT tc.type_id FROM type_category tc WHERE tc.is_primary = 1 AND tc.category_id IN (
+    WITH RECURSIVE d(id) AS (SELECT ${v} UNION ALL SELECT c.id FROM category c JOIN d ON c.parent_id = d.id) SELECT id FROM d))`,
+}
+/* A mint and its workshops. */
+export const MINT: Filter = { name: "mint", match: (v) => `t.mint_id IN (SELECT id FROM mint WHERE id = ${v} OR parent_id = ${v})` }
+
 const SLUG = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/
 
 /** The URL parameters every coinage reads: sort, limit, and a slug or date range reader for filters. */
@@ -87,6 +96,16 @@ export function coinage(db: D1Database, id: string, base: string, filters: Filte
               t.start_year AS s, t.end_year AS e, count(*) AS count
             FROM coin_type t WHERE ${where("period")} AND t.start_year IS NOT NULL
             GROUP BY value ORDER BY t.start_year, t.end_year`),
+    /** The leaf collections they sit in. */
+    collectionFacet: () =>
+      grid(`SELECT c.id AS value, c.name AS label, count(*) AS count
+            FROM coin_type t JOIN type_category tc ON tc.type_id = t.id AND tc.is_primary = 1 JOIN category c ON c.id = tc.category_id
+            WHERE ${where("collection")} GROUP BY c.id ORDER BY count DESC, c.name`),
+    /** Where they were struck, workshops counted as their city. */
+    mintFacet: () =>
+      grid(`SELECT coalesce(p.id, m.id) AS value, coalesce(p.name, m.name) AS label, count(*) AS count
+            FROM coin_type t JOIN mint m ON m.id = t.mint_id LEFT JOIN mint p ON p.id = m.parent_id
+            WHERE ${where("mint")} GROUP BY value ORDER BY count DESC, label`),
     total: () => grid(`SELECT count(*) AS n FROM coin_type t WHERE ${where()}`),
     types: (sort: Sort, limit: number) =>
       grid(`${CARD_SELECT}

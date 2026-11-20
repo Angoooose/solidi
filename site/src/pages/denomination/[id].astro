@@ -1,0 +1,246 @@
+---
+/*
+ * Denomination page: /denomination/tetradrachm. What it was,
+ * how big it was beside what its top collections struck at the same time (?size= picks the
+ * collection), where it was struck, who issued it, its mints and subjects, then its coinage with
+ * filters (lib/coinage.ts). ?collection= (from a collection's list) narrows the coinage;
+ * ?list=people (or mints, subjects) shows a column in full.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import SiteFooter from "@/components/SiteFooter.astro"
+import { Crumbs, FacetColumn, RowsHead, Section } from "@/components/collection"
+import { DataList, DataRow } from "@/components/data"
+import { niceStep, yearTicks } from "@/components/charts"
+import { Coin, CoinScale, DenominationCollectionRow } from "@/components/denomination"
+import { TypeCard } from "@/components/coin"
+import { PhotoCredit } from "@/components/credits"
+import { CoinageFilters } from "@/components/coinage-filters"
+import { buttonVariants } from "@/components/ui/button"
+import { typePath, yearRange } from "@/lib/format"
+import { fmt } from "@/lib/categories"
+import { PAGE_SIZE, type Facet } from "@/lib/coinage"
+import { getDenomination, parseQuery } from "@/lib/denomination"
+
+/** Each column's shortlist before "All N". */
+const COLUMN = 8
+
+const id = Astro.params.id ?? ""
+const params = Astro.url.searchParams
+const query = parseQuery(params)
+const d = await getDenomination(env.DB, id, query)
+if (!d) Astro.response.status = 404
+
+/** This page's URL with some parameters changed; null removes one. */
+const link = (changes: Record<string, string | number | null>, hash = "") => {
+  const url = new URL(Astro.url)
+  for (const [k, v] of Object.entries(changes)) {
+    if (v == null) url.searchParams.delete(k)
+    else url.searchParams.set(k, String(v))
+  }
+  return `${url.pathname}${url.search}${hash}`
+}
+
+// One axis for "Where it was struck".
+const starts = d ? d.collections.flatMap((c) => c.bins.map((b) => b.start)) : []
+const lo = starts.length ? Math.min(...starts) : -100
+const hi = starts.length ? Math.max(...starts) + 25 : 100
+const step = niceStep([lo, hi], 6)
+const pad = Math.max(10, (hi - lo) * 0.04)
+const domain: [number, number] = [lo - pad, hi + pad]
+const ticks = yearTicks(domain, step)
+
+const size = d ? (d.sizes.find((s) => s.category.id === params.get("size")) ?? d.sizes[0]) : undefined
+const period = size && yearRange(size.start, size.end)
+
+// Columns: a shortlist, or one in full (?list=people).
+const full = params.get("list")
+const column = (key: string, f: { items: Facet[]; total: number }, noun: string) => ({
+  items: (full === key ? f.items : f.items.slice(0, COLUMN)).map((x) => ({ id: x.value, name: x.label, n: x.count })),
+  all:
+    f.total > COLUMN
+      ? full === key
+        ? { label: `Show the top ${COLUMN}`, href: link({ list: null }, "#columns") }
+        : { label: `All ${fmt(f.total)} ${noun}`, href: link({ list: key }, "#columns") }
+      : undefined,
+})
+
+// A collection chosen elsewhere (a parent, from /denominations?collection=greek) that the facet doesn't list.
+const collectionOptions = d ? [...d.collectionFacet] : []
+if (d && query.collection && !collectionOptions.some((o) => o.value === query.collection)) {
+  collectionOptions.unshift({ value: query.collection, label: query.collection, count: d.total })
+}
+const filters = d
+  ? [
+      { label: "Collection", param: "collection", value: query.collection, options: collectionOptions, available: d.available.collection },
+      { label: "Issued by", param: "issuer", value: query.issuer, options: d.issuerFacet, available: d.available.issuer },
+      { label: "Mint", param: "mint", value: query.mint, options: d.mintFacet, available: d.available.mint },
+    ]
+  : []
+const metal = d && [d.material, d.also && `also ${d.also.toLowerCase()}`].filter(Boolean).join(", ")
+---
+
+<Base title={d?.name ?? "Denomination not found"}>
+  <SiteHeader current="Denominations" />
+  {
+    !d ? (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] py-24">
+        <h1 class="m-0 font-serif text-display font-normal">Denomination not found</h1>
+        <p class="mt-6 text-body text-stone">
+          There is no denomination <span class="text-ink">{id}</span>. <a href="/denominations" class="text-ink underline-offset-4 hover:underline">All denominations</a>
+        </p>
+      </main>
+    ) : (
+      <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)] pb-24">
+        {/* Name, lead, photo and facts */}
+        <section class="flex flex-col gap-8 pt-10">
+          <Crumbs items={[{ href: "/denominations", label: "Denominations" }, { href: `/denominations?metal=${d.group.id}`, label: d.group.name }]} />
+          <div class="grid gap-x-20 gap-y-10 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
+            <div class="flex min-w-0 flex-col gap-4">
+              <div class="flex flex-wrap items-baseline gap-x-7 gap-y-2">
+                <h1 class="m-0 font-serif text-display font-normal">{d.name}</h1>
+                {yearRange(d.start, d.end) && <span class="num text-subtitle text-graphite">{yearRange(d.start, d.end)}</span>}
+              </div>
+              {d.lead && (
+                <p class="m-0 max-w-[56ch] font-serif text-reading text-pretty">
+                  {d.lead}
+                  {d.article && (
+                    <>
+                      {" "}
+                      <a href={d.article.url} rel="noopener" class="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline">
+                        Read more on Wikipedia ↗
+                      </a>
+                    </>
+                  )}
+                </p>
+              )}
+              {d.article && <span class="text-credit text-stone">Text from Wikipedia, {d.article.licence}</span>}
+            </div>
+            <div class="flex flex-col gap-6">
+              {d.photo && (
+                <div class="flex h-[240px] items-center justify-center bg-plinth [--coin-s:0.86] md:h-[280px] md:[--coin-s:1]">
+                  <Coin photo={d.photo} px={220} alt={`A ${d.name.toLowerCase()}`} />
+                </div>
+              )}
+              <DataList>
+                {metal && <DataRow label="Metal">{metal}</DataRow>}
+                <DataRow label="Types">{fmt(d.types)}</DataRow>
+                {d.collections.length > 0 && (
+                  <DataRow label="Struck in" href="#where">
+                    {`${fmt(d.collections.length)} ${d.collections.length === 1 ? "collection" : "collections"}`}
+                  </DataRow>
+                )}
+                {d.people.total > 0 && (
+                  <DataRow label="Struck for" href="#columns">
+                    {`${fmt(d.people.total)} ${d.people.total === 1 ? "person" : "people"}`}
+                  </DataRow>
+                )}
+                {d.specimens > 0 && (
+                  <DataRow label="Specimens">
+                    {`${fmt(d.specimens)}${d.holders ? ` in ${fmt(d.holders)} ${d.holders === 1 ? "museum or collection" : "museums and collections"}` : ""}`}
+                  </DataRow>
+                )}
+              </DataList>
+            </div>
+          </div>
+        </section>
+
+        {/* Size beside what the same collection struck at the same time */}
+        {size && (
+          <Section id="size" className="scroll-mt-6">
+            <div class="flex flex-wrap items-end justify-between gap-x-6 border-b border-hairline">
+              <h2 class="m-0 pb-3 font-serif text-heading font-normal">Size</h2>
+              {d.sizes.length > 1 && (
+                <nav aria-label="Compare within" class="flex gap-7 overflow-x-auto">
+                  {d.sizes.map((s) => (
+                    <a
+                      href={link({ size: s === d.sizes[0] ? null : s.category.id }, "#size")}
+                      data-keep-scroll
+                      aria-current={s === size ? "page" : undefined}
+                      class:list={[
+                        "relative py-2.5 text-ui whitespace-nowrap",
+                        s === size ? "text-ink after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-ink" : "text-stone hover:text-ink",
+                      ]}
+                    >
+                      {s.category.name}
+                    </a>
+                  ))}
+                </nav>
+              )}
+            </div>
+            <div class="mt-8">
+              <CoinScale
+                coins={size.coins.map((c) => ({ ...c, current: c.id === d.id, href: c.id === d.id ? undefined : `/denomination/${c.id}?collection=${size.category.id}` }))}
+                max={200}
+                caption={`Median diameter of measured specimens, ${size.category.name}${period ? `, coins dated ${period}` : ""}`}
+              />
+            </div>
+          </Section>
+        )}
+
+        {/* Where it was struck, on one time axis */}
+        {d.collections.length > 0 && (
+          <Section id="where" className="scroll-mt-6">
+            <h2 class="m-0 mb-6 font-serif text-heading font-normal">Where it was struck</h2>
+            <div style="--aside: 150px">
+              <RowsHead first="Collection" aside="Dates" extra="Median weight" domain={domain} ticks={ticks} className="border-b border-ink pb-3.5" />
+              {d.collections.map((c) => (
+                <DenominationCollectionRow
+                  href={link({ collection: c.category.id, limit: null }, "#coinage")}
+                  name={c.category.name}
+                  dates={yearRange(c.start, c.end)}
+                  weight={c.weight}
+                  bins={c.bins}
+                  domain={domain}
+                  ticks={ticks}
+                  count={c.n}
+                />
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* Who issued it, where, and what it shows */}
+        {(d.people.total > 0 || d.mints.total > 0 || d.subjects.total > 0) && (
+          <Section id="columns" className="grid scroll-mt-6 items-start gap-x-14 gap-y-10 sm:grid-cols-2 md:grid-cols-3">
+            <FacetColumn title="Struck for" {...column("people", d.people, "people")} href={(p) => `/person/${p}`} />
+            <FacetColumn title="Mints" {...column("mints", d.mints, "mints")} href={(m) => `/mint/${m}`} />
+            <FacetColumn title="Subjects" {...column("subjects", d.subjects, "subjects")} href={(s) => `/subject/${s}`} />
+          </Section>
+        )}
+
+        {/* Coinage */}
+        <Section id="coinage" className="flex scroll-mt-6 flex-col gap-8">
+          <h2 class="m-0 font-serif text-heading font-normal">Coinage</h2>
+          <div class="border-b border-hairline pb-3">
+            <CoinageFilters client:idle filters={filters} sort={query.sort} />
+          </div>
+          {d.grid.length ? (
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-10">
+              {d.grid.map((t) => (
+                <TypeCard href={typePath(t.id)} image={t.image} title={t.title} reference={t.reference} meta={t.meta} />
+              ))}
+            </div>
+          ) : (
+            <p class="m-0 text-body text-stone">No types match these filters.</p>
+          )}
+          <PhotoCredit photos={d.typeCredits} />
+          {d.total > d.grid.length && (
+            <a data-keep-scroll href={link({ limit: query.limit + PAGE_SIZE })} class={buttonVariants({ variant: "outline", className: "self-center" })}>
+              Show more types
+              <span class="num font-normal text-stone">
+                {fmt(d.grid.length)} of {fmt(d.total)}
+              </span>
+            </a>
+          )}
+        </Section>
+      </main>
+    )
+  }
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+</script>
