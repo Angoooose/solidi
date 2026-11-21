@@ -11,18 +11,21 @@ import { Coin } from "@/components/denomination"
 import { MintDots } from "@/components/mint-map"
 import type { Photo } from "@/lib/categories"
 
-/** "Constantine I ........ 4,096" */
-export function IndexLine({ href, name, n, className }: { href?: string; name: string; n: number; className?: string }) {
+/** "Constantine I ........ 4,096". Underlines on hover only when it's a link; `external` adds ↗. */
+export function IndexLine({ href, name, n, external = false, className }: { href?: string | null; name: string; n: number; external?: boolean; className?: string }) {
   const body = (
     <>
-      <span className="min-w-0 truncate text-ui leading-normal decoration-1 underline-offset-4 group-hover:underline">{name}</span>
+      <span className={cn("min-w-0 truncate text-ui leading-normal", href && "decoration-1 underline-offset-4 group-hover:underline")}>
+        {name}
+        {href && external && <span aria-hidden="true" className="text-stone"> ↗</span>}
+      </span>
       <span aria-hidden="true" className="min-w-4 flex-1 -translate-y-1 border-b border-dotted border-field" />
       <span className="num text-label text-stone">{fmt(n)}</span>
     </>
   )
-  const cls = cn("group flex items-baseline gap-2.5 py-1.5 text-ink", className)
+  const cls = cn("flex items-baseline gap-2.5 py-1.5 text-ink", className)
   return href ? (
-    <a href={href} className={cls}>
+    <a href={href} rel={external ? "noopener" : undefined} className={cn("group", cls)}>
       {body}
     </a>
   ) : (

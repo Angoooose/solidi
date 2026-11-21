@@ -438,8 +438,9 @@ class Builder:
                 inst_id = self.eid(inst)
                 if inst_id not in self._inserted["institution"]:
                     ip = self.concept(inst)
+                    homepage = next((u for u in refs(ip, "foaf:homepage") if plausible_url(u)), None) if ip else None
                     self.insert("institution", {"id": inst_id, "uri": inst, "source": self.source_of(inst),
-                                                "name": label(ip) or inst_id})
+                                                "name": label(ip) or inst_id, "homepage": homepage})
                     self._inserted["institution"].add(inst_id)
 
             def num(curie: str) -> float | None:

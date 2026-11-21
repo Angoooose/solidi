@@ -19,7 +19,7 @@ export type Home = {
   denominations: { total: number; top: Top[]; coins: DoorCoin[] }
   subjects: { total: number; top: Top[]; photo: Photo | null }
   collections: HomeCollection[]
-  holders: { total: number; top: Top[] }
+  holders: { total: number; top: (Top & { homepage: string | null })[] }
 }
 
 /* The two halves of the collection tree: Greek and Roman. */
@@ -65,7 +65,7 @@ export async function getHome(db: D1Database): Promise<Home> {
                                   WHERE cs.category_id IN ${ROOTS} AND y.grp != 'unlisted'`)}) t
                 JOIN subject_stat s ON s.subject_id = t.id LEFT JOIN image i ON i.id = s.image_id
                 ORDER BY s.types DESC, t.name`),
-    db.prepare(`SELECT h.institution_id AS id, i.name, h.photographed AS n FROM holder_stat h JOIN institution i ON i.id = h.institution_id
+    db.prepare(`SELECT h.institution_id AS id, i.name, h.photographed AS n, i.homepage FROM holder_stat h JOIN institution i ON i.id = h.institution_id
                 ORDER BY n DESC, i.name LIMIT 4`),
   ])
 
@@ -96,6 +96,6 @@ export async function getHome(db: D1Database): Promise<Home> {
     },
     subjects: { total: c.subjects, top: top(subjectRows), photo: photo(subjectRows[0] ?? ({} as WithImage)) },
     collections,
-    holders: { total: c.holders, top: top(holders.results) },
+    holders: { total: c.holders, top: holders.results as Home["holders"]["top"] },
   }
 }

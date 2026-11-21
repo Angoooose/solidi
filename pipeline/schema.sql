@@ -301,7 +301,8 @@ CREATE TABLE institution (
   id          TEXT PRIMARY KEY,
   uri         TEXT UNIQUE,
   source      TEXT NOT NULL,
-  name        TEXT NOT NULL
+  name        TEXT NOT NULL,
+  homepage    TEXT                         -- its website (Nomisma's foaf:homepage), often its coin collection's
 );
 
 CREATE TABLE specimen (
