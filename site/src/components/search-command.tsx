@@ -236,8 +236,14 @@ export function SearchCommand({ className }: { className?: string }) {
         setOpen(true)
       }
     }
+    // Anything else that opens search (the home page's big search box) sends this event.
+    const onOpen = () => setOpen(true)
     document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
+    document.addEventListener("solidi:open-search", onOpen)
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      document.removeEventListener("solidi:open-search", onOpen)
+    }
   }, [])
 
   const go = (href: string) => {

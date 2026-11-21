@@ -190,3 +190,27 @@ function Locator({
     </div>
   )
 }
+
+/**
+ * Every mint as a small dot on the all-mints basemap, framed on the Mediterranean (the home page's
+ * Mints door). A picture, not a chart: no labels or tooltips; it fills its box, cropping the edges.
+ */
+export function MintDots({ mints, className }: { mints: { id: string; lon: number; lat: number; n: number }[]; className?: string }) {
+  const map = BASEMAPS.all
+  if (!map) return null
+  const project = geoMercator().scale(map.scale).translate(map.translate).center(map.center)
+  // Spain to Mesopotamia, the Danube to Egypt.
+  const [x0, y0] = project([-9, 52])!
+  const [x1, y1] = project([47, 27])!
+  const max = Math.max(1, ...mints.map((m) => m.n))
+  const r = scaleSqrt().domain([0, max]).range([2.2, 4.5])
+  return (
+    <svg viewBox={`${x0} ${y0} ${x1 - x0} ${y1 - y0}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true" className={className}>
+      <image href="/maps/all.svg" width={map.width} height={map.height} />
+      {mints.map((m) => {
+        const [x, y] = project([m.lon, m.lat]) ?? [NaN, NaN]
+        return Number.isFinite(x) ? <circle key={m.id} cx={x} cy={y} r={r(m.n)} className="fill-ink/40" /> : null
+      })}
+    </svg>
+  )
+}

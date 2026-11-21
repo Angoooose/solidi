@@ -15,6 +15,7 @@ Workshops count as their city's mint (Seleucia on the Tigris II -> Seleucia).
 - subject_stat           one row per subject: its group, Greek-Roman pair, sides, totals and histogram
 - category_subject       every subject per category, with counts, dates, histogram and a photo
 - subject_legend         legends that name the subject, with counts (VICTORIA AVG on Victory)
+- holder_stat            per museum or collection, how many of its specimens we show photographs of
 """
 
 from __future__ import annotations
@@ -72,6 +73,7 @@ DROP TABLE IF EXISTS denomination_size;
 DROP TABLE IF EXISTS subject_stat;
 DROP TABLE IF EXISTS category_subject;
 DROP TABLE IF EXISTS subject_legend;
+DROP TABLE IF EXISTS holder_stat;
 CREATE TABLE category_stat (
   category_id   TEXT PRIMARY KEY REFERENCES category(id),
   types         INTEGER NOT NULL,
@@ -205,6 +207,10 @@ CREATE TABLE subject_legend (
   legend          TEXT NOT NULL,           -- normalised: 'VICTORIA AVGG'
   n               INTEGER NOT NULL,        -- types with it on the side showing the subject
   PRIMARY KEY (subject_id, legend)
+);
+CREATE TABLE holder_stat (
+  institution_id  TEXT PRIMARY KEY REFERENCES institution(id),
+  photographed    INTEGER NOT NULL         -- its specimens with a photograph our pages can load
 );
 """
 
@@ -350,6 +356,10 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
         WHERE cm.rank <= {PICTURED}""")
     for name in _denominations(db):
         log(f"  warning: {name} looks like a catalogue unit; add it to data/denominations.yaml")
+    db.execute("""
+        INSERT INTO holder_stat
+        SELECT sp.institution_id, count(DISTINCT sp.id) FROM image i JOIN specimen sp ON sp.id = i.specimen_id
+        WHERE i.usable = 1 AND sp.institution_id IS NOT NULL GROUP BY 1""")
     for warning in _subjects(db):
         log(f"  warning: {warning}")
     db.commit()
@@ -357,7 +367,7 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
     counts = {t: db.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
               for t in ("category_stat", "category_bin", "category_facet", "category_person", "category_mint",
                         "category_denomination", "denomination_stat", "denomination_size",
-                        "subject_stat", "category_subject", "subject_legend")}
+                        "subject_stat", "category_subject", "subject_legend", "holder_stat")}
     log("  " + ", ".join(f"{t} {n:,}" for t, n in counts.items()))
     return counts
 
