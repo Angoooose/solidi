@@ -1,6 +1,6 @@
 ---
 /*
- * Home: what Solidi is and a search box (it opens the ⌘K palette), four doors
+ * Home: what Solidi is and a search box (SearchBox: it opens the ⌘K palette), four doors
  * into the indexes (people, mints, denominations, subjects), the collection tree, and the
  * museums whose photographs we show. lib/home.ts reads it all from the summary tables.
  */
@@ -8,6 +8,7 @@ import { env } from "cloudflare:workers"
 import Base from "@/layouts/Base.astro"
 import SiteHeader from "@/components/SiteHeader.astro"
 import SiteFooter from "@/components/SiteFooter.astro"
+import SearchBox from "@/components/SearchBox.astro"
 import { ArrowLink, CollectionHalf, Door, IndexLine } from "@/components/home"
 import { fmt } from "@/lib/categories"
 import { getHome } from "@/lib/home"
@@ -29,15 +30,7 @@ const span = NUMBERS[centuries] ? ` over ${NUMBERS[centuries]} centuries` : ""
         <h1 class="m-0 font-serif text-[clamp(2.75rem,5vw,4.5rem)] leading-[1.02] font-normal tracking-[-0.02em] text-balance">An encyclopedia of ancient coins</h1>
         <p class="num m-0 text-[1.125rem] leading-normal text-graphite">{fmt(home.types)} types of coin from the Greek world and Rome, struck{span}.</p>
       </div>
-      <button
-        type="button"
-        data-open-search
-        class="flex h-16 w-full max-w-[760px] cursor-text items-center gap-3.5 border border-field bg-white pr-3.5 pl-5.5 text-left transition-colors hover:border-ink focus-visible:border-ink focus-visible:outline-none"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" class="flex-none text-ink"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
-        <span class="min-w-0 flex-1 truncate text-[1.125rem] text-stone">Search by catalogue reference, ruler or mint</span>
-        <kbd data-shortcut class="hidden border border-hairline px-1.5 py-px font-sans text-label text-stone sm:inline">⌘K</kbd>
-      </button>
+      <SearchBox class="max-w-[760px]" />
     </section>
 
     {/* Four doors into the indexes */}
@@ -112,10 +105,3 @@ const span = NUMBERS[centuries] ? ` over ${NUMBERS[centuries]} centuries` : ""
   <SiteFooter />
 </Base>
 
-<script>
-  // The big search box opens the ⌘K palette (components/search-command.tsx).
-  document.addEventListener("click", (e) => {
-    if ((e.target as Element | null)?.closest("[data-open-search]")) document.dispatchEvent(new CustomEvent("solidi:open-search"))
-  })
-  if (!/Mac|iPhone|iPad/.test(navigator.platform)) document.querySelectorAll("[data-shortcut]").forEach((k) => (k.textContent = "Ctrl K"))
-</script>

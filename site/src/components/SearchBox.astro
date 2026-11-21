@@ -1,0 +1,32 @@
+---
+/*
+ * The big search box (Home, 404): a button that opens the ⌘K palette (components/search-command.tsx),
+ * shown as a search field. `size` sets its height and type: "lg" on Home, "md" elsewhere.
+ */
+interface Props {
+  size?: "lg" | "md"
+  class?: string
+}
+const { size = "lg", class: className } = Astro.props
+---
+
+<button
+  type="button"
+  data-open-search
+  class:list={[
+    "flex w-full cursor-text items-center border border-field bg-white pr-3.5 text-left transition-colors hover:border-ink focus-visible:border-ink focus-visible:outline-none",
+    size === "lg" ? "h-16 gap-3.5 pl-5.5" : "h-14 gap-3.5 pl-5",
+    className,
+  ]}
+>
+  <svg width={size === "lg" ? 20 : 18} height={size === "lg" ? 20 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" class="flex-none text-ink"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+  <span class:list={["min-w-0 flex-1 truncate text-stone", size === "lg" ? "text-[1.125rem]" : "text-subtitle"]}>Search by catalogue reference, ruler or mint</span>
+  <kbd data-shortcut class="hidden border border-hairline px-1.5 py-px font-sans text-label text-stone sm:inline">⌘K</kbd>
+</button>
+
+<script>
+  document.addEventListener("click", (e) => {
+    if ((e.target as Element | null)?.closest("[data-open-search]")) document.dispatchEvent(new CustomEvent("solidi:open-search"))
+  })
+  if (!/Mac|iPhone|iPad/.test(navigator.platform)) document.querySelectorAll("[data-shortcut]").forEach((k) => (k.textContent = "Ctrl K"))
+</script>
