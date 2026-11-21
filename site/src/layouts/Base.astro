@@ -2,6 +2,7 @@
 import "@/styles/global.css";
 import { ClientRouter } from "astro:transitions";
 interface Props {
+  /** The page's name; " · Solidi" is added unless it already starts with Solidi (Home). */
   title: string
   /** The page shows Kharoshthi, Phoenician, Brahmi, Lycian or Carian text: load Noto fonts for those scripts. */
   scripts?: boolean
@@ -13,7 +14,7 @@ const { title, scripts = false } = Astro.props;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title} · Solidi</title>
+    <title>{title.startsWith("Solidi") ? title : `${title} · Solidi`}</title>
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
