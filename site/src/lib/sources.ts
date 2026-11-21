@@ -19,6 +19,9 @@ const CATALOGUES: Record<string, { name?: string; publisher: string; covers: str
   agco: { publisher: "American Numismatic Society", covers: "Antigonid kings" },
 }
 
+/** A catalogue's full name for readers: "Bactrian and Indo-Greek Coinage", not its record's "BIGR". */
+export const catalogueName = (slug: string, name: string) => CATALOGUES[slug]?.name ?? name
+
 export const OTHER_SOURCES = {
   nomisma: { ...NOMISMA, licenceUrl: "https://creativecommons.org/licenses/by/4.0/" },
   wikipedia: { label: "Wikipedia", url: "https://en.wikipedia.org/", licence: "CC BY-SA 4.0", licenceUrl: "https://creativecommons.org/licenses/by-sa/4.0/" },
@@ -54,10 +57,8 @@ const clean = (s: string) => s.replace(/<br\s*\/?>/gi, " ").replace(/\s+/g, " ")
 export async function getSources(db: D1Database): Promise<Sources> {
   const [catalogues, articles, photos] = await db.batch([
     // Live types, as the collection pages count them: not replaced, not a sub-variant.
-    db.prepare(`SELECT d.slug, d.name, d.id AS url, d.data_licence, count(*) AS types
-                FROM coin_type t JOIN dataset d ON d.id = t.dataset_id
-                WHERE t.replaced_by_id IS NULL AND t.parent_id IS NULL AND d.slug IS NOT NULL
-                GROUP BY d.id ORDER BY types DESC`),
+    db.prepare(`SELECT d.slug, d.name, d.id AS url, d.data_licence, c.types
+                FROM catalogue_stat c JOIN dataset d ON d.id = c.dataset_id WHERE d.slug IS NOT NULL ORDER BY c.types DESC`),
     db.prepare(`SELECT entity_type, count(*) AS n FROM article WHERE source = 'wikipedia_en' GROUP BY entity_type`),
     db.prepare(`SELECT p.institution_id, p.dataset_id, p.photographed, p.images, n.name AS holder, n.homepage,
                        d.name AS dataset, d.image_licence, d.data_licence
@@ -66,7 +67,7 @@ export async function getSources(db: D1Database): Promise<Sources> {
 
   const cats = (catalogues.results as { slug: string; name: string; url: string; data_licence: string | null; types: number }[]).map((c) => ({
     id: c.slug,
-    name: CATALOGUES[c.slug]?.name ?? c.name,
+    name: catalogueName(c.slug, c.name),
     url: secure(c.url),
     publisher: CATALOGUES[c.slug]?.publisher ?? null,
     covers: CATALOGUES[c.slug]?.covers ?? null,

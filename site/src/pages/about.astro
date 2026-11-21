@@ -1,0 +1,126 @@
+---
+/*
+ * About: what Solidi is and its numbers, a coin from each catalogue, where the
+ * data comes from beside six coins of one type, and what Solidi is not. lib/about.ts reads it.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import SiteFooter from "@/components/SiteFooter.astro"
+import { Plinth } from "@/components/collection"
+import { fmt } from "@/lib/categories"
+import { EXAMPLE_TYPE, getAbout } from "@/lib/about"
+import { CONTACT_EMAIL, GITHUB_URL } from "@/lib/footer"
+import { typePath } from "@/lib/format"
+
+const about = await getAbout(env.DB)
+
+const updated = about.builtAt
+  ? new Date(about.builtAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+  : null
+const facts: [string, string][] = [
+  ["Coin types", fmt(about.types)],
+  ["Coins", fmt(about.coins)],
+  ["With photographs", fmt(about.photographed)],
+  ["Museums and universities", fmt(about.holders)],
+  ...(updated ? [["Data updated", updated] as [string, string]] : []),
+]
+
+const ex = about.example
+const measures = (w: number | null, d: number | null) => [w != null && `${w} g`, d != null && `${d} mm`].filter(Boolean).join(" · ")
+const typeHref = typePath(EXAMPLE_TYPE.id)
+
+const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-colors hover:decoration-ink"
+const prose = "m-0 max-w-[62ch] text-subtitle leading-[1.65] text-graphite text-pretty"
+const note = "m-0 max-w-[44ch] text-ui leading-[1.6] text-graphite"
+---
+
+<Base title="About · Solidi">
+  <SiteHeader />
+  <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)]">
+    {/* What it is, and its numbers */}
+    <section class="grid items-end gap-x-24 gap-y-12 pt-18 pb-16 md:grid-cols-[minmax(0,1fr)_400px]">
+      <div class="flex flex-col gap-7">
+        <h1 class="m-0 font-serif text-display font-normal">About</h1>
+        <p class="m-0 max-w-[34em] font-serif text-[1.5rem] leading-[1.4] text-pretty">
+          Solidi is an encyclopedia of Greek and Roman coins, arranged by type. A type is a design as the standard reference books number it:{" "}
+          <a href={typeHref} class={underline}>{EXAMPLE_TYPE.title}</a>, for instance, is Trajan’s denarius with a mourning Dacian on the reverse.
+        </p>
+      </div>
+      <dl class="m-0 grid grid-cols-[auto_1fr] border-t border-ink">
+        {facts.map(([label, value]) => (
+          <>
+            <dt class="border-b border-hairline py-2.75 pr-8 text-ui text-stone">{label}</dt>
+            <dd class="num m-0 border-b border-hairline py-2.75 text-right text-ui">{value}</dd>
+          </>
+        ))}
+      </dl>
+    </section>
+
+    {/* A coin from each catalogue */}
+    <section class="grid grid-cols-3 gap-5 pb-18 md:grid-cols-9">
+      {about.catalogues.map((c) => (
+        <a href={c.url ?? "/sources#types"} title={c.name} class="group flex min-w-0 flex-col gap-2.5">
+          <Plinth photo={c.photo} alt={c.alt} size="large" className="p-[13%]" />
+          <span class="flex flex-col">
+            <span class="text-ui underline-offset-4 group-hover:underline">{c.label}</span>
+            <span class="num text-label text-stone">{fmt(c.types)} types</span>
+          </span>
+        </a>
+      ))}
+    </section>
+
+    {/* Where it comes from, beside the coins of one type */}
+    <section class="grid items-start gap-x-24 gap-y-12 pb-22 md:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
+      <div class="flex flex-col gap-4.5">
+        <p class={prose}>
+          The types come from nine online catalogues. Seven are run by the American Numismatic Society, among them OCRE for the Roman Empire. The other two are
+          IRIS, from the University of Oxford, and Corpus Nummorum, from the Berlin-Brandenburg Academy. Rulers, mints, denominations and subjects are matched up
+          through Nomisma.org, and the short introductions are from Wikipedia.
+        </p>
+        <p class={prose}>
+          The catalogues also list coins held by museums and universities, with their weights and sizes and usually a photograph. Solidi shows those coins on
+          each type page, so you can see how much real coins of one design vary.
+        </p>
+        <p class={prose}>
+          The photographs belong to the collections that hold the coins and are credited next to each one. <a href="/sources" class={`text-ink ${underline}`}>Sources</a> lists
+          every collection and its licence.
+        </p>
+      </div>
+      <figure class="m-0 flex flex-col gap-5">
+        <figcaption class="flex flex-col gap-1 border-t border-ink pt-3.5">
+          <a href={typeHref} class="self-start font-serif text-[1.5rem] leading-[1.15] underline-offset-4 hover:underline">{EXAMPLE_TYPE.title}</a>
+          <span class="num text-label text-stone">{EXAMPLE_TYPE.subject} · {fmt(ex.total)} coins in {fmt(ex.collections)} collections</span>
+        </figcaption>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3">
+          {ex.coins.map((coin) => (
+            <a href={typeHref} class="group flex min-w-0 flex-col gap-2">
+              <Plinth photo={coin.photo} alt={`Reverse of ${EXAMPLE_TYPE.title}, ${coin.holder}`} size="large" className="p-[13%]" />
+              <span class="flex flex-col">
+                <span class="text-label leading-[1.35] underline-offset-4 group-hover:underline">{coin.holder}</span>
+                <span class="num text-label text-stone">{measures(coin.weight, coin.diameter)}</span>
+              </span>
+            </a>
+          ))}
+        </div>
+      </figure>
+    </section>
+
+    {/* What Solidi is not, and how to reach it */}
+    <section class="grid gap-12 border-t border-hairline pt-8 pb-22 md:grid-cols-3">
+      <div class="flex flex-col gap-2">
+        <span class="text-label text-stone">Independent</span>
+        <p class={note}>Solidi isn’t a dealer. It doesn’t value, authenticate or sell coins, and isn’t affiliated with the catalogues or museums above.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <span class="text-label text-stone">Corrections</span>
+        <p class={note}>Found a mistake, or want a photograph taken down? Email <a href={`mailto:${CONTACT_EMAIL}`} class={`text-ink ${underline}`}>{CONTACT_EMAIL}</a> with a link to the page.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <span class="text-label text-stone">Data and code</span>
+        <p class={note}>The database is free to reuse under the Open Database Licence. The code is on <a href={GITHUB_URL} class={`text-ink ${underline}`}>GitHub</a>.</p>
+      </div>
+    </section>
+  </main>
+  <SiteFooter />
+</Base>

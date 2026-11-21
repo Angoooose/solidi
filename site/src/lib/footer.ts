@@ -14,6 +14,8 @@ export const NOMISMA = { label: "Nomisma.org", url: "https://nomisma.org/", lice
 
 /* How a corpus is named in the credit line where its slug isn't the usual short name. */
 const SOURCE_LABELS: Record<string, string> = { cn: "Corpus Nummorum" }
+/** A catalogue's short name: its slug in capitals (OCRE), or its usual name where that differs. */
+export const sourceLabel = (slug: string) => SOURCE_LABELS[slug] ?? slug.toUpperCase()
 
 export type FooterSource = { label: string; url: string | null }
 export type FooterData = {
@@ -75,7 +77,7 @@ async function load(db: D1Database, builtAt: string | null): Promise<FooterData>
     const l = licence(d.licence) ?? { label: "terms not stated", url: null }
     let group = licences.find((g) => g.licence === l.label)
     if (!group) licences.push((group = { licence: l.label, url: l.url, sources: [] }))
-    group.sources.push({ label: SOURCE_LABELS[d.slug] ?? d.slug.toUpperCase(), url: secure(d.id) })
+    group.sources.push({ label: sourceLabel(d.slug), url: secure(d.id) })
   }
 
   return {

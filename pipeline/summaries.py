@@ -16,6 +16,7 @@ Workshops count as their city's mint (Seleucia on the Tigris II -> Seleucia).
 - category_subject       every subject per category, with counts, dates, histogram and a photo
 - subject_legend         legends that name the subject, with counts (VICTORIA AVG on Victory)
 - holder_stat            per museum or collection, how many of its specimens we show photographs of
+- catalogue_stat         per catalogue (dataset with types): its live types and a photo
 - photo_source           photographed specimens per holder and dataset, for the Sources page's licences
 """
 
@@ -76,6 +77,7 @@ DROP TABLE IF EXISTS category_subject;
 DROP TABLE IF EXISTS subject_legend;
 DROP TABLE IF EXISTS holder_stat;
 DROP TABLE IF EXISTS photo_source;
+DROP TABLE IF EXISTS catalogue_stat;
 CREATE TABLE category_stat (
   category_id   TEXT PRIMARY KEY REFERENCES category(id),
   types         INTEGER NOT NULL,
@@ -213,6 +215,11 @@ CREATE TABLE subject_legend (
 CREATE TABLE holder_stat (
   institution_id  TEXT PRIMARY KEY REFERENCES institution(id),
   photographed    INTEGER NOT NULL         -- its specimens with a photograph our pages can load
+);
+CREATE TABLE catalogue_stat (
+  dataset_id      TEXT PRIMARY KEY REFERENCES dataset(id),
+  types           INTEGER NOT NULL,        -- live types: not replaced, not a sub-variant
+  image_id        INTEGER REFERENCES image(id)  -- its best-looking obverse
 );
 -- A dataset's photos credit the dataset itself when its specimens name no holder (SITNAM, PAS):
 -- institution_id is then the dataset's only holder if it has one, else NULL.
@@ -385,6 +392,12 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
         SELECT coalesce(sp.institution_id, o.institution_id), sp.dataset_id, count(DISTINCT sp.id), count(*)
         FROM image i JOIN specimen sp ON sp.id = i.specimen_id LEFT JOIN only_holder o ON o.dataset_id = sp.dataset_id
         WHERE i.usable = 1 AND sp.dataset_id IS NOT NULL GROUP BY 1, 2""")
+    db.execute("""
+        INSERT INTO catalogue_stat (dataset_id, types)
+        SELECT dataset_id, count(*) FROM coin_type WHERE replaced_by_id IS NULL AND parent_id IS NULL GROUP BY 1""")
+    db.execute(f"""
+        UPDATE catalogue_stat AS c SET image_id =
+          {photo("SELECT t.id FROM coin_type t WHERE t.dataset_id = c.dataset_id AND t.replaced_by_id IS NULL AND t.parent_id IS NULL")}""")
     for warning in _subjects(db):
         log(f"  warning: {warning}")
     db.commit()
@@ -392,7 +405,7 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
     counts = {t: db.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
               for t in ("category_stat", "category_bin", "category_facet", "category_person", "category_mint",
                         "category_denomination", "denomination_stat", "denomination_size",
-                        "subject_stat", "category_subject", "subject_legend", "holder_stat", "photo_source")}
+                        "subject_stat", "category_subject", "subject_legend", "holder_stat", "photo_source", "catalogue_stat")}
     log("  " + ", ".join(f"{t} {n:,}" for t, n in counts.items()))
     return counts
 
