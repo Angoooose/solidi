@@ -95,15 +95,28 @@ export function Door({
   )
 }
 
-/** Coins side by side at relative size, bottom-aligned (the Denominations door). */
+/**
+ * Coins side by side at relative size, bottom-aligned (the Denominations door). Widths are shares
+ * of the row, so they keep their proportions and a margin at any door width; the largest is at
+ * most `max` px.
+ */
 export function DoorCoins({ coins, max = 112 }: { coins: { id: string; name: string; diameter: number; photo: Photo | null }[]; max?: number }) {
   if (!coins.length) return null
-  const scale = max / Math.max(...coins.map((c) => c.diameter))
+  const largest = Math.max(...coins.map((c) => c.diameter))
   return (
-    <span className="flex h-full items-end justify-center gap-3.5 px-4 pb-16">
-      {coins.map((c) => (
-        <Coin key={c.id} photo={c.photo} px={Math.round(c.diameter * scale)} alt={c.name} className="flex-none" />
-      ))}
+    <span className="flex size-full items-end justify-center gap-3 px-8 pb-16">
+      {coins.map((c) => {
+        const src = c.photo?.thumb ?? c.photo?.large
+        return (
+          <span key={c.id} className="min-w-0" style={{ flex: `${c.diameter} 1 0`, maxWidth: `${Math.round((c.diameter / largest) * max)}px` }}>
+            {src ? (
+              <img src={src} alt={c.name} loading="lazy" decoding="async" className="block aspect-square w-full object-contain mix-blend-multiply" />
+            ) : (
+              <span role="img" aria-label={c.name} className="block aspect-square w-full rounded-full border border-dashed border-field" />
+            )}
+          </span>
+        )
+      })}
     </span>
   )
 }
