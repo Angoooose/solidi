@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from pipeline import categories, images, legends, regions, search, stage, summaries, transform
+from pipeline import categories, image_score, images, legends, regions, search, stage, summaries, transform
 from pipeline.legend_expand import Dictionary
 from pipeline.checks import checks
 from pipeline.link import wikidata, wikipedia
@@ -59,6 +59,8 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
     region_warnings = regions.load_and_apply(db, ROOT / "data" / "regions.yaml")
     print("images")
     images.flag_unusable(db, config)
+    print("image scores")
+    image_score.load(db, raw)
     print("summaries")
     summaries.build(db)
     print("search")
@@ -88,7 +90,17 @@ def main() -> None:
     b.add_argument("--build-dir", type=Path, default=ROOT / "build")
     e = sub.add_parser("export-d1", help="write the built database as SQL for Cloudflare D1")
     e.add_argument("--build-dir", type=Path, default=ROOT / "build")
+    s = sub.add_parser("score-images", help="download and score candidate photos into the cache (slow the first time)")
+    s.add_argument("--build-dir", type=Path, default=ROOT / "build")
+    s.add_argument("--rescore", action="store_true", help="recompute scores from the kept thumbnails, no downloads")
     args = parser.parse_args()
+    if args.command == "score-images":
+        raw = args.build_dir / "raw"
+        if args.rescore:
+            print(f"rescored {image_score.rescore(raw):,}")
+        else:
+            image_score.score_images(sqlite3.connect(args.build_dir / "solidi.sqlite"), raw)
+        return
     if args.command == "build":
         sys.exit(build(args.authority, args.refresh, args.build_dir))
     if args.command == "export-d1":

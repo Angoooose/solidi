@@ -222,12 +222,16 @@ LAST_HOSTS = ("princeton.edu",)
 _HOST_RANK = " ".join(f"WHEN i.url LIKE '%{h}%' THEN {n}" for n, h in enumerate(PHOTO_HOSTS)) + \
     " " + " ".join(f"WHEN i.url LIKE '%{h}%' THEN 99" for h in LAST_HOSTS)
 
-# A photo id for types matching `types` (a subquery): a preferred holder first, then one with both
-# a IIIF service (sharp at any size) and a thumbnail (fast in menus).
+# A photo id for types matching `types` (a subquery), or their sub-variants (a photo of SC 309.2 serves
+# SC 309): the best-looking by image_score (pipeline/
+# image_score.py) first, then a preferred holder, then one with both a IIIF service (sharp at any
+# size) and a thumbnail (fast in menus).
 PHOTO = f"""
   (SELECT i.id FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-   WHERE st.type_id IN ({{types}}) AND i.side = {{side}} AND i.usable = 1
-   ORDER BY CASE {_HOST_RANK} ELSE 50 END, i.iiif_service IS NULL, i.thumbnail_url IS NULL, i.id LIMIT 1)"""
+   LEFT JOIN image_score sc ON sc.image_id = i.id
+   WHERE st.type_id IN (SELECT id FROM coin_type WHERE id IN ({{types}}) OR parent_id IN ({{types}}))
+     AND i.side = {{side}} AND i.usable = 1
+   ORDER BY sc.score IS NULL, sc.score DESC, CASE {_HOST_RANK} ELSE 50 END, i.iiif_service IS NULL, i.thumbnail_url IS NULL, i.id LIMIT 1)"""
 
 
 def photo(types: str, side: str = "'obverse'") -> str:
@@ -251,6 +255,8 @@ def _spread(start: int, end: int, width: int) -> list[tuple[int, float]]:
 
 def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
     db.executescript(SCHEMA)
+    # The photo picker reads image_score (image_score.load); without scores it falls back to holders.
+    db.execute("CREATE TABLE IF NOT EXISTS image_score (image_id INTEGER PRIMARY KEY REFERENCES image(id), score REAL NOT NULL)")
     not_people = ",".join(f"'{p}'" for p in NOT_PEOPLE)
     db.executescript(f"""
         DROP TABLE IF EXISTS temp.live;
