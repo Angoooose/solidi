@@ -16,6 +16,7 @@ Workshops count as their city's mint (Seleucia on the Tigris II -> Seleucia).
 - category_subject       every subject per category, with counts, dates, histogram and a photo
 - subject_legend         legends that name the subject, with counts (VICTORIA AVG on Victory)
 - holder_stat            per museum or collection, how many of its specimens we show photographs of
+- photo_source           photographed specimens per holder and dataset, for the Sources page's licences
 """
 
 from __future__ import annotations
@@ -74,6 +75,7 @@ DROP TABLE IF EXISTS subject_stat;
 DROP TABLE IF EXISTS category_subject;
 DROP TABLE IF EXISTS subject_legend;
 DROP TABLE IF EXISTS holder_stat;
+DROP TABLE IF EXISTS photo_source;
 CREATE TABLE category_stat (
   category_id   TEXT PRIMARY KEY REFERENCES category(id),
   types         INTEGER NOT NULL,
@@ -211,6 +213,15 @@ CREATE TABLE subject_legend (
 CREATE TABLE holder_stat (
   institution_id  TEXT PRIMARY KEY REFERENCES institution(id),
   photographed    INTEGER NOT NULL         -- its specimens with a photograph our pages can load
+);
+-- A dataset's photos credit the dataset itself when its specimens name no holder (SITNAM, PAS):
+-- institution_id is then the dataset's only holder if it has one, else NULL.
+CREATE TABLE photo_source (
+  institution_id  TEXT REFERENCES institution(id),
+  dataset_id      TEXT NOT NULL REFERENCES dataset(id),
+  photographed    INTEGER NOT NULL,        -- specimens with a photograph our pages can load
+  images          INTEGER NOT NULL,        -- those photographs
+  PRIMARY KEY (dataset_id, institution_id)
 );
 """
 
@@ -366,6 +377,14 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
         INSERT INTO holder_stat
         SELECT sp.institution_id, count(DISTINCT sp.id) FROM image i JOIN specimen sp ON sp.id = i.specimen_id
         WHERE i.usable = 1 AND sp.institution_id IS NOT NULL GROUP BY 1""")
+    db.execute("""
+        WITH only_holder AS (
+          SELECT dataset_id, min(institution_id) AS institution_id FROM specimen
+          WHERE institution_id IS NOT NULL GROUP BY dataset_id HAVING count(DISTINCT institution_id) = 1)
+        INSERT INTO photo_source
+        SELECT coalesce(sp.institution_id, o.institution_id), sp.dataset_id, count(DISTINCT sp.id), count(*)
+        FROM image i JOIN specimen sp ON sp.id = i.specimen_id LEFT JOIN only_holder o ON o.dataset_id = sp.dataset_id
+        WHERE i.usable = 1 AND sp.dataset_id IS NOT NULL GROUP BY 1, 2""")
     for warning in _subjects(db):
         log(f"  warning: {warning}")
     db.commit()
@@ -373,7 +392,7 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
     counts = {t: db.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
               for t in ("category_stat", "category_bin", "category_facet", "category_person", "category_mint",
                         "category_denomination", "denomination_stat", "denomination_size",
-                        "subject_stat", "category_subject", "subject_legend", "holder_stat")}
+                        "subject_stat", "category_subject", "subject_legend", "holder_stat", "photo_source")}
     log("  " + ", ".join(f"{t} {n:,}" for t, n in counts.items()))
     return counts
 

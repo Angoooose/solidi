@@ -1,0 +1,186 @@
+---
+/*
+ * Sources: where the types, concepts, text, maps and photographs come from,
+ * and the terms each is shared under. Photo credits across the site link to #images.
+ * lib/sources.ts reads it all.
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import SiteFooter from "@/components/SiteFooter.astro"
+import { fmt } from "@/lib/categories"
+import { CONTACT_EMAIL } from "@/lib/footer"
+import { OTHER_SOURCES, getSources } from "@/lib/sources"
+
+const s = await getSources(env.DB)
+
+/* The widest catalogue bar; the rest in proportion, never thinner than a hairline mark. */
+const BAR = 120
+const most = Math.max(1, ...s.catalogues.map((c) => c.types))
+const bar = (n: number) => Math.max(2, Math.round((n / most) * BAR))
+
+/* The licence groups' greys, darkest (most open) first. */
+const SHADE: Record<string, string> = {
+  open: "bg-ink",
+  attribution: "bg-[#5e5e59]",
+  noncommercial: "bg-[#a3a39e]",
+  own: "bg-[#c9c9c4]",
+  none: "bg-[#e2e2de]",
+}
+const groups = s.byLicence.filter((g) => g.coins > 0)
+const pct = (n: number) => `${Math.round((n / Math.max(1, s.photographed)) * 100)}%`
+
+/* The collections in two columns of equal length, most photographs first down the left. */
+const half = Math.ceil(s.holders.length / 2)
+const columns = [s.holders.slice(0, half), s.holders.slice(half)]
+
+const a = s.articles
+const others = [
+  {
+    id: "concepts",
+    kicker: "Concepts",
+    ...OTHER_SOURCES.nomisma,
+    text: "People, mints, denominations, materials and subjects, the links between them, and the location of each mint.",
+  },
+  {
+    id: "text",
+    kicker: "Introductions",
+    ...OTHER_SOURCES.wikipedia,
+    text: `The opening paragraphs on ${fmt(a.person)} people, ${fmt(a.mint)} mints, ${fmt(a.subject)} subjects and ${fmt(a.denomination)} denominations, shortened and linked to the full article.`,
+  },
+  { id: "maps", kicker: "Maps", ...OTHER_SOURCES.naturalEarth, text: "The land on every map, at 1:50 million." },
+]
+
+const JUMP = [
+  ["types", "Coin types"],
+  ["concepts", "Concepts"],
+  ["text", "Introductions"],
+  ["maps", "Maps"],
+  ["images", "Images"],
+]
+const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-colors hover:decoration-ink"
+---
+
+<Base title="Sources · Solidi">
+  <SiteHeader />
+  <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)]">
+    <section class="flex flex-col gap-7 pt-18 pb-10">
+      <h1 class="m-0 font-serif text-display font-normal">Sources</h1>
+      <p class="m-0 max-w-[34em] font-serif text-[1.5rem] leading-[1.4] text-pretty">
+        Where Solidi's types, text and photographs come from, and the terms each is shared under.
+      </p>
+    </section>
+
+    <nav aria-label="On this page" class="flex flex-wrap gap-x-7 gap-y-2 border-y border-hairline py-3.5">
+      {JUMP.map(([id, label]) => <a href={`#${id}`} class="text-ui text-stone transition-colors hover:text-ink">{label}</a>)}
+    </nav>
+
+    {/* The catalogues */}
+    <section id="types" class="flex scroll-mt-6 flex-col gap-7 pt-14 pb-18">
+      <div class="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+        <h2 class="m-0 font-serif text-heading font-normal">Coin types</h2>
+        <span class="num text-label text-stone">{fmt(s.types)} types from {s.catalogues.length} catalogues</span>
+      </div>
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="border-b border-ink text-left text-label text-stone">
+            <th class="pr-4 pb-2.5 font-normal md:w-[30%]">Catalogue</th>
+            <th class="hidden pr-4 pb-2.5 font-normal md:table-cell md:w-[24%]">Published by</th>
+            <th class="hidden pr-4 pb-2.5 font-normal lg:table-cell">Covers</th>
+            <th class="pr-4 pb-2.5 font-normal sm:w-[190px]">Types</th>
+            <th class="pb-2.5 font-normal sm:w-[130px]">Licence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {s.catalogues.map((c) => (
+            <tr class="border-b border-hairline align-baseline text-ui transition-colors hover:bg-wash">
+              <td class="py-3.5 pr-4">
+                {c.url ? <a href={c.url} class="font-serif text-[1.25rem] leading-[1.2] underline-offset-4 hover:underline">{c.name}</a> : <span class="font-serif text-[1.25rem] leading-[1.2]">{c.name}</span>}
+              </td>
+              <td class="hidden py-3.5 pr-4 md:table-cell">{c.publisher}</td>
+              <td class="hidden py-3.5 pr-4 lg:table-cell">{c.covers}</td>
+              <td class="num py-3.5 pr-4 whitespace-nowrap">
+                <span class="mr-3 hidden h-1.5 rounded-[1.5px] bg-ink align-middle sm:inline-block" style={`width: ${bar(c.types)}px`}></span>{fmt(c.types)}
+              </td>
+              <td class="py-3.5">
+                {c.licence?.url ? <a href={c.licence.url} rel="license noopener" class={underline}>{c.licence.label}</a> : (c.licence?.label ?? "Not stated")}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+
+    {/* Concepts, introductions and maps */}
+    <section class="grid gap-12 pb-18 md:grid-cols-3">
+      {others.map((o) => (
+        <div id={o.id} class="flex scroll-mt-6 flex-col gap-2.5 border-t border-ink pt-4.5">
+          <span class="text-label text-stone">{o.kicker}</span>
+          <a href={o.url} class="self-start font-serif text-[1.5rem] leading-[1.15] underline-offset-4 hover:underline">{o.label}</a>
+          <p class="m-0 text-body leading-[1.6] text-graphite">{o.text}</p>
+          <a href={o.licenceUrl} rel="license noopener" class={`self-start text-label ${underline}`}>{o.licence}</a>
+        </div>
+      ))}
+    </section>
+
+    {/* Whose photographs, and their terms */}
+    <section id="images" class="flex scroll-mt-6 flex-col gap-9 border-t border-hairline pt-14 pb-24">
+      <div class="grid items-end gap-x-24 gap-y-12 md:grid-cols-2">
+        <div class="flex flex-col gap-4">
+          <h2 class="m-0 font-serif text-heading font-normal">Images</h2>
+          <p class="num m-0 max-w-[62ch] text-subtitle leading-[1.65] text-graphite text-pretty">
+            {fmt(s.photographed)} coins are photographed, in {fmt(s.images)} images from {fmt(s.holders.length)} collections. The photographs are not covered by Solidi's
+            database licence: each stays under the terms of the collection that holds the coin, which the credit beside it names.
+          </p>
+          <p class="m-0 max-w-[62ch] text-subtitle leading-[1.65] text-graphite">
+            To ask for a photograph to be removed, write to <a href={`mailto:${CONTACT_EMAIL}`} class={`text-ink ${underline}`}>{CONTACT_EMAIL}</a>.
+          </p>
+        </div>
+        <div class="flex flex-col gap-3.5">
+          <span class="text-label text-stone">Photographed coins by licence</span>
+          <div class="flex gap-0.5" role="img" aria-label={groups.map((g) => `${g.label}: ${fmt(g.coins)} coins`).join("; ")}>
+            {groups.map((g) => (
+              <span
+                class={`h-2.5 min-w-[3px] rounded-[1.5px] ${SHADE[g.id]}`}
+                style={`flex: ${g.coins} 1 0`}
+                data-tip={`${g.label}: ${fmt(g.coins)} coins`}
+              ></span>
+            ))}
+          </div>
+          <div class="flex flex-wrap gap-x-5.5 gap-y-2">
+            {groups.map((g) => (
+              <span class="text-label whitespace-nowrap text-graphite">
+                <span class={`mr-2 inline-block size-2.5 rounded-[1.5px] align-[-1px] ${SHADE[g.id]}`}></span>{g.label} <span class="num text-stone">{pct(g.coins)}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-x-24 md:grid-cols-2">
+        {columns.map((col, i) => (
+          <div class="flex flex-col">
+            <div class:list={["grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 border-b border-ink pb-2.5 text-label text-stone", i > 0 && "max-md:hidden"]}>
+              <span>Collection</span><span class="text-right">Coins photographed</span>
+            </div>
+            {col.map((h) => {
+              const Tag = h.url ? "a" : "div"
+              return (
+                <Tag href={h.url ?? undefined} class="group grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 border-b border-hairline py-2.5">
+                  <span class:list={["text-body", h.url && "transition-colors group-hover:text-stone"]}>{h.name}</span>
+                  <span class="num text-right text-label text-stone">{fmt(h.coins)}</span>
+                  <span class="col-span-full text-label text-stone">{h.licence?.label ?? "Not stated"}</span>
+                </Tag>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </section>
+  </main>
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+</script>

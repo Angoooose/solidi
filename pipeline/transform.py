@@ -440,7 +440,8 @@ class Builder:
                     ip = self.concept(inst)
                     homepage = next((u for u in refs(ip, "foaf:homepage") if plausible_url(u)), None) if ip else None
                     self.insert("institution", {"id": inst_id, "uri": inst, "source": self.source_of(inst),
-                                                "name": label(ip) or inst_id, "homepage": homepage})
+                                                "name": label(ip) or self.config.get("institution_names", {}).get(inst_id) or inst_id,
+                                                "homepage": homepage})
                     self._inserted["institution"].add(inst_id)
 
             def num(curie: str) -> float | None:

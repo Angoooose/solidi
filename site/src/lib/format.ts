@@ -72,9 +72,24 @@ const DATABASE_LICENCE = /odbl|opendatacommons/i
  * a database licence (ODbL says nothing about the photos; showing it would misstate their terms).
  */
 export function imageLicence(imageLicence: string | null, dataLicence: string | null): Licence | null {
-  if (imageLicence) return licence(imageLicence)
-  if (dataLicence && !DATABASE_LICENCE.test(dataLicence)) return licence(dataLicence)
-  return null
+  const raw = imageLicence ?? (dataLicence && !DATABASE_LICENCE.test(dataLicence) ? dataLicence : null)
+  if (!raw) return null
+  const known = licence(raw)
+  if (known && (LICENCES.some(([pattern]) => pattern.test(raw)) || !/^https?:\/\//.test(raw))) return known
+  // A terms page of its own (Harvard, MFA), or a statement too long to show (Berlin's imprint, Badian).
+  const url = /^https?:\/\//.test(raw) ? secure(raw) : null
+  return { label: /consent|permission/i.test(raw) ? "By permission" : "Collection's own terms", url }
+}
+
+/** How the Sources page groups photo licences. */
+export type LicenceGroup = "open" | "attribution" | "noncommercial" | "own" | "none"
+
+export function licenceGroup(l: Licence | null): LicenceGroup {
+  if (!l) return "none"
+  if (/^(CC0|Public domain)$/.test(l.label)) return "open"
+  if (/^CC BY(-SA)? /.test(l.label)) return "attribution"
+  if (/^CC BY-NC/.test(l.label)) return "noncommercial"
+  return "own"
 }
 
 /** First clause of an OCRE description, for card titles: "Dacian seated left …; round him …" → "Dacian seated left …". */

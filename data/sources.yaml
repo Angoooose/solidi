@@ -118,6 +118,10 @@ image_overrides:
     image_licence: CC BY-SA 4.0 on data; imprint reserves commercial image reproduction
     commercial_ok: false
 
+# Names for holders whose Nomisma concept has no label. Keys are institution ids.
+institution_names:
+  roemisch_germanisches_museum_koeln: Römisch-Germanisches Museum Köln
+
 # Source errors in a type's data, confirmed by hand. Keys are type URIs.
 type_overrides:
   # Iris gives start 0520 (AD 520) and end -0519: the issue is 520–519 BC.

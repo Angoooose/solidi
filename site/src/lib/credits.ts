@@ -11,7 +11,7 @@ export type PhotoCreditItem = {
   licence: Licence | null
 }
 
-/** Where every "Image credits" link points. The page itself is still to be written. */
+/** Where every "Image credits" link points (pages/sources.astro). */
 export const IMAGE_CREDITS_URL = "/sources#images"
 
 /* D1 allows at most 100 bound parameters per statement. */
