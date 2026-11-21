@@ -10,6 +10,8 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { MenuIcon } from "lucide-react"
 import type { CollectionsMenu, MenuCard, MenuLink } from "@/lib/collections"
 
 /*
@@ -27,7 +29,12 @@ const LINKS = [
   ["Mints", "/mints"],
   ["Denominations", "/denominations"],
   ["Subjects", "/subjects"],
-  ["Map", "/map"],
+] as const
+
+/* Secondary links, shown only in the phone menu (from md up they live in the footer alone). */
+const MORE = [
+  ["About", "/about"],
+  ["Sources", "/sources"],
 ] as const
 
 export type MainNavCurrent = "Collections" | (typeof LINKS)[number][0]
@@ -78,8 +85,7 @@ export function MainNav({ current, className }: { current?: MainNavCurrent; clas
       className={cn("static items-stretch self-stretch", className)}
       viewportClassName="inset-x-0 px-[clamp(20px,4vw,56px)]"
     >
-      {/* Phones: one row that scrolls sideways, bleeding to the screen's edges. */}
-      <NavigationMenuList className="-mx-[clamp(20px,4vw,56px)] h-full items-stretch gap-x-6 overflow-x-auto px-[clamp(20px,4vw,56px)] [scrollbar-width:none] md:mx-0 md:gap-x-7 md:overflow-visible md:px-0 [&>li]:shrink-0 [&>li>a]:py-2.5 md:[&>li>a]:py-4">
+      <NavigationMenuList className="h-full items-stretch gap-x-7 [&>li>a]:py-4">
         <NavigationMenuItem className="flex">
           {/* A link to /collections: hovering opens the menu, clicking goes to the page. */}
           <NavigationMenuTrigger
@@ -103,6 +109,52 @@ export function MainNav({ current, className }: { current?: MainNavCurrent; clas
         ))}
       </NavigationMenuList>
     </NavigationMenu>
+  )
+}
+
+/*
+ * Phones: a menu button that opens a sheet from the right with every section, the current one in
+ * ink, then About and Sources. Each link is a full page load, so the sheet needs no closing logic.
+ */
+export function MobileNav({ current, className }: { current?: MainNavCurrent; className?: string }) {
+  const primary = [["Collections", "/collections"], ...LINKS] as const
+  return (
+    <Sheet>
+      <SheetTrigger
+        aria-label="Menu"
+        className={cn("flex size-10 shrink-0 items-center justify-center text-ink transition-colors hover:text-stone", className)}
+      >
+        <MenuIcon className="size-5" strokeWidth={1.6} />
+      </SheetTrigger>
+      <SheetContent side="right" className="w-[min(320px,85vw)] gap-0 px-7 pt-16 pb-8">
+        <SheetTitle className="sr-only">Menu</SheetTitle>
+        <SheetDescription className="sr-only">Sections of Solidi</SheetDescription>
+        <nav aria-label="Main">
+          <ul className="m-0 flex list-none flex-col p-0">
+            {primary.map(([label, href]) => (
+              <li key={href}>
+                <a
+                  href={href}
+                  aria-current={current === label ? "page" : undefined}
+                  className="block py-2.5 font-serif text-[1.625rem] leading-[1.15] text-graphite transition-colors hover:text-ink aria-[current=page]:text-ink"
+                >
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <ul className="m-0 mt-6 flex list-none flex-col gap-1 border-t border-hairline p-0 pt-5">
+            {MORE.map(([label, href]) => (
+              <li key={href}>
+                <a href={href} className="block py-1.5 text-ui text-stone transition-colors hover:text-ink">
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </SheetContent>
+    </Sheet>
   )
 }
 

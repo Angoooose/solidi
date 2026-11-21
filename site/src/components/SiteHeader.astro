@@ -4,11 +4,12 @@
  * hover) and the search button, which opens the ⌘K palette.
  * The inner box is positioned so the menu's panel hangs from it, centred in the page.
  *
- * One row from md up: wordmark, nav, search. Phones: the wordmark and a search icon, then the nav
- * as a row that scrolls sideways. About and Sources live in the footer.
+ * One row at every width. From md up: wordmark, nav, search. Phones: wordmark, then a search icon
+ * and a menu button that opens the nav in a sheet. About and Sources live in the footer (and the
+ * phone menu).
  */
 import { Wordmark } from "@/components/site-chrome"
-import { MainNav, type MainNavCurrent } from "@/components/main-nav"
+import { MainNav, MobileNav, type MainNavCurrent } from "@/components/main-nav"
 import { SearchCommand } from "@/components/search-command"
 
 interface Props {
@@ -17,9 +18,10 @@ interface Props {
 const { current } = Astro.props
 ---
 <header class="border-b border-hairline">
-  <div class="relative mx-auto flex max-w-page flex-wrap items-center gap-x-7 gap-y-1 px-[clamp(20px,4vw,56px)] pt-3 pb-1 md:flex-nowrap md:py-4 lg:gap-x-11">
-    <Wordmark className="order-1" />
-    <SearchCommand client:idle className="order-2 ml-auto md:order-3 lg:min-w-[180px] lg:flex-[0_1_220px]" />
-    <MainNav client:load current={current} className="order-3 w-full md:order-2 md:w-auto" />
+  <div class="relative mx-auto flex max-w-page items-center gap-x-1 px-[clamp(20px,4vw,56px)] py-2.5 md:gap-x-7 md:py-4 lg:gap-x-11">
+    <Wordmark />
+    <MainNav client:load current={current} className="hidden md:flex" />
+    <SearchCommand client:idle className="mr-0 ml-auto md:-mr-2.5 lg:mr-0 lg:min-w-[180px] lg:flex-[0_1_220px]" />
+    <MobileNav client:load current={current} className="-mr-2.5 md:hidden" />
   </div>
 </header>
