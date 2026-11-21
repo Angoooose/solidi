@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { yearRange } from "@/lib/format"
 import { fmt, type Facet, type MintCard, type PersonCard, type Photo } from "@/lib/categories"
 import { Sparkline, YearAxis, type Bin } from "@/components/charts"
+import { PlinthNote } from "@/components/coin"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 
 /* Page frame: the header's gutters, a 40px top and 112px bottom. */
@@ -60,9 +61,13 @@ export function Facts({ items }: { items: [string, React.ReactNode][] }) {
 export function Plinth({ photo, alt, size, className }: { photo: Photo | null; alt: string; size: "thumb" | "large"; className?: string }) {
   const src = photo?.[size]
   return (
-    <span className={cn("block bg-plinth", className)}>
+    <span data-plinth={src ? "" : undefined} className={cn("relative block bg-plinth", className)}>
       {src ? (
-        <img src={src} alt={alt} loading="lazy" decoding="async" className="block aspect-square w-full object-contain mix-blend-multiply" />
+        <>
+          <img src={src} alt={alt} loading="lazy" decoding="async" data-coin-photo className="block aspect-square w-full object-contain mix-blend-multiply" />
+          {/* A thumbnail is too small for words: it just stays empty. */}
+          {size === "large" && <PlinthNote failed className="bottom-3 left-3.5" />}
+        </>
       ) : (
         <span className="block aspect-square w-full" />
       )}

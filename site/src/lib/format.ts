@@ -98,6 +98,33 @@ export function shortDescription(text: string | null | undefined): string | null
   return text.split(/;\s/)[0].trim()
 }
 
+/*
+ * A legend cleaned to stand in for a missing photograph, as lines, or null when it can't.
+ * Catalogue notation goes: the first of "A or B", cataloguer's notes "(in exergue)", break
+ * hyphens, restoration brackets and gaps ("[...]"). "//" or " / " (a new line on the coin) starts
+ * a new line. Fragments under four letters ("S C") and long legends (over 60 characters) give null,
+ * and the plinth shows only its note.
+ */
+export function plinthLegend(raw: string | null | undefined): string[] | null {
+  if (!raw) return null
+  const text = raw
+    .replace(/\s*\((?:or|in|on|at|to|below|above|around|across)\b[^)]*\)/gi, "")
+    .split(/\s+or\s+/)[0]
+  const lines = text
+    .split(/\/\/|\s\/\s/)
+    .map((l) =>
+      l
+        .replace(/[-_[\]{}()?*|\\←∈�]/g, "")
+        .replace(/\.{2,}|…|\//g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+    )
+    .filter(Boolean)
+  const all = lines.join(" ")
+  if ((all.match(/\p{L}/gu) ?? []).length < 4 || all.length > 60) return null
+  return lines
+}
+
 /** Pronunciations in an extract: "The tetradrachm /ˈtetrəˌdræm/ was", "Rome (/roʊm/ ROHM)". */
 const IPA = /\s*\(?\/[^/\s][^/]{0,40}\/(\s+[A-Z-]+)?\)?(?=[\s,;])/g
 

@@ -30,6 +30,50 @@ const { title, scripts = false } = Astro.props;
     )}
     <!-- Same-site links swap the page in place instead of a full reload (~5 KB). -->
     <ClientRouter />
+    <!--
+      Coin photo states (components/coin.tsx, global.css). Inline in the head so its listeners
+      exist before any photo can load or fail. A photo is marked loaded or failed; its plinth
+      is failed if any of its photos failed, loaded when all have loaded. Retry reloads failed photos.
+    -->
+    <script is:inline>
+      (() => {
+        if (window.__coinPhotos) return
+        window.__coinPhotos = true
+        const mark = () => document.documentElement.setAttribute("data-js", "")
+        mark()
+        document.addEventListener("astro:after-swap", mark)
+        const settle = (plinth) => {
+          const photos = [...plinth.querySelectorAll("img[data-coin-photo]")].map((i) => i.dataset.photo)
+          plinth.dataset.photo = photos.includes("failed") ? "failed" : photos.every((p) => p === "loaded") ? "loaded" : ""
+        }
+        for (const type of ["load", "error"]) {
+          document.addEventListener(
+            type,
+            (e) => {
+              const img = e.target
+              if (!(img instanceof HTMLImageElement) || !img.hasAttribute("data-coin-photo")) return
+              img.dataset.photo = type === "load" ? "loaded" : "failed"
+              const plinth = img.closest("[data-plinth]")
+              if (plinth) settle(plinth)
+            },
+            true
+          )
+        }
+        document.addEventListener("click", (e) => {
+          const button = e.target.closest?.("[data-coin-retry]")
+          const plinth = button?.closest("[data-plinth]")
+          if (!plinth) return
+          e.preventDefault()
+          for (const img of plinth.querySelectorAll('img[data-coin-photo][data-photo="failed"]')) {
+            img.dataset.photo = ""
+            const src = img.src
+            img.removeAttribute("src")
+            img.src = src
+          }
+          settle(plinth)
+        })
+      })()
+    </script>
   </head>
   <body>
     <slot />

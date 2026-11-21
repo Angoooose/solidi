@@ -2,7 +2,7 @@
  * Coin-type cards, shared by every page that shows a grid of types (type page, ruler page, …).
  * CARD_SELECT selects one card's fields from `coin_type t`; append WHERE / ORDER BY / LIMIT.
  */
-import { iiif, secure, shortDescription, yearRange } from "@/lib/format"
+import { iiif, plinthLegend, secure, shortDescription, yearRange } from "@/lib/format"
 
 /*
  * Photos our pages can show: the pipeline flags hosts browsers refuse (Gallica's 403s, Kenom's
@@ -18,6 +18,8 @@ export type TypeCardData = {
   image: string | null
   /** The image shown, for its credit (lib/credits.ts). */
   imageId: number | null
+  /** Without a photo, the plinth shows this legend pressed into it (lib/format.ts plinthLegend). */
+  plinthLegend: string[] | null
 }
 
 export type CardRow = {
@@ -30,7 +32,14 @@ export type CardRow = {
   image: string | null
   iiif: string | null
   image_id: number | null
+  obv_card_legend: string | null
+  rev_card_legend: string | null
 }
+
+/* A side's legend in Latin or Greek letters, which EB Garamond can set; other scripts give null. */
+const CARD_LEGEND = (side: string) => `
+  (SELECT l.legend FROM legend l WHERE l.type_id = t.id AND l.side = '${side}' AND l.language IN ('la', 'grc')
+   ORDER BY l.id LIMIT 1)`
 
 /* One reverse photo per type: prefer a reverse, then a combined image; IIIF first. */
 const CARD_IMAGE = (col: string) => `
@@ -44,7 +53,9 @@ export const CARD_SELECT = `
      WHERE td.type_id = t.id LIMIT 1) AS denomination,
     ${CARD_IMAGE("url")} AS image,
     ${CARD_IMAGE("iiif_service")} AS iiif,
-    ${CARD_IMAGE("id")} AS image_id
+    ${CARD_IMAGE("id")} AS image_id,
+    ${CARD_LEGEND("obverse")} AS obv_card_legend,
+    ${CARD_LEGEND("reverse")} AS rev_card_legend
   FROM coin_type t`
 
 export function card(row: CardRow): TypeCardData {
@@ -55,5 +66,7 @@ export function card(row: CardRow): TypeCardData {
     meta: [row.denomination, yearRange(row.start_year, row.end_year)].filter(Boolean).join(" · "),
     image: iiif(row.iiif, 600) ?? secure(row.image),
     imageId: row.image_id,
+    // The reverse legend first: in a grid the obverse is usually the same ruler's name on every card.
+    plinthLegend: plinthLegend(row.rev_card_legend) ?? plinthLegend(row.obv_card_legend),
   }
 }

@@ -23,7 +23,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { getCoinType } from "@/lib/coinType"
-import { acsearchUrl, capitalise, typePath } from "@/lib/format"
+import { acsearchUrl, capitalise, plinthLegend, typePath } from "@/lib/format"
 
 /* Astro decodes the path but leaves reserved characters escaped: '%3F' for the '?' in some source IDs (lib/format.ts typePath). */
 const id = (() => {
@@ -49,6 +49,13 @@ const ruler = authority ?? stated ?? type?.authorities[0] ?? null
 /* "denarius", but "denomination B (double)": only the initial is lowered. */
 const denomination = type?.denominations.map((d) => d.name.charAt(0).toLowerCase() + d.name.slice(1)).join(" or ")
 const material = type?.materials[0]?.toLowerCase()
+
+/* Without a photo, each side's legend is pressed into the plinth, if it's in Latin or Greek letters. */
+const plinthSide = (side: "obverse" | "reverse") => {
+  const s = type?.sides.find((x) => x.side === side)
+  return s && (s.language == null || s.language === "la" || s.language === "grc") ? plinthLegend(s.legend) : null
+}
+const plinthLegends = { obverse: plinthSide("obverse"), reverse: plinthSide("reverse") }
 
 /*
  * "Silver denarius of Trajan, struck at Rome, AD 103–111", "Silver tetradrachm of Ptolemy I in the
@@ -102,7 +109,7 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
       <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)]">
         {/* Photo beside the facts */}
         <section class="flex flex-wrap items-stretch gap-x-20 gap-y-12 pt-12 pb-26">
-          <CoinPair photos={type.hero?.photos ?? []} size="hero" className="min-w-0 flex-[1.4_1_560px] justify-between">
+          <CoinPair photos={type.hero?.photos ?? []} legends={plinthLegends} size="hero" className="min-w-0 flex-[1.4_1_560px] justify-between">
             {type.hero && (
               <figcaption class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5 text-credit text-stone">
                 <span>{type.hero.photos.length === 2 ? "Obverse and reverse" : "Obverse and reverse, one photograph"}</span>
@@ -352,7 +359,7 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
             <SectionHeading aside={`${type.variants.length}`}>Variants</SectionHeading>
             <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10">
               {type.variants.map((v) => (
-                <TypeCard href={typePath(v.id)} image={v.image} title={v.title} reference={v.reference} meta={v.meta} />
+                <TypeCard href={typePath(v.id)} image={v.image} plinthLegend={v.plinthLegend} title={v.title} reference={v.reference} meta={v.meta} />
               ))}
             </div>
             <PhotoCredit photos={type.variantCredits} />
@@ -372,7 +379,7 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
             </div>
             <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10">
               {type.related.map((r) => (
-                <TypeCard href={typePath(r.id)} image={r.image} title={r.title} reference={r.reference} meta={r.meta} />
+                <TypeCard href={typePath(r.id)} image={r.image} plinthLegend={r.plinthLegend} title={r.title} reference={r.reference} meta={r.meta} />
               ))}
             </div>
             <PhotoCredit photos={type.relatedCredits} />

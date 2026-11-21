@@ -219,7 +219,7 @@ const metal = d && [d.material, d.also && `also ${d.also.toLowerCase()}`].filter
           {d.grid.length ? (
             <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-10">
               {d.grid.map((t) => (
-                <TypeCard href={typePath(t.id)} image={t.image} title={t.title} reference={t.reference} meta={t.meta} />
+                <TypeCard href={typePath(t.id)} image={t.image} plinthLegend={t.plinthLegend} title={t.title} reference={t.reference} meta={t.meta} />
               ))}
             </div>
           ) : (

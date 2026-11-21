@@ -2,22 +2,83 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /*
- * A coin photo on the plinth. The image multiplies into the ground so white studio
- * backgrounds disappear. Without a photo, the plinth says so in words.
+ * Photo states. A plinth holding photos carries `data-plinth`, each photo `data-coin-photo`.
+ * Base.astro's inline script marks them loaded or failed, so the states need no hydration:
+ * while loading, a slow band of light crosses the plinth (global.css); a loaded photo fades in;
+ * a failed one leaves the plinth empty with a note in the corner.
  */
-export function Plinth({ src, alt = "", className }: { src?: string | null; alt?: string; className?: string }) {
+
+/* The corner note on an empty plinth. Retry only where the plinth isn't inside a link. */
+export function PlinthNote({ failed = false, retry = false, className }: { failed?: boolean; retry?: boolean; className?: string }) {
+  return (
+    <span className={cn("absolute text-credit text-stone", failed && "plinth-failed", className)}>
+      {failed ? "Photograph didn’t load" : "No photograph yet"}
+      {failed && retry && (
+        <>
+          {" · "}
+          <button type="button" data-coin-retry className="text-ink underline-offset-4 hover:underline">
+            Retry
+          </button>
+        </>
+      )}
+    </span>
+  )
+}
+
+/*
+ * Without a photo, a legend pressed into the plinth, tone on tone (lib/format.ts plinthLegend
+ * picks and cleans it). Its parent sets `@container` so the letters scale with the plinth.
+ */
+function StruckLegend({ lines }: { lines: string[] }) {
+  return (
+    <span aria-hidden className="plinth-legend">
+      {lines.map((l, i) => (
+        <span key={i} className="block">
+          {l}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+/*
+ * A coin photo on the plinth. The image multiplies into the ground so white studio
+ * backgrounds disappear. Without a photo, the plinth shows the coin's legend and says so in words.
+ */
+export function Plinth({
+  src,
+  alt = "",
+  legend,
+  className,
+}: {
+  src?: string | null
+  alt?: string
+  legend?: string[] | null
+  className?: string
+}) {
   // The image is positioned inside a square box, so a tall or wide photo can never resize the card.
   return (
-    <span className={cn("relative flex aspect-square items-center justify-center bg-plinth", className)}>
+    <span
+      data-plinth={src ? "" : undefined}
+      className={cn("@container relative flex aspect-square items-center justify-center bg-plinth", className)}
+    >
       {src ? (
-        <img
-          src={src}
-          alt={alt}
-          loading="lazy"
-          className="absolute inset-0 size-full object-contain p-5 mix-blend-multiply"
-        />
+        <>
+          <img
+            src={src}
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            data-coin-photo
+            className="absolute inset-0 size-full object-contain p-5 mix-blend-multiply"
+          />
+          <PlinthNote failed className="bottom-3 left-3.5" />
+        </>
       ) : (
-        <span className="text-label text-stone">No photograph yet</span>
+        <>
+          {legend && <StruckLegend lines={legend} />}
+          <PlinthNote className="bottom-3 left-3.5" />
+        </>
       )}
     </span>
   )
@@ -29,22 +90,29 @@ export function Plinth({ src, alt = "", className }: { src?: string | null; alt?
  */
 export function CoinPair({
   photos,
+  legends,
   size = "card",
   className,
   children,
 }: {
   photos: { src: string; side: string }[]
+  /** Without photos, each side's legend pressed into the plinth (lib/format.ts plinthLegend). */
+  legends?: { obverse: string[] | null; reverse: string[] | null }
   size?: "card" | "hero"
   className?: string
   children?: React.ReactNode
 }) {
   const hero = size === "hero"
   return (
-    <figure className={cn("m-0 flex flex-col bg-plinth", hero ? "gap-12 p-5" : "p-4", className)}>
+    // The light band crosses the whole figure while photos load, so `data-plinth` sits here.
+    <figure
+      data-plinth={photos.length ? "" : undefined}
+      className={cn("relative m-0 flex flex-col bg-plinth", hero ? "gap-12 p-5" : "p-4", className)}
+    >
       {photos.length ? (
         <div
           className={cn(
-            "grid items-center",
+            "relative grid items-center",
             photos.length === 2 ? "grid-cols-2" : "grid-cols-1",
             // In the hero the coins sit further in than the caption, which keeps an even 20px edge.
             hero ? "gap-[clamp(16px,3vw,40px)] px-[clamp(0px,2vw,28px)] pt-[clamp(12px,3.5vw,52px)]" : "gap-2"
@@ -56,12 +124,22 @@ export function CoinPair({
               src={p.src}
               alt={p.side === "combined" ? "Obverse and reverse" : p.side === "obverse" ? "Obverse" : "Reverse"}
               loading={hero ? "eager" : "lazy"}
+              data-coin-photo
               className="aspect-square w-full object-contain mix-blend-multiply"
             />
           ))}
+          <PlinthNote failed retry className="bottom-0 left-0" />
         </div>
       ) : (
-        <div className="flex aspect-[2/1] items-center justify-center text-label text-stone">No photograph yet</div>
+        // Fills the figure (the hero stretches to the facts beside it); the note sits at its foot.
+        <div className="relative grid min-h-[clamp(200px,30vw,360px)] flex-1 grid-cols-2 items-center gap-[clamp(16px,3vw,40px)]">
+          {(["obverse", "reverse"] as const).map((side) => (
+            <div key={side} className="@container flex items-center justify-center">
+              {legends?.[side] && <StruckLegend lines={legends[side]!} />}
+            </div>
+          ))}
+          <PlinthNote className="bottom-0 left-0" />
+        </div>
       )}
       {children}
     </figure>
@@ -76,6 +154,7 @@ export function CoinPair({
 export function TypeCard({
   href,
   image,
+  plinthLegend,
   title,
   reference,
   meta,
@@ -83,6 +162,8 @@ export function TypeCard({
 }: {
   href: string
   image?: string | null
+  /** Pressed into the plinth when there's no photo. */
+  plinthLegend?: string[] | null
   title: React.ReactNode
   reference: React.ReactNode
   meta?: React.ReactNode
@@ -90,7 +171,7 @@ export function TypeCard({
 }) {
   return (
     <a href={href} className="group flex flex-col gap-1">
-      <Plinth src={image} className="mb-2" />
+      <Plinth src={image} legend={plinthLegend} className="mb-2" />
       <span className="line-clamp-2 font-serif text-reading leading-snug underline-offset-4 group-hover:underline">{title}</span>
       <span className="num text-label text-stone">
         {reference}
