@@ -7,7 +7,7 @@
  * served from /api/collections.json.
  */
 import {
-  BY_MINT, cardWorthy, chronological, getCategories, getTopMints, getTopPeople, metaLine, peopleNoun, tree, typesLabel,
+  BY_MINT, cardWorthy, chronological, getCategories, getTopMints, getTopPeople, metaLine, peopleNoun, shortName, tree, typesLabel,
   type Category, type Photo,
 } from "@/lib/categories"
 
@@ -103,12 +103,10 @@ export async function getCollectionsMenu(db: D1Database): Promise<CollectionsMen
   const collections: MenuCollection[] = []
   const walk = (parent: string | null, depth: number) => {
     for (const c of t.children(parent)) {
-      const p = c.parentId ? t.byId.get(c.parentId) : null
-      const short = p && c.name.startsWith(p.name + " ") ? c.name.slice(p.name.length + 1) : c.name
       collections.push({
         id: c.id,
         name: c.name,
-        shortName: short.charAt(0).toUpperCase() + short.slice(1),
+        shortName: shortName(c, c.parentId ? t.byId.get(c.parentId) : null),
         parentId: c.parentId,
         depth,
         count: c.types,

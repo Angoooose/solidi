@@ -15,7 +15,7 @@ import { YearAxis, niceStep, yearTicks } from "@/components/charts"
 import { MintMap, hasBasemap, onBasemap } from "@/components/mint-map"
 import { UrlSelect } from "@/components/url-select"
 import { buttonVariants } from "@/components/ui/button"
-import { fmt, typesLabel } from "@/lib/categories"
+import { collectionOptions, fmt, typesLabel } from "@/lib/categories"
 import { MINT_BIN, getMints, type MintRow, type MintsSort } from "@/lib/mints"
 
 const SORTS: { value: MintsSort; label: string }[] = [
@@ -69,15 +69,7 @@ const onMap = hasBasemap(basemap) ? mapMints.filter((m) => onBasemap(basemap, m.
 const farEast = mapMints.length - onMap.length
 const totalShown = region ? region.mints.length : all.length
 
-const options = t
-  ? [
-      { value: "all", label: "All collections" },
-      ...t.all
-        .filter((c) => c.mints > 0)
-        .sort((a, b) => [...t.ancestors(a.id), a].map((x) => x.sortOrder).join(".").localeCompare([...t.ancestors(b.id), b].map((x) => x.sortOrder).join(".")))
-        .map((c) => ({ value: c.id, label: c.name, count: c.mints })),
-    ]
-  : []
+const options = t ? collectionOptions(t, (c) => c.mints) : []
 
 /** This page's URL with some parameters changed; null removes one. */
 const link = (changes: Record<string, string | number | null>) => {

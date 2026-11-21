@@ -8,7 +8,16 @@
 import * as React from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-export type UrlSelectOption = { value: string; label: string; count?: number }
+export type UrlSelectOption = {
+  value: string
+  /** Shown on the trigger, and in the menu unless there is a short one. */
+  label: string
+  /** The name in the menu under its parent ("Imperial" under Roman). */
+  short?: string
+  /** Nesting level in the menu: each level indents one step. */
+  depth?: number
+  count?: number
+}
 
 export function UrlSelect({
   label,
@@ -34,12 +43,18 @@ export function UrlSelect({
   return (
     <Select value={value} onValueChange={go}>
       <SelectTrigger label={label} aria-label={label}>
-        <SelectValue />
+        {/* The full name on the trigger: "Roman Imperial", not the menu's "Imperial". */}
+        <SelectValue>{options.find((o) => o.value === value)?.label}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {options.map((o) => (
-          <SelectItem key={o.value} value={o.value} count={o.count?.toLocaleString("en-GB")}>
-            {o.label}
+          <SelectItem
+            key={o.value}
+            value={o.value}
+            count={o.count?.toLocaleString("en-GB")}
+            style={o.depth ? { paddingLeft: `calc(0.5rem + ${o.depth}rem)` } : undefined}
+          >
+            {o.short ?? o.label}
           </SelectItem>
         ))}
       </SelectContent>

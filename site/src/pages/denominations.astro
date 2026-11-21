@@ -14,7 +14,7 @@ import { CoinScale, DenominationListRow } from "@/components/denomination"
 import { YearAxis, niceStep, yearTicks } from "@/components/charts"
 import { UrlSelect } from "@/components/url-select"
 import { buttonVariants } from "@/components/ui/button"
-import { fmt, typesLabel } from "@/lib/categories"
+import { collectionOptions, fmt, typesLabel } from "@/lib/categories"
 import { DENOMINATION_BIN, getDenominations, type DenominationRow, type DenominationsSort } from "@/lib/denominations"
 
 /** Denominations per metal heading, per page of a single list, and in a collection's size strip. */
@@ -63,15 +63,7 @@ const step = niceStep([from, to], 6)
 const domain: [number, number] = [Math.floor(from / step) * step, Math.ceil(to / step) * step]
 const ticks = yearTicks(domain, step).filter((tk) => tk > domain[0] && tk < domain[1])
 
-const options = t
-  ? [
-      { value: "all", label: "All collections" },
-      ...t.all
-        .filter((c) => c.denominations > 0)
-        .sort((a, b) => [...t.ancestors(a.id), a].map((x) => x.sortOrder).join(".").localeCompare([...t.ancestors(b.id), b].map((x) => x.sortOrder).join(".")))
-        .map((c) => ({ value: c.id, label: c.name, count: c.denominations })),
-    ]
-  : []
+const options = t ? collectionOptions(t, (c) => c.denominations) : []
 
 /** This page's URL with some parameters changed; null removes one. */
 const link = (changes: Record<string, string | number | null>) => {

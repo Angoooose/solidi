@@ -12,7 +12,7 @@ import { Note, Page } from "@/components/collection"
 import { PersonTrack, PersonTrackKey, YearAxis, niceStep, yearTicks } from "@/components/charts"
 import { UrlSelect } from "@/components/url-select"
 import { capitalise, yearRange } from "@/lib/format"
-import { fmt, getCategories, getPeople, peopleNoun, tree, type PeopleSort } from "@/lib/categories"
+import { collectionOptions, fmt, getCategories, getPeople, peopleNoun, tree, type PeopleSort } from "@/lib/categories"
 
 const SORTS: { value: PeopleSort; label: string }[] = [
   { value: "date", label: "By date" },
@@ -37,14 +37,7 @@ const domain: [number, number] = [Math.floor(from / step) * step - step / 2, Mat
 const ticks = yearTicks(domain, step)
 const pct = (y: number) => ((y - domain[0]) / (domain[1] - domain[0])) * 100
 
-// "All collections", then the tree, nested collections indented by their path.
-const options = [
-  { value: "all", label: "All collections" },
-  ...t.all
-    .filter((c) => c.types > 0)
-    .sort((a, b) => [...t.ancestors(a.id), a].map((x) => x.sortOrder).join(".").localeCompare([...t.ancestors(b.id), b].map((x) => x.sortOrder).join(".")))
-    .map((c) => ({ value: c.id, label: c.name, count: c.people })),
-]
+const options = collectionOptions(t, (c) => c.people)
 const sortHref = (s: PeopleSort) => {
   const url = new URL(Astro.url)
   if (s === "date") url.searchParams.delete("sort")

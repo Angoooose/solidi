@@ -112,6 +112,32 @@ export function tree(all: Category[]): Tree {
   return { all, byId, children, isLeaf, ancestors, leaves }
 }
 
+/** A category's name under its parent: "Imperial" under Roman, "Seleucid Kingdom" under Hellenistic. */
+export function shortName(c: Category, parent: Category | null | undefined): string {
+  const short = parent && c.name.startsWith(parent.name + " ") ? c.name.slice(parent.name.length + 1) : c.name
+  return short.charAt(0).toUpperCase() + short.slice(1)
+}
+
+/**
+ * The Collection select's options: "All collections", then the tree depth-first, each collection
+ * indented under its parent by its short name. `count` is what the page counts (people, mints…);
+ * collections with none are left out.
+ */
+export function collectionOptions(t: Tree, count: (c: Category) => number) {
+  const out: { value: string; label: string; short?: string; depth?: number; count?: number }[] = [
+    { value: "all", label: "All collections" },
+  ]
+  const walk = (parent: Category | null, depth: number) => {
+    const kids = t.all.filter((c) => c.parentId === (parent?.id ?? null) && count(c) > 0).sort((a, b) => a.sortOrder - b.sortOrder)
+    for (const c of kids) {
+      out.push({ value: c.id, label: c.name, short: shortName(c, parent), depth, count: count(c) })
+      walk(c, depth + 1)
+    }
+  }
+  walk(null, 0)
+  return out
+}
+
 /** Histogram bins for several categories at once: id -> bins, earliest first. */
 export async function getBins(db: D1Database, ids: string[], width: 10 | 25): Promise<Map<string, Bin[]>> {
   const out = new Map<string, Bin[]>(ids.map((id) => [id, []]))

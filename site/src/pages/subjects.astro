@@ -13,7 +13,7 @@ import { Note, Page, RowsHead } from "@/components/collection"
 import { GreekRomanKey, PlacesGrid, SubjectListRow } from "@/components/subject"
 import { niceStep, yearTicks } from "@/components/charts"
 import { UrlSelect } from "@/components/url-select"
-import { fmt } from "@/lib/categories"
+import { collectionOptions, fmt } from "@/lib/categories"
 import { SUBJECT_BIN, getSubjects, type SubjectsSort } from "@/lib/subjects"
 
 /** Rows (or places) shown per group before "All …". */
@@ -47,15 +47,7 @@ const step = niceStep([from, to], 6)
 const domain: [number, number] = [Math.floor(from / step) * step, Math.ceil(to / step) * step]
 const ticks = yearTicks(domain, step).filter((tk) => tk > domain[0] && tk < domain[1])
 
-const options = t
-  ? [
-      { value: "all", label: "All collections" },
-      ...t.all
-        .filter((c) => c.subjects > 0)
-        .sort((a, b) => [...t.ancestors(a.id), a].map((x) => x.sortOrder).join(".").localeCompare([...t.ancestors(b.id), b].map((x) => x.sortOrder).join(".")))
-        .map((c) => ({ value: c.id, label: c.name, count: c.subjects })),
-    ]
-  : []
+const options = t ? collectionOptions(t, (c) => c.subjects) : []
 
 /** This page's URL with some parameters changed; null removes one. */
 const link = (changes: Record<string, string | number | null>, hash = "") => {
