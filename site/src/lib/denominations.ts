@@ -20,6 +20,28 @@ export const METAL_GROUPS = [
 export type MetalGroup = (typeof METAL_GROUPS)[number]["id"] | "unlisted"
 export const metalGroup = (id: string) => METAL_GROUPS.find((g) => g.id === id)
 
+/* A material's heading on this list, as the pipeline sorts them (METAL_GROUP in pipeline/summaries.py). */
+const MATERIAL_GROUP: Record<string, MetalGroup> = { av: "gold", el: "electrum", ar: "silver", billon: "silver" }
+/**
+ * Where a collection's Metal column links: its denominations under that material's heading
+ * (/denominations?collection=seleucid&sort=metal&metal=gold), or all its denominations when none
+ * sit under it (Antigonid bronzes are all catalogue units). `groups`: the headings it has.
+ */
+export function materialHref(material: string, collection: string, groups: ReadonlySet<string>): string {
+  const group = MATERIAL_GROUP[material] ?? "bronze"
+  return groups.has(group) ? `/denominations?collection=${collection}&sort=metal&metal=${group}` : `/denominations?collection=${collection}&sort=metal`
+}
+
+/** The headings a collection's denominations list has. */
+export async function collectionGroups(db: D1Database, collection: string): Promise<Set<string>> {
+  const r = await db
+    .prepare(`SELECT DISTINCT s.metal_group AS g FROM category_denomination x JOIN denomination_stat s ON s.denomination_id = x.denomination_id
+              WHERE x.category_id = ?`)
+    .bind(collection)
+    .all<{ g: string }>()
+  return new Set(r.results.map((x) => x.g))
+}
+
 export type DenominationsSort = "metal" | "types" | "date" | "name"
 
 export type DenominationRow = {

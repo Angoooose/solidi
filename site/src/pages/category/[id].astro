@@ -19,6 +19,7 @@ import { MintMap, hasBasemap } from "@/components/mint-map"
 import { capitalise, yearRange } from "@/lib/format"
 import { PhotoCredit } from "@/components/credits"
 import { getPhotoCredits, photoIds } from "@/lib/credits"
+import { collectionGroups, materialHref } from "@/lib/denominations"
 import { cardWorthy, chronological, fmt, getCategoryPage, getPreviews, getCategories, metaLine, peopleNoun, tree, typesLabel } from "@/lib/categories"
 
 const id = Astro.params.id ?? ""
@@ -51,6 +52,8 @@ const hero = page ? (page.variant === "mints" ? page.mints : page.people).find((
 const datedTypes = page ? Math.round(page.bins.reduce((s, b) => s + b.n, 0)) : 0
 const showMap = page && hasBasemap(id) && page.mapMints.length > 0
 const scope = `?collection=${id}`
+// The Metal column links to the denominations list under each metal's heading, where it has one.
+const groups = page && page.variant !== "parent" ? await collectionGroups(env.DB, id) : new Set<string>()
 
 // Credits for every photo the page shows, in page order.
 const shown = parent
@@ -179,7 +182,7 @@ const credits = page ? await getPhotoCredits(env.DB, photoIds(shown)) : []
             <Section className="grid gap-14 md:grid-cols-3">
               <FacetColumn title="Denominations" items={page.denominations} href={(d) => `/denomination/${d}${scope}`} all={{ label: `All ${fmt(c.denominations)} denominations`, href: `/denominations${scope}` }} />
               <FacetColumn title="Subjects" items={page.subjects} href={(s) => `/subject/${s}${scope}`} all={{ label: `All ${fmt(c.subjects)} subjects`, href: `/subjects${scope}` }} />
-              <FacetColumn title="Metal" items={page.materials} href={(m) => `/material/${m}${scope}`} />
+              <FacetColumn title="Metal" items={page.materials} href={(m) => materialHref(m, id, groups)} />
             </Section>
           </>
         ) : (
@@ -229,7 +232,7 @@ const credits = page ? await getPhotoCredits(env.DB, photoIds(shown)) : []
             )}
             <Section className="grid gap-14 md:grid-cols-3">
               <FacetColumn title="Denominations" items={page.denominations} href={(d) => `/denomination/${d}${scope}`} all={{ label: `All ${fmt(c.denominations)} denominations`, href: `/denominations${scope}` }} />
-              <FacetColumn title="Metal" items={page.materials} href={(m) => `/material/${m}${scope}`} />
+              <FacetColumn title="Metal" items={page.materials} href={(m) => materialHref(m, id, groups)} />
               <FacetColumn
                 title={capitalise(noun.many)}
                 items={page.people.slice(0, 8).map((p) => ({ id: p.id, name: p.name, n: p.n }))}
