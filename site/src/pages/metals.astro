@@ -1,0 +1,72 @@
+---
+/*
+ * Every metal: gold, silver, bronze and electrum, each with its dates, its
+ * Greek and Roman shares, its most struck denominations and a histogram with Roman stacked over
+ * Greek. The catalogues' finer alloys roll up into these four (lib/metals.ts).
+ */
+import { env } from "cloudflare:workers"
+import Base from "@/layouts/Base.astro"
+import SiteHeader from "@/components/SiteHeader.astro"
+import SiteFooter from "@/components/SiteFooter.astro"
+import { CollectionRow, Note, Page, RowsHead } from "@/components/collection"
+import { GreekRomanKey } from "@/components/subject"
+import { niceStep, yearTicks } from "@/components/charts"
+import { fmt } from "@/lib/categories"
+import { yearRange } from "@/lib/format"
+import { METAL_BIN, getMetals } from "@/lib/metals"
+
+const { rows, types, unrecorded } = await getMetals(env.DB)
+
+// One axis for every row.
+const starts = rows.flatMap((r) => r.bins.map((b) => b.start))
+const from = starts.length ? Math.min(...starts) : -600
+const to = starts.length ? Math.max(...starts) + METAL_BIN : 500
+const step = niceStep([from, to], 6)
+const domain: [number, number] = [Math.floor(from / step) * step, Math.ceil(to / step) * step]
+const ticks = yearTicks(domain, step).filter((tk) => tk > domain[0] && tk < domain[1])
+
+/* "600 BC–AD 491 · Greek 27% · Roman 73%"; one half alone is named without a share. */
+const line = (r: (typeof rows)[number]) => {
+  const pct = (n: number) => `${Math.round((n / Math.max(1, r.types)) * 100)}%`
+  const halves = r.greek && r.roman ? `Greek ${pct(r.greek)} · Roman ${pct(r.roman)}` : r.greek ? "Greek" : "Roman"
+  return [yearRange(r.start, r.end), halves].filter(Boolean).join(" · ")
+}
+---
+
+<Base title="Metals">
+  <SiteHeader />
+  <Page>
+    <div class="flex flex-wrap items-baseline gap-x-5 gap-y-2 pt-8">
+      <h1 class="m-0 font-serif text-display font-normal">Metals</h1>
+      <Note>{fmt(types)} types in {rows.length} metals</Note>
+    </div>
+
+    <section class="pt-14">
+      <RowsHead first="Metal" domain={domain} ticks={ticks} className="border-b border-ink pb-3.5" />
+      {rows.map((r) => (
+        <CollectionRow
+          href={`/metal/${r.id}`}
+          photo={r.photo}
+          name={r.name}
+          dates={line(r)}
+          description={r.denominations.join(", ")}
+          bins={r.bins}
+          binWidth={METAL_BIN}
+          domain={domain}
+          ticks={ticks}
+          count={r.types}
+          series={["Greek collections", "Roman collections"]}
+        />
+      ))}
+      <div class="mt-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
+        {unrecorded > 0 && <p class="m-0 text-ui text-stone">{fmt(unrecorded)} types don’t record a metal.</p>}
+        <GreekRomanKey />
+      </div>
+    </section>
+  </Page>
+  <SiteFooter />
+</Base>
+
+<script>
+  import "@/scripts/tooltip"
+</script>

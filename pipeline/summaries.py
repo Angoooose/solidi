@@ -16,6 +16,10 @@ Workshops count as their city's mint (Seleucia on the Tigris II -> Seleucia).
 - category_subject       every subject per category, with counts, dates, histogram and a photo
 - subject_legend         legends that name the subject, with counts (VICTORIA AVG on Victory)
 - holder_stat            per museum or collection, how many of its specimens we show photographs of
+- type_metal             each live type's metal (gold, silver, bronze, electrum), from its materials
+- metal_stat             per metal: types, Greek and Roman, dates, a stacked histogram, the other facets' counts
+- category_metal         per category and metal, for "Over time"
+- metal_denomination     per metal and denomination: types, dates, median weight and diameter in that metal
 - catalogue_stat         per catalogue (dataset with types): its live types and a photo
 - photo_source           photographed specimens per holder and dataset, for the Sources page's licences
 """
@@ -78,6 +82,10 @@ DROP TABLE IF EXISTS subject_legend;
 DROP TABLE IF EXISTS holder_stat;
 DROP TABLE IF EXISTS photo_source;
 DROP TABLE IF EXISTS catalogue_stat;
+DROP TABLE IF EXISTS type_metal;
+DROP TABLE IF EXISTS metal_stat;
+DROP TABLE IF EXISTS category_metal;
+DROP TABLE IF EXISTS metal_denomination;
 CREATE TABLE category_stat (
   category_id   TEXT PRIMARY KEY REFERENCES category(id),
   types         INTEGER NOT NULL,
@@ -215,6 +223,51 @@ CREATE TABLE subject_legend (
 CREATE TABLE holder_stat (
   institution_id  TEXT PRIMARY KEY REFERENCES institution(id),
   photographed    INTEGER NOT NULL         -- its specimens with a photograph our pages can load
+);
+-- The four metals the site sorts by (METAL_GROUP). A type is in each metal one of its materials
+-- maps to; billon recorded with bronze (RIC VIII's nummi) counts as bronze, not as silver too.
+CREATE TABLE type_metal (
+  type_id         TEXT NOT NULL REFERENCES coin_type(id),
+  metal           TEXT NOT NULL,           -- 'gold', 'silver', 'bronze', 'electrum'
+  PRIMARY KEY (metal, type_id)
+);
+CREATE TABLE metal_stat (
+  metal           TEXT PRIMARY KEY,
+  types           INTEGER NOT NULL,
+  greek           INTEGER NOT NULL,
+  roman           INTEGER NOT NULL,
+  start_year      INTEGER,
+  end_year        INTEGER,
+  bins            TEXT,                    -- JSON [[start, greek, roman], ...], 25-year bins
+  collections     INTEGER NOT NULL,        -- leaf categories
+  people          INTEGER NOT NULL,
+  mints           INTEGER NOT NULL,
+  denominations   INTEGER NOT NULL,
+  specimens       INTEGER NOT NULL,
+  holders         INTEGER NOT NULL,
+  materials       TEXT NOT NULL,           -- JSON [[material_id, types], ...]: what the catalogues record, most first
+  image_id        INTEGER REFERENCES image(id)
+);
+CREATE TABLE category_metal (
+  category_id     TEXT NOT NULL REFERENCES category(id),
+  metal           TEXT NOT NULL,
+  n               INTEGER NOT NULL,
+  start_year      INTEGER,
+  end_year        INTEGER,
+  bins            TEXT,                    -- JSON [[start, n], ...], 25-year bins
+  PRIMARY KEY (category_id, metal)
+);
+CREATE TABLE metal_denomination (
+  metal           TEXT NOT NULL,
+  denomination_id TEXT NOT NULL REFERENCES denomination(id),
+  types           INTEGER NOT NULL,
+  start_year      INTEGER,
+  end_year        INTEGER,
+  weight          REAL,                    -- median of its coins in this metal that were weighed, g
+  weight_n        INTEGER NOT NULL,
+  diameter        REAL,                    -- and measured, mm
+  diameter_n      INTEGER NOT NULL,
+  PRIMARY KEY (metal, denomination_id)
 );
 CREATE TABLE catalogue_stat (
   dataset_id      TEXT PRIMARY KEY REFERENCES dataset(id),
@@ -400,12 +453,14 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
           {photo("SELECT t.id FROM coin_type t WHERE t.dataset_id = c.dataset_id AND t.replaced_by_id IS NULL AND t.parent_id IS NULL")}""")
     for warning in _subjects(db):
         log(f"  warning: {warning}")
+    _metals(db)
     db.commit()
 
     counts = {t: db.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
               for t in ("category_stat", "category_bin", "category_facet", "category_person", "category_mint",
                         "category_denomination", "denomination_stat", "denomination_size",
-                        "subject_stat", "category_subject", "subject_legend", "holder_stat", "photo_source", "catalogue_stat")}
+                        "subject_stat", "category_subject", "subject_legend", "holder_stat", "photo_source", "catalogue_stat", "type_metal", "metal_stat",
+                        "category_metal", "metal_denomination")}
     log("  " + ", ".join(f"{t} {n:,}" for t, n in counts.items()))
     return counts
 
@@ -560,6 +615,104 @@ def _denominations(db: sqlite3.Connection) -> list[str]:
                 size.append((den, leaf, tab, lo, hi, other, d, n))
     db.executemany("INSERT INTO denomination_size VALUES (?, ?, ?, ?, ?, ?, ?, ?)", size)
     return sorted(names[d] for d in by_den if d not in units | unlisted and UNIT_LIKE.search(names[d]))
+
+
+def _metals(db: sqlite3.Connection) -> None:
+    """type_metal, metal_stat, category_metal and metal_denomination (uses build's temp tables)."""
+    not_people = ",".join(f"'{p}'" for p in NOT_PEOPLE)
+    materials: dict[str, set[str]] = defaultdict(set)
+    for tid, mat in db.execute("SELECT tm.type_id, tm.material_id FROM type_material tm JOIN live l ON l.id = tm.type_id"):
+        materials[tid].add(mat)
+    rows = []
+    for tid, mats in materials.items():
+        metals = {METAL_GROUP[m] for m in mats if m in METAL_GROUP}
+        if "billon" in mats and "silver" in metals and "bronze" in metals and "ar" not in mats:
+            metals.discard("silver")
+        rows.extend((tid, m) for m in metals)
+    db.executemany("INSERT INTO type_metal VALUES (?, ?)", rows)
+
+    parent = dict(db.execute("SELECT id, parent_id FROM category"))
+    def top(c):
+        while parent.get(c):
+            c = parent[c]
+        return c
+
+    types: dict[str, list[tuple]] = defaultdict(list)
+    for metal, tid, cat, s, e, mint in db.execute(
+            "SELECT tm.metal, l.id, l.cat, l.s, l.e, l.mint FROM type_metal tm JOIN live l ON l.id = tm.type_id"):
+        types[metal].append((tid, cat, top(cat), s, e, mint))
+    extra = {m: rest for m, *rest in db.execute(f"""
+        SELECT tm.metal,
+          (SELECT count(DISTINCT tp.person_id) FROM type_metal x JOIN type_person tp ON tp.type_id = x.type_id
+           WHERE x.metal = tm.metal AND tp.role IN ('authority', 'issuer') AND tp.person_id NOT IN ({not_people})),
+          (SELECT count(DISTINCT td.denomination_id) FROM type_metal x JOIN type_denomination td ON td.type_id = x.type_id
+           WHERE x.metal = tm.metal),
+          (SELECT count(DISTINCT st.specimen_id) FROM type_metal x JOIN specimen_type st ON st.type_id = x.type_id
+           WHERE x.metal = tm.metal),
+          (SELECT count(DISTINCT sp.institution_id) FROM type_metal x JOIN specimen_type st ON st.type_id = x.type_id
+           JOIN specimen sp ON sp.id = st.specimen_id WHERE x.metal = tm.metal)
+        FROM type_metal tm GROUP BY 1""")}
+    recorded: dict[str, list] = defaultdict(list)
+    for metal, mat, n in db.execute("""SELECT x.metal, tm.material_id, count(*) FROM type_metal x
+                                       JOIN type_material tm ON tm.type_id = x.type_id GROUP BY 1, 2 ORDER BY 3 DESC, 2"""):
+        # Only what belongs to this metal: a gold-and-silver type's silver isn't a kind of gold.
+        if METAL_GROUP.get(mat) == metal or (mat == "billon" and metal == "bronze"):
+            recorded[metal].append([mat, n])
+    stat = []
+    for metal, ts in types.items():
+        greek = sum(t[2] == "greek" for t in ts)
+        bins: dict[int, list[float]] = defaultdict(lambda: [0.0, 0.0])
+        for _, _, root, s, e, _ in ts:
+            if s is not None:
+                for b, share in _spread(s, e, MINT_BIN):
+                    bins[b][0 if root == "greek" else 1] += share
+        dated = [(s, e) for *_, s, e, _ in ts if s is not None]
+        people, dens, specimens, holders = extra.get(metal, (0, 0, 0, 0))
+        stat.append((metal, len(ts), greek, len(ts) - greek, min((s for s, _ in dated), default=None),
+                     max((e for _, e in dated), default=None),
+                     json.dumps([[b, round(g, 2), round(r, 2)] for b, (g, r) in sorted(bins.items())], separators=(",", ":")) if bins else None,
+                     len({t[1] for t in ts}), people, len({t[5] for t in ts if t[5]}), dens, specimens, holders,
+                     json.dumps(recorded[metal], separators=(",", ":"))))
+    db.executemany(f"INSERT INTO metal_stat VALUES ({','.join('?' * 14)}, NULL)", stat)
+    db.execute(f"""
+        UPDATE metal_stat AS ms SET image_id =
+          {photo("SELECT tm.type_id FROM type_metal tm WHERE tm.metal = ms.metal")}""")
+
+    per: dict[tuple[str, str], list[tuple]] = defaultdict(list)
+    for root, metal, s, e in db.execute("SELECT u.root, tm.metal, u.s, u.e FROM under u JOIN type_metal tm ON tm.type_id = u.id"):
+        per[(root, metal)].append((s, e))
+    db.executemany("INSERT INTO category_metal VALUES (?, ?, ?, ?, ?, ?)",
+                   [(root, metal, len(spans), min((s for s, _ in spans if s is not None), default=None),
+                     max((e for s, e in spans if s is not None), default=None), _bins_json([x for x in spans if x[0] is not None]))
+                    for (root, metal), spans in per.items()])
+
+    # Denominations in each metal, measured only on coins of that metal (a gold stater isn't an electrum one).
+    dens: dict[tuple[str, str], dict[str, tuple]] = defaultdict(dict)
+    for metal, den, tid, s, e in db.execute("""SELECT tm.metal, td.denomination_id, l.id, l.s, l.e FROM type_metal tm
+                                               JOIN type_denomination td ON td.type_id = tm.type_id JOIN live l ON l.id = tm.type_id"""):
+        dens[(metal, den)][tid] = (s, e)
+    measured: dict[str, list[tuple]] = defaultdict(list)
+    for tid, sid, w, d in db.execute("""SELECT st.type_id, s.id, s.weight_g, s.diameter_mm FROM specimen_type st
+                                        JOIN specimen s ON s.id = st.specimen_id WHERE st.type_id IN (SELECT type_id FROM type_metal)"""):
+        w = w if w is not None and WEIGHT_G[0] <= w <= WEIGHT_G[1] else None
+        d = d if d is not None and DIAMETER_MM[0] <= d <= DIAMETER_MM[1] else None
+        measured[tid].append((sid, w, d))
+    out = []
+    for (metal, den), ts in dens.items():
+        seen, ws, ds = set(), [], []
+        for tid in ts:
+            for sid, w, d in measured.get(tid, ()):
+                if sid in seen:
+                    continue
+                seen.add(sid)
+                if w is not None:
+                    ws.append(w)
+                if d is not None:
+                    ds.append(d)
+        dated = [(s, e) for s, e in ts.values() if s is not None]
+        out.append((metal, den, len(ts), min((s for s, _ in dated), default=None), max((e for _, e in dated), default=None),
+                    round(statistics.median(ws), 2) if ws else None, len(ws), _median(ds), len(ds)))
+    db.executemany("INSERT INTO metal_denomination VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", out)
 
 
 def _subject_config() -> tuple[dict[str, str], set[str], dict[str, str], dict[str, str]]:
