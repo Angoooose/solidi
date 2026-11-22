@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { LicenceLink } from "@/components/credits"
+import { ExternalLink } from "@/components/external-link"
 import { PlinthNote } from "@/components/coin"
 import type { Licence } from "@/lib/format"
 
@@ -238,14 +239,13 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
                   </span>
                 </TableCell>
                 <TableCell className="text-right">
-                  <a
+                  <ExternalLink
                     href={s.url}
-                    rel="noopener"
                     onClick={(e) => e.stopPropagation()}
                     className="underline-offset-4 hover:underline"
                   >
                     View ↗
-                  </a>
+                  </ExternalLink>
                 </TableCell>
               </TableRow>
             )
@@ -335,9 +335,9 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
                   </DialogDescription>
                 </div>
                 <Button variant="link" asChild>
-                  <a href={current.url} rel="noopener">
+                  <ExternalLink href={current.url}>
                     View at the museum ↗
-                  </a>
+                  </ExternalLink>
                 </Button>
               </div>
               <dl className="m-0 grid grid-cols-2 gap-x-8 gap-y-4 border-t border-hairline pt-5 sm:grid-cols-4">

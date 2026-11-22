@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { ExternalLink } from "@/components/external-link"
 import type { Licence } from "@/lib/format"
 import { IMAGE_CREDITS_URL, type PhotoCreditItem } from "@/lib/credits"
 
@@ -9,9 +10,9 @@ const linkClass = "underline-offset-4 hover:text-ink hover:underline"
 export function LicenceLink({ licence, className }: { licence: Licence | null; className?: string }) {
   if (!licence) return <span className={className}>—</span>
   return licence.url ? (
-    <a href={licence.url} rel="license noopener" className={cn(linkClass, className)}>
+    <ExternalLink href={licence.url} rel="license" className={cn(linkClass, className)}>
       {licence.label}
-    </a>
+    </ExternalLink>
   ) : (
     <span className={className}>{licence.label}</span>
   )
@@ -69,9 +70,9 @@ export function PhotoCredit({ photos, onPage = false, className }: { photos: Pho
       <p className={base}>
         {label(false)}{" "}
         {p.sourceUrl ? (
-          <a href={p.sourceUrl} rel="noopener" className={linkClass}>
+          <ExternalLink href={p.sourceUrl} className={linkClass}>
             {p.holder}
-          </a>
+          </ExternalLink>
         ) : (
           p.holder
         )}

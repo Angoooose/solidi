@@ -9,6 +9,7 @@ import type { Category } from "@/lib/categories"
 import type { HomeCollection, Top } from "@/lib/home"
 import { Coin } from "@/components/denomination"
 import { PhotoHolder } from "@/components/credits"
+import { ExternalLink } from "@/components/external-link"
 import { MintDots } from "@/components/mint-map"
 import type { Photo } from "@/lib/categories"
 
@@ -25,10 +26,11 @@ export function IndexLine({ href, name, n, external = false, className }: { href
     </>
   )
   const cls = cn("flex items-baseline gap-2.5 py-1.5 text-ink", className)
+  const Link = external ? ExternalLink : "a"
   return href ? (
-    <a href={href} rel={external ? "noopener" : undefined} className={cn("group", cls)}>
+    <Link href={href} className={cn("group", cls)}>
       {body}
-    </a>
+    </Link>
   ) : (
     <div className={cls}>{body}</div>
   )

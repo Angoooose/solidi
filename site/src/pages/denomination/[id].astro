@@ -18,6 +18,7 @@ import { TypeCard } from "@/components/coin"
 import { PhotoCredit } from "@/components/credits"
 import { CoinageFilters } from "@/components/coinage-filters"
 import { buttonVariants } from "@/components/ui/button"
+import { ExternalLink } from "@/components/external-link"
 import { typePath, yearRange } from "@/lib/format"
 import { fmt } from "@/lib/categories"
 import { PAGE_SIZE, type Facet } from "@/lib/coinage"
@@ -108,9 +109,9 @@ const metal = d && [d.material, d.also && `also ${d.also.toLowerCase()}`].filter
                   {d.article && (
                     <>
                       {" "}
-                      <a href={d.article.url} rel="noopener" class="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline">
+                      <ExternalLink href={d.article.url} className="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline">
                         Read more on Wikipedia ↗
-                      </a>
+                      </ExternalLink>
                     </>
                   )}
                 </p>

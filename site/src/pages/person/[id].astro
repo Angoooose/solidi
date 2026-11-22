@@ -12,6 +12,7 @@ import { PlinthNote, TypeCard } from "@/components/coin"
 import { PhotoCredit } from "@/components/credits"
 import { CoinageFilters } from "@/components/coinage-filters"
 import { buttonVariants } from "@/components/ui/button"
+import { ExternalLink } from "@/components/external-link"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -101,13 +102,12 @@ const filters = person
                   {person.article && (
                     <>
                       {" "}
-                      <a
+                      <ExternalLink
                         href={person.article.url}
-                        rel="noopener"
-                        class="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline"
+                        className="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline"
                       >
                         Read more on Wikipedia ↗
-                      </a>
+                      </ExternalLink>
                     </>
                   )}
                 </p>

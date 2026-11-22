@@ -11,6 +11,7 @@ import { Plinth } from "@/components/collection"
 import { fmt } from "@/lib/categories"
 import { EXAMPLE_TYPE, getAbout } from "@/lib/about"
 import { CONTACT_EMAIL, GITHUB_URL } from "@/lib/footer"
+import { ExternalLink } from "@/components/external-link"
 import { typePath } from "@/lib/format"
 
 const about = await getAbout(env.DB)
@@ -59,15 +60,22 @@ const note = "m-0 max-w-[44ch] text-ui leading-[1.6] text-graphite"
 
     {/* A coin from each catalogue */}
     <section class="grid grid-cols-3 gap-5 pb-18 md:grid-cols-9">
-      {about.catalogues.map((c) => (
-        <a href={c.url ?? "/sources#types"} title={c.name} class="group flex min-w-0 flex-col gap-2.5">
-          <Plinth photo={c.photo} alt={c.alt} size="large" className="p-[13%]" />
-          <span class="flex flex-col">
-            <span class="text-ui underline-offset-4 group-hover:underline">{c.label}</span>
-            <span class="num text-label text-stone">{fmt(c.types)} types</span>
-          </span>
-        </a>
-      ))}
+      {about.catalogues.map((c) => {
+        const card = "group flex min-w-0 flex-col gap-2.5"
+        const body = (
+          <>
+            <Plinth photo={c.photo} alt={c.alt} size="large" className="p-[13%]" />
+            <span class="flex flex-col">
+              <span class="text-ui underline-offset-4 group-hover:underline">{c.label}</span>
+              <span class="num text-label text-stone">{fmt(c.types)} types</span>
+            </span>
+          </>
+        )
+        // A catalogue links to its own site; one without a site links to our note on it.
+        return c.url
+          ? <ExternalLink href={c.url} title={c.name} className={card}>{body}</ExternalLink>
+          : <a href="/sources#types" title={c.name} class={card}>{body}</a>
+      })}
     </section>
 
     {/* Where it comes from, beside the coins of one type */}
@@ -118,7 +126,7 @@ const note = "m-0 max-w-[44ch] text-ui leading-[1.6] text-graphite"
       </div>
       <div class="flex flex-col gap-2">
         <span class="text-label text-stone">Data and code</span>
-        <p class={note}>The database is free to reuse under the Open Database Licence. The code is on <a href={GITHUB_URL} class={`text-ink ${underline}`}>GitHub</a>.</p>
+        <p class={note}>The database is free to reuse under the Open Database Licence. The code is on <ExternalLink href={GITHUB_URL} className={`text-ink ${underline}`}>GitHub</ExternalLink>.</p>
       </div>
     </section>
   </main>

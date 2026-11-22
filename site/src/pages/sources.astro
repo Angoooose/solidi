@@ -11,6 +11,7 @@ import SiteFooter from "@/components/SiteFooter.astro"
 import { fmt } from "@/lib/categories"
 import { CONTACT_EMAIL, DOWNLOAD } from "@/lib/footer"
 import { buttonVariants } from "@/components/ui/button"
+import { ExternalLink } from "@/components/external-link"
 import { DownloadIcon } from "lucide-react"
 import { OTHER_SOURCES, getSources } from "@/lib/sources"
 
@@ -98,7 +99,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
           {s.catalogues.map((c) => (
             <tr class="border-b border-hairline align-baseline text-ui transition-colors hover:bg-wash">
               <td class="py-3.5 pr-4">
-                {c.url ? <a href={c.url} class="font-serif text-[1.25rem] leading-[1.2] underline-offset-4 hover:underline">{c.name}</a> : <span class="font-serif text-[1.25rem] leading-[1.2]">{c.name}</span>}
+                {c.url ? <ExternalLink href={c.url} className="font-serif text-[1.25rem] leading-[1.2] underline-offset-4 hover:underline">{c.name}</ExternalLink> : <span class="font-serif text-[1.25rem] leading-[1.2]">{c.name}</span>}
               </td>
               <td class="hidden py-3.5 pr-4 md:table-cell">{c.publisher}</td>
               <td class="hidden py-3.5 pr-4 lg:table-cell">{c.covers}</td>
@@ -106,7 +107,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
                 <span class="mr-3 hidden h-1.5 rounded-[1.5px] bg-ink align-middle sm:inline-block" style={`width: ${bar(c.types)}px`}></span>{fmt(c.types)}
               </td>
               <td class="py-3.5">
-                {c.licence?.url ? <a href={c.licence.url} rel="license noopener" class={underline}>{c.licence.label}</a> : (c.licence?.label ?? "Not stated")}
+                {c.licence?.url ? <ExternalLink href={c.licence.url} rel="license" className={underline}>{c.licence.label}</ExternalLink> : (c.licence?.label ?? "Not stated")}
               </td>
             </tr>
           ))}
@@ -121,7 +122,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
           <h2 class="m-0 font-serif text-[1.5rem] leading-[1.15] font-normal">Download the database</h2>
           <p class="m-0 max-w-[60ch] text-body leading-[1.6] text-graphite text-pretty">
             Every type, specimen and photo link we can share, as one SQLite file under the{" "}
-            <a href={DOWNLOAD.licenceUrl} rel="license noopener" class={`text-ink ${underline}`}>Open Database Licence</a>. Data
+            <ExternalLink href={DOWNLOAD.licenceUrl} rel="license" className={`text-ink ${underline}`}>Open Database Licence</ExternalLink>. Data
             under other terms stays on this site.
           </p>
         </div>
@@ -130,7 +131,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
             <DownloadIcon aria-hidden />
             solidi.sqlite.gz
           </a>
-          <a href={DOWNLOAD.releases} class={buttonVariants({ variant: "muted", className: "text-label" })}>Every release and its checksum</a>
+          <ExternalLink href={DOWNLOAD.releases} className={buttonVariants({ variant: "muted", className: "text-label" })}>Every release and its checksum</ExternalLink>
         </div>
       </div>
     </section>
@@ -140,9 +141,9 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
       {others.map((o) => (
         <div id={o.id} class="flex scroll-mt-6 flex-col gap-2.5 border-t border-ink pt-4.5">
           <span class="text-label text-stone">{o.kicker}</span>
-          <a href={o.url} class="self-start font-serif text-[1.5rem] leading-[1.15] underline-offset-4 hover:underline">{o.label}</a>
+          <ExternalLink href={o.url} className="self-start font-serif text-[1.5rem] leading-[1.15] underline-offset-4 hover:underline">{o.label}</ExternalLink>
           <p class="m-0 text-body leading-[1.6] text-graphite">{o.text}</p>
-          <a href={o.licenceUrl} rel="license noopener" class={`self-start text-label ${underline}`}>{o.licence}</a>
+          <ExternalLink href={o.licenceUrl} rel="license" className={`self-start text-label ${underline}`}>{o.licence}</ExternalLink>
         </div>
       ))}
     </section>
@@ -188,14 +189,15 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
               <span>Collection</span><span class="text-right">Coins photographed</span>
             </div>
             {col.map((h) => {
-              const Tag = h.url ? "a" : "div"
-              return (
-                <Tag href={h.url ?? undefined} class="group grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 border-b border-hairline py-2.5">
+              const row = "group grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 border-b border-hairline py-2.5"
+              const body = (
+                <>
                   <span class:list={["text-body", h.url && "transition-colors group-hover:text-stone"]}>{h.name}</span>
                   <span class="num text-right text-label text-stone">{fmt(h.coins)}</span>
                   <span class="col-span-full text-label text-stone">{h.licence?.label ?? "Not stated"}</span>
-                </Tag>
+                </>
               )
+              return h.url ? <ExternalLink href={h.url} className={row}>{body}</ExternalLink> : <div class={row}>{body}</div>
             })}
           </div>
         ))}

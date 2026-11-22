@@ -19,6 +19,7 @@ import { TypeCard } from "@/components/coin"
 import { PhotoCredit } from "@/components/credits"
 import { CoinageFilters } from "@/components/coinage-filters"
 import { buttonVariants } from "@/components/ui/button"
+import { ExternalLink } from "@/components/external-link"
 import { typePath, yearRange } from "@/lib/format"
 import { fmt } from "@/lib/categories"
 import { PAGE_SIZE, type Facet } from "@/lib/coinage"
@@ -110,9 +111,9 @@ const columns = s ? [s.people.total, s.denominations.total, s.mints.total, s.leg
                   {s.article && (
                     <>
                       {" "}
-                      <a href={s.article.url} rel="noopener" class="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline">
+                      <ExternalLink href={s.article.url} className="font-sans text-ui font-medium whitespace-nowrap underline-offset-4 hover:underline">
                         Read more on Wikipedia ↗
-                      </a>
+                      </ExternalLink>
                     </>
                   )}
                 </p>

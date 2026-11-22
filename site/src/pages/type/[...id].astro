@@ -14,6 +14,7 @@ import { SpecimenTable } from "@/components/specimens"
 import { PhotoCredit } from "@/components/credits"
 import { LegendTable, LegendText, NEEDS_SCRIPT_FONTS } from "@/components/legend"
 import { buttonVariants } from "@/components/ui/button"
+import { ExternalLink } from "@/components/external-link"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -251,9 +252,9 @@ const TRANSLITERATED = new Set(["pgd", "xlc", "xcr"])
 
             <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
               {acsearch && (
-                <a href={acsearch} rel="noopener" class={buttonVariants({ variant: "link" })}>Past sales on ACSearch ↗</a>
+                <ExternalLink href={acsearch} className={buttonVariants({ variant: "link" })}>Past sales on ACSearch ↗</ExternalLink>
               )}
-              <a href={type.sourceUri} rel="noopener" class={buttonVariants({ variant: "link" })}>View on {type.source.slug.toUpperCase()} ↗</a>
+              <ExternalLink href={type.sourceUri} className={buttonVariants({ variant: "link" })}>View on {type.source.slug.toUpperCase()} ↗</ExternalLink>
             </div>
           </div>
         </section>
