@@ -9,7 +9,7 @@
 import { env } from "cloudflare:workers"
 import { Wordmark } from "@/components/site-chrome"
 import { fmt } from "@/lib/categories"
-import { CONTACT_EMAIL, GITHUB_URL, NOMISMA, getFooterData } from "@/lib/footer"
+import { CONTACT_EMAIL, DOWNLOAD, GITHUB_URL, NOMISMA, getFooterData } from "@/lib/footer"
 
 const data = await getFooterData(env.DB)
 const groups = data.groups
@@ -25,6 +25,7 @@ const BROWSE = [
 const SOLIDI = [
   ["About", "/about"],
   ["Sources", "/sources"],
+  ["Download the data", "/sources#download"],
   ["Source code", GITHUB_URL],
 ] as const
 
@@ -98,7 +99,7 @@ const heading = "m-0 mb-3.5 text-label font-normal text-stone"
             {" under "}{licenceName(g.licence)}
           </>
         ))}, and concepts from <a href={NOMISMA.url}>{NOMISMA.label}</a> under {NOMISMA.licence}.
-        Solidi’s database is shared under the ODbL.
+        Solidi’s database is shared under the ODbL: <a href={DOWNLOAD.file}>download it</a>.
       </p>
       <p class="m-0">
         The coins belong to the {fmt(data.holders)} museums and collections that hold them. Photographs

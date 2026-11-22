@@ -10,6 +10,12 @@ import { licence, secure } from "@/lib/format"
 
 export const GITHUB_URL = "https://github.com/Angoooose/solidi"
 export const CONTACT_EMAIL = "contact@solidi.org"
+/* The downloadable database: GitHub releases made by `solidi release --publish`. */
+export const DOWNLOAD = {
+  file: `${GITHUB_URL}/releases/latest/download/solidi.sqlite.gz`,
+  releases: `${GITHUB_URL}/releases`,
+  licenceUrl: "https://opendatacommons.org/licenses/odbl/1-0/",
+}
 export const NOMISMA = { label: "Nomisma.org", url: "https://nomisma.org/", licence: "CC BY 4.0" }
 
 /* How a corpus is named in the credit line where its slug isn't the usual short name. */

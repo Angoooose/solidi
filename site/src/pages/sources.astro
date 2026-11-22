@@ -9,7 +9,9 @@ import Base from "@/layouts/Base.astro"
 import SiteHeader from "@/components/SiteHeader.astro"
 import SiteFooter from "@/components/SiteFooter.astro"
 import { fmt } from "@/lib/categories"
-import { CONTACT_EMAIL } from "@/lib/footer"
+import { CONTACT_EMAIL, DOWNLOAD } from "@/lib/footer"
+import { buttonVariants } from "@/components/ui/button"
+import { DownloadIcon } from "lucide-react"
 import { OTHER_SOURCES, getSources } from "@/lib/sources"
 
 const s = await getSources(env.DB)
@@ -53,6 +55,7 @@ const others = [
 
 const JUMP = [
   ["types", "Coin types"],
+  ["download", "Download"],
   ["concepts", "Concepts"],
   ["text", "Introductions"],
   ["maps", "Maps"],
@@ -109,6 +112,27 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
           ))}
         </tbody>
       </table>
+    </section>
+
+    {/* The database, for download: what the catalogues above add up to */}
+    <section id="download" class="scroll-mt-6 pb-18">
+      <div class="grid gap-x-16 gap-y-7 bg-plinth px-[clamp(24px,4vw,48px)] py-10 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div class="flex flex-col gap-3">
+          <h2 class="m-0 font-serif text-[1.5rem] leading-[1.15] font-normal">Download the database</h2>
+          <p class="m-0 max-w-[60ch] text-body leading-[1.6] text-graphite text-pretty">
+            Every type, specimen and photo link we can share, as one SQLite file under the{" "}
+            <a href={DOWNLOAD.licenceUrl} rel="license noopener" class={`text-ink ${underline}`}>Open Database Licence</a>. Data
+            under other terms stays on this site.
+          </p>
+        </div>
+        <div class="flex flex-col items-start gap-3.5 md:items-end">
+          <a href={DOWNLOAD.file} class={buttonVariants()}>
+            <DownloadIcon aria-hidden />
+            solidi.sqlite.gz
+          </a>
+          <a href={DOWNLOAD.releases} class={buttonVariants({ variant: "muted", className: "text-label" })}>Every release and its checksum</a>
+        </div>
+      </div>
     </section>
 
     {/* Concepts, introductions and maps */}
@@ -177,6 +201,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
         ))}
       </div>
     </section>
+
   </main>
   <SiteFooter />
 </Base>
