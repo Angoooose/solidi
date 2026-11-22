@@ -1,6 +1,6 @@
 /*
  * Search text, as the ⌘K palette reads it. Pure functions, shared by the browser (matching people,
- * mints and collections) and the server (the catalogue-number index).
+ * mints, collections, denominations and subjects) and the server (the catalogue-number index).
  *
  * tokens() must split text exactly as pipeline/search.py tokens() does: keep the two in step.
  */

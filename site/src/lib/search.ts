@@ -1,7 +1,7 @@
 /*
  * Data for the ⌘K palette (components/search-command.tsx), from tables pipeline/search.py writes.
  *
- * - getSearchIndex: every person, mint and collection, sent to the browser whole (a few thousand
+ * - getSearchIndex: every person, mint, collection, denomination and subject, sent to the browser whole (a few thousand
  *   rows, fetched once when idle) so names match instantly, as you type, with no database reads.
  * - searchTypes: coin types by catalogue number, from the type_search FTS index; too many to send.
  */
@@ -24,10 +24,16 @@ export type SearchItem = {
   at?: [number, number]
 }
 
-export type SearchIndex = { people: SearchItem[]; mints: SearchItem[]; collections: SearchItem[] }
+export type SearchIndex = {
+  people: SearchItem[]
+  mints: SearchItem[]
+  collections: SearchItem[]
+  denominations: SearchItem[]
+  subjects: SearchItem[]
+}
 
 type EntityRow = {
-  kind: "person" | "mint" | "collection"
+  kind: "person" | "mint" | "collection" | "denomination" | "subject"
   id: string
   name: string
   context: string | null
@@ -60,7 +66,7 @@ export async function getSearchIndex(db: D1Database): Promise<SearchIndex> {
     )
     .all<EntityRow>()
   const coins = await collectionCoins(db)
-  const index: SearchIndex = { people: [], mints: [], collections: [] }
+  const index: SearchIndex = { people: [], mints: [], collections: [], denominations: [], subjects: [] }
   for (const r of results) {
     const thumb = photo(r)?.thumb ?? null
     if (r.kind === "person") {
@@ -74,6 +80,16 @@ export async function getSearchIndex(db: D1Database): Promise<SearchIndex> {
         thumb: null,
         at: r.lat != null && r.lon != null ? project(r.lon, r.lat) : undefined,
       })
+    } else if (r.kind === "denomination") {
+      index.denominations.push({
+        name: r.name,
+        meta: ["Denomination", r.context, metaLine(r.start_year, r.end_year, r.n)].filter(Boolean).join(" · "),
+        href: `/denomination/${r.id}`,
+        n: r.n,
+        thumb,
+      })
+    } else if (r.kind === "subject") {
+      index.subjects.push({ name: r.name, meta: `Subject · ${metaLine(r.start_year, r.end_year, r.n)}`, href: `/subject/${r.id}`, n: r.n, thumb })
     } else {
       index.collections.push({
         name: r.name,

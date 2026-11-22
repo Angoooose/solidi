@@ -1,7 +1,7 @@
 """Tables for the site's ⌘K search palette.
 
-- search_entity      every person, mint and collection with a page, with what its row shows:
-                     dates, a type count, a photo (people, collections) or coordinates (mints).
+- search_entity      every person, mint, collection, denomination and subject with a page, with
+                     what its row shows: dates, a type count, a photo or coordinates (mints).
                      Small enough (a few thousand rows) for the site to send to the browser whole.
 - type_search_doc    one row per catalogue reference of every live type, as search terms and the
                      number on its own, with what orders the results
@@ -24,14 +24,15 @@ DROP TABLE IF EXISTS search_entity;
 DROP TABLE IF EXISTS type_search;
 DROP TABLE IF EXISTS type_search_doc;
 CREATE TABLE search_entity (
-  kind        TEXT NOT NULL,               -- 'person', 'mint', 'collection'
+  kind        TEXT NOT NULL,               -- 'person', 'mint', 'collection', 'denomination', 'subject'
   id          TEXT NOT NULL,
   name        TEXT NOT NULL,
-  context     TEXT,                        -- mint: its region; collection: its parent collection
+  context     TEXT,                        -- mint: its region; collection: its parent collection;
+                                           -- denomination: its main metal
   start_year  INTEGER,                     -- person: reign, else the span of their types
   end_year    INTEGER,
   n           INTEGER NOT NULL,            -- live types
-  image_id    INTEGER REFERENCES image(id),-- person: a portrait; collection: a coin from it
+  image_id    INTEGER REFERENCES image(id),-- person: a portrait; others: a coin of it
   lat         REAL,                        -- mint: its coordinates, or its city's
   lon         REAL,
   PRIMARY KEY (kind, id)
@@ -127,6 +128,20 @@ def build(db: sqlite3.Connection, log=print) -> dict[str, int]:
           (SELECT image_id FROM category_person WHERE category_id = c.id AND image_id IS NOT NULL ORDER BY rank LIMIT 1),
           (SELECT image_id FROM category_mint WHERE category_id = c.id AND image_id IS NOT NULL ORDER BY rank LIMIT 1))
         FROM category c JOIN category_stat s ON s.category_id = c.id LEFT JOIN category p ON p.id = c.parent_id""")
+
+    # Denominations and subjects listed on /denominations and /subjects ('unlisted' ones aren't real:
+    # 'Uncertain value'), with the photo their pages lead with.
+    db.execute("""
+        INSERT INTO search_entity (kind, id, name, context, start_year, end_year, n, image_id)
+        SELECT 'denomination', d.id, d.name, m.name, s.start_year, s.end_year, s.types, s.image_id
+        FROM denomination d JOIN denomination_stat s ON s.denomination_id = d.id
+        LEFT JOIN material m ON m.id = s.material_id
+        WHERE s.metal_group != 'unlisted'""")
+    db.execute("""
+        INSERT INTO search_entity (kind, id, name, start_year, end_year, n, image_id)
+        SELECT 'subject', s.id, s.name, x.start_year, x.end_year, x.types, x.image_id
+        FROM subject s JOIN subject_stat x ON x.subject_id = s.id
+        WHERE x.grp != 'unlisted'""")
 
     # Catalogue references of every type that has a page (sub-variants too: RIC II.3 numbers them).
     names: dict[str, list[str]] = {}

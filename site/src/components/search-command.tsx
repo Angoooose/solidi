@@ -3,7 +3,7 @@
 /*
  * The ⌘K search palette and the header button that opens it (it looks like a search field).
  *
- * People, mints and collections are matched here in the browser, from an index fetched once when
+ * People, mints, collections, denominations and subjects are matched here in the browser, from an index fetched once when
  * the browser is idle (lib/search.ts getSearchIndex), so they appear as you type. Coin types are
  * matched by catalogue number on the server (/api/search.json) when the query ends in a number:
  * "RIC II 22", "trajan 2", "rrc 494/23".
@@ -23,10 +23,12 @@ const PAGES: SearchItem[] = [
   { name: "Collections", href: "/collections" },
   { name: "People", href: "/people" },
   { name: "Mints", href: "/mints" },
+  { name: "Denominations", href: "/denominations" },
+  { name: "Subjects", href: "/subjects" },
   { name: "Home", href: "/" },
 ].map((p) => ({ ...p, meta: "", n: 0, thumb: null }))
 
-const LIMITS = { types: 8, people: 5, mints: 4, collections: 3, pages: 4 }
+const LIMITS = { types: 8, people: 5, mints: 4, denominations: 4, subjects: 4, collections: 3, pages: 4 }
 const DEBOUNCE_MS = 150
 
 /* ---- data ---- */
@@ -117,6 +119,8 @@ function groupsFor(q: string, index: SearchIndex | null): Group[] {
   const sources = [
     { key: "people", heading: "People", items: index?.people ?? [] },
     { key: "mints", heading: "Mints", items: index?.mints ?? [] },
+    { key: "denominations", heading: "Denominations", items: index?.denominations ?? [] },
+    { key: "subjects", heading: "Subjects", items: index?.subjects ?? [] },
     { key: "collections", heading: "Collections", items: index?.collections ?? [] },
     { key: "pages", heading: "Go to", items: PAGES },
   ] as const
@@ -295,7 +299,7 @@ export function SearchCommand({ className }: { className?: string }) {
           if (!o) setQ("")
         }}
         title="Search"
-        description="Search people, mints, collections and catalogue numbers"
+        description="Search people, mints, denominations, subjects, collections and catalogue numbers"
         className="top-[12vh] sm:max-w-[640px]"
         commandProps={{ shouldFilter: false, loop: true }}
       >
@@ -305,7 +309,7 @@ export function SearchCommand({ className }: { className?: string }) {
           {!query && (
             <>
               <CommandGroup heading="Go to">
-                {PAGES.slice(0, 3).map((p) => (
+                {PAGES.slice(0, 5).map((p) => (
                   <CommandItem key={p.href} value={p.href} onSelect={() => go(p.href)} className="h-10 py-0">
                     {p.name}
                   </CommandItem>
@@ -351,7 +355,7 @@ export function SearchCommand({ className }: { className?: string }) {
 
           {nothing && (
             <p className="m-0 px-3 py-8 text-center text-ui text-stone">
-              No people, mints or catalogue numbers match “{query}”.
+              Nothing matches “{query}”.
             </p>
           )}
         </CommandList>
