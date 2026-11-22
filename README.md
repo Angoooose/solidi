@@ -19,8 +19,13 @@ Raw downloads are cached in `build/raw/`; the output is `build/solidi.sqlite`, p
 - `site/` - the website (later); reads only the built SQLite
 - `ml/` - photo identification experiment (later)
 
-## Data licences
+## Licences
 
-Type data from OCRE is ODbL, so the built database must be published under ODbL. Each specimen's dataset carries its own licence; see the `dataset` table.
+- **Code** (`pipeline/`, `site/`, `tests/`): MIT, see `LICENSE`.
+- **Hand-written data** (`data/`): CC BY 4.0, except `data/legends/abbreviations.yaml`, which is ODbL because it was seeded from OCRE-derived data. See `data/LICENSE`.
+- **The built database** and its download: ODbL, because OCRE's type data is ODbL. Each specimen's dataset carries its own licence; see the `dataset` table.
+- **Photographs** stay under the terms of the collection that holds each coin, and **Wikipedia introductions** under CC BY-SA 4.0. Neither is covered by the licences above.
+
+## Release
 
 `uv run solidi release` writes the downloadable copy to `build/release/`: only data whose licence can be shared under the ODbL (`release_licences` in `data/sources.yaml`), without the site-only tables, gzipped, with a checksum and release notes. `--publish` creates the GitHub release; the repository must be public.

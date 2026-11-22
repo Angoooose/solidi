@@ -1,0 +1,14 @@
+The files in this folder are the hand-written inputs to Solidi's database: legend dictionaries,
+categories, regions, denominations, subjects and source settings.
+
+Copyright (c) 2026 Angus Durfee.
+
+They are licensed under the Creative Commons Attribution 4.0 International licence (CC BY 4.0),
+https://creativecommons.org/licenses/by/4.0/, with one exception:
+
+  legends/abbreviations.yaml was seeded with evidence from ocre-texts (Neel Smith,
+  https://github.com/neelsmith/ocre-texts), whose expanded legends come from Online Coins of the
+  Roman Empire (http://numismatics.org/ocre/) under the Open Database License. It is therefore
+  licensed under the Open Database License 1.0 (ODbL), https://opendatacommons.org/licenses/odbl/1-0/.
+
+To credit this work, name Solidi (https://solidi.org) and link to the licence.

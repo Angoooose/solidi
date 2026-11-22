@@ -7,7 +7,7 @@
 #
 # `ruler: true` marks the emperor's own names: when no person on the type is called that
 # (ΑΝΤΩΝΕΙΝΟΣ on a coin of Caracalla), the word links to the type's authority.
-# Licence: our own work.
+# Licence: CC BY 4.0, our own work (data/LICENSE).
 
 phrases:
   "ΑΥΤ Κ": {full: "Αὐτοκράτωρ Καῖσαρ", english: "Imperator Caesar", kind: title}

@@ -4,7 +4,7 @@
 # legend translates the Greek obverse: maharajasa tratarasa = ΒΑΣΙΛΕΩΣ ΣΩΤΗΡΟΣ. Words end in
 # the genitive -sa ('of'). `full` gives the Greek equivalent where there is one.
 #
-# Licence: our own work.
+# Licence: CC BY 4.0, our own work (data/LICENSE).
 
 phrases:
   "kavisiye nagara devata": {full: "kaviśiye nagaradevata", english: "the city deity of Kapisi", kind: formula}

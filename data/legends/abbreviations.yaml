@@ -10,8 +10,8 @@
 #   note:     why an ambiguous abbreviation got this default
 #   gender:   f on women's names; the expander then reads AVG as Augusta and F as filia
 #
-# Licence: our own work. Seeded with evidence from ocre-texts (Neel Smith), whose expanded OCRE
-# legends are published under the ODbL; thanks to Neel Smith.
+# Licence: ODbL (data/LICENSE). Our own work, seeded with evidence from ocre-texts (Neel Smith),
+# whose expanded OCRE legends are published under the ODbL; thanks to Neel Smith.
 # Editorial tokens in OCRE (OR between variant legends, VNCLEAR LEGEND) are not legend words
 # and are deliberately absent.
 

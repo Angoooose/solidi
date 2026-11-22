@@ -12,7 +12,7 @@
 #   case:     gen on genitive names: a legend that opens with one reads '(coin) of ...'
 #   gender:   f on queens
 #
-# Licence: our own work.
+# Licence: CC BY 4.0, our own work (data/LICENSE).
 
 phrases:
   "ΘΕΩΝ ΑΔΕΛΦΩΝ": {full: "Θεῶν Ἀδελφῶν", english: "of the Sibling Gods (Ptolemy II and Arsinoe II)", kind: epithet}
