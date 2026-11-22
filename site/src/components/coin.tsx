@@ -2,16 +2,20 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /*
- * Photo states. A plinth holding photos carries `data-plinth`, each photo `data-coin-photo`.
- * Base.astro's inline script marks them loaded or failed, so the states need no hydration:
- * while loading, a slow band of light crosses the plinth (global.css); a loaded photo fades in;
- * a failed one leaves the plinth empty with a note in the corner.
+ * Photo states. Each photo carries `data-coin-photo`, the box around it `data-plinth`. Base.astro's
+ * inline script marks them loaded or failed, so the states need no hydration (global.css):
+ * - data-plinth="": a large plinth. A slow band of light crosses it while loading; a failed photo
+ *   leaves it empty and shows its .plinth-failed note.
+ * - data-plinth="small": a thumbnail. Still while loading; a failed photo leaves it empty, or
+ *   shows its .plinth-fallback (a dashed outline, a line of text) once every photo has failed.
+ * - data-plinth="hide": the box disappears when its photo fails.
+ * A loaded photo fades in; a failed one never shows the browser's broken-image icon.
  */
 
 /* The corner note on an empty plinth. Retry only where the plinth isn't inside a link. */
 export function PlinthNote({ failed = false, retry = false, className }: { failed?: boolean; retry?: boolean; className?: string }) {
   return (
-    <span className={cn("absolute text-credit text-stone", failed && "plinth-failed", className)}>
+    <span className={cn("text-credit text-stone", failed && "plinth-failed", className)}>
       {failed ? "Photograph didn’t load" : "No photograph yet"}
       {failed && retry && (
         <>
@@ -72,12 +76,12 @@ export function Plinth({
             data-coin-photo
             className="absolute inset-0 size-full object-contain p-5 mix-blend-multiply"
           />
-          <PlinthNote failed className="bottom-3 left-3.5" />
+          <PlinthNote failed className="absolute bottom-3 left-3.5" />
         </>
       ) : (
         <>
           {legend && <StruckLegend lines={legend} />}
-          <PlinthNote className="bottom-3 left-3.5" />
+          <PlinthNote className="absolute bottom-3 left-3.5" />
         </>
       )}
     </span>
@@ -86,8 +90,15 @@ export function Plinth({
 
 /*
  * Obverse and reverse side by side on one plinth (or a single combined photo).
- * `size="hero"` is the large figure at the top of a type page.
+ * `size="hero"` is the large figure at the top of a type page. Its height comes from its width
+ * (square coins plus a caption row), never from the facts beside it, so the coins sit at the
+ * same point on every type page. The caller's caption (children)
+ * holds the failure note: give it a <PlinthNote failed retry /> and mark what it replaces
+ * with .plinth-caption.
  */
+/* In the hero the coins sit further in than the caption, which keeps an even 20px edge. */
+const HERO_ROW = "gap-[clamp(16px,3vw,40px)] px-[clamp(0px,2vw,28px)] pt-[clamp(12px,3.5vw,52px)]"
+
 export function CoinPair({
   photos,
   legends,
@@ -110,14 +121,7 @@ export function CoinPair({
       className={cn("relative m-0 flex flex-col bg-plinth", hero ? "gap-12 p-5" : "p-4", className)}
     >
       {photos.length ? (
-        <div
-          className={cn(
-            "relative grid items-center",
-            photos.length === 2 ? "grid-cols-2" : "grid-cols-1",
-            // In the hero the coins sit further in than the caption, which keeps an even 20px edge.
-            hero ? "gap-[clamp(16px,3vw,40px)] px-[clamp(0px,2vw,28px)] pt-[clamp(12px,3.5vw,52px)]" : "gap-2"
-          )}
-        >
+        <div className={cn("relative grid items-center", photos.length === 2 ? "grid-cols-2" : "grid-cols-1", hero ? HERO_ROW : "gap-2")}>
           {photos.map((p) => (
             <img
               key={p.src}
@@ -128,18 +132,19 @@ export function CoinPair({
               className="aspect-square w-full object-contain mix-blend-multiply"
             />
           ))}
-          <PlinthNote failed retry className="bottom-0 left-0" />
         </div>
       ) : (
-        // Fills the figure (the hero stretches to the facts beside it); the note sits at its foot.
-        <div className="relative grid min-h-[clamp(200px,30vw,360px)] flex-1 grid-cols-2 items-center gap-[clamp(16px,3vw,40px)]">
-          {(["obverse", "reverse"] as const).map((side) => (
-            <div key={side} className="@container flex items-center justify-center">
-              {legends?.[side] && <StruckLegend lines={legends[side]!} />}
-            </div>
-          ))}
-          <PlinthNote className="bottom-0 left-0" />
-        </div>
+        // Laid out like a pair of photos with their caption, so the plinth keeps the same size.
+        <>
+          <div className={cn("grid grid-cols-2 items-center", hero ? HERO_ROW : "gap-2")}>
+            {(["obverse", "reverse"] as const).map((side) => (
+              <div key={side} className="@container flex aspect-square items-center justify-center">
+                {legends?.[side] && <StruckLegend lines={legends[side]!} />}
+              </div>
+            ))}
+          </div>
+          <PlinthNote />
+        </>
       )}
       {children}
     </figure>

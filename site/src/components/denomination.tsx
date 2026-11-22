@@ -21,8 +21,12 @@ const UNMEASURED_MM = 18
 export function Coin({ photo, px, alt = "", className }: { photo: Photo | null; px: number; alt?: string; className?: string }) {
   const size = { width: `calc(${px}px * var(--coin-s, 1))`, height: `calc(${px}px * var(--coin-s, 1))` }
   const src = px > 110 ? photo?.large : (photo?.thumb ?? photo?.large)
+  // A photo that fails becomes the dashed outline.
   return src ? (
-    <img src={src} alt={alt} loading="lazy" decoding="async" style={size} className={cn("block object-contain mix-blend-multiply", className)} />
+    <span data-plinth="small" style={size} className={cn("relative block", className)}>
+      <img src={src} alt={alt} loading="lazy" decoding="async" data-coin-photo className="block size-full object-contain mix-blend-multiply" />
+      <span className="plinth-fallback absolute inset-0 rounded-full border border-dashed border-field" />
+    </span>
   ) : (
     <span role={alt ? "img" : undefined} aria-label={alt || undefined} style={size} className={cn("block rounded-full border border-dashed border-field", className)} />
   )

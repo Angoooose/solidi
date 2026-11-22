@@ -190,10 +190,11 @@
 }
 
 /*
- * Coin photo states (components/coin.tsx; Base.astro's script sets data-photo). Only with
- * JavaScript, marked by data-js on <html>; without it photos simply appear.
+ * Coin photo states (components/coin.tsx explains the data-plinth kinds; Base.astro's script sets
+ * data-photo: "" loading, "loaded", "failed" when every photo failed, "partial" when some did).
+ * Only with JavaScript, marked by data-js on <html>; without it photos simply appear.
  * Loading: after 150ms (cached photos arrive sooner and never show it), a slow band of light
- * crosses the plinth. Loaded: the photo fades in. Failed: the photo hides and the note shows.
+ * crosses a large plinth. Loaded: the photo fades in. Failed: the photo stays hidden.
  */
 @layer components {
   :root[data-js] img[data-coin-photo] {
@@ -202,7 +203,11 @@
   :root[data-js] img[data-coin-photo]:not([data-photo="loaded"]) {
     opacity: 0;
   }
-  [data-plinth]::after {
+  /* A failed photo never shows the broken-image icon or its alt text. */
+  img[data-coin-photo][data-photo="failed"] {
+    visibility: hidden;
+  }
+  [data-plinth=""]::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -211,16 +216,10 @@
     background: linear-gradient(105deg, rgb(255 255 255 / 0) 35%, rgb(255 255 255 / 0.7) 50%, rgb(255 255 255 / 0) 65%);
     background-size: 250% 100%;
   }
-  :root[data-js] [data-plinth]:not([data-photo="loaded"], [data-photo="failed"])::after {
+  :root[data-js] [data-plinth=""]:not([data-photo="loaded"], [data-photo="failed"], [data-photo="partial"])::after {
     animation:
       plinth-light 2.4s ease-in-out infinite,
       plinth-light-in 0.3s ease-out 0.15s forwards;
-  }
-  .plinth-failed {
-    display: none;
-  }
-  [data-plinth][data-photo="failed"] .plinth-failed {
-    display: inline;
   }
   /*
    * A legend pressed into the plinth: letters a step lighter than stone (3.2:1 on the plinth, enough
@@ -239,6 +238,24 @@
     color: color-mix(in srgb, var(--color-stone) 75%, var(--color-plinth));
     text-shadow: 0 1px 0 var(--color-white);
   }
+}
+/*
+ * Which parts show in each state. Outside any layer on purpose: these must beat the display
+ * utilities (block, flex) on the same elements.
+ */
+.plinth-failed,
+.plinth-fallback {
+  display: none;
+}
+[data-plinth]:is([data-photo="failed"], [data-photo="partial"]) .plinth-failed {
+  display: inline;
+}
+[data-plinth][data-photo="failed"] .plinth-fallback {
+  display: flex;
+}
+[data-plinth]:is([data-photo="failed"], [data-photo="partial"]) .plinth-caption,
+[data-plinth="hide"][data-photo="failed"] {
+  display: none;
 }
 @keyframes plinth-light {
   from {

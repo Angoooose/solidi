@@ -8,7 +8,7 @@ import Base from "@/layouts/Base.astro"
 import SiteHeader from "@/components/SiteHeader.astro"
 import SiteFooter from "@/components/SiteFooter.astro"
 import { DataList, DataRow, RowLink } from "@/components/data"
-import { TypeCard } from "@/components/coin"
+import { PlinthNote, TypeCard } from "@/components/coin"
 import { PhotoCredit } from "@/components/credits"
 import { CoinageFilters } from "@/components/coinage-filters"
 import { buttonVariants } from "@/components/ui/button"
@@ -148,22 +148,26 @@ const filters = person
             <div class="scroll-fade-x scrollbar-thin overflow-x-auto pb-2">
               <ol class="relative m-0 grid min-w-[880px] list-none grid-cols-6 gap-x-6 p-0">
                 <span aria-hidden="true" class="absolute inset-x-0 top-[4px] h-px bg-hairline" />
+                {/* Each step spans four shared rows (dot, date, meta, coin), so a meta line that wraps
+                    pushes every coin down together instead of only its own. */}
                 {person.portraits.map((p) => (
-                  <li class="relative">
-                    <a href={typePath(p.typeId)} class="group flex flex-col">
+                  <li class="relative row-span-4 grid grid-rows-subgrid">
+                    <a href={typePath(p.typeId)} class="group row-span-4 grid grid-rows-subgrid">
                       <span aria-hidden="true" class="block size-[9px] rounded-full bg-ink" />
                       <span class="mt-6 font-serif text-[26px] leading-tight">{p.years}</span>
-                      <span class="num mt-1 text-label text-stone">
+                      <span class="num mt-1 self-start text-label text-stone">
                         {p.denomination && `${p.denomination} · `}
                         <span class="underline-offset-4 group-hover:text-ink group-hover:underline">{p.reference}</span>
                       </span>
-                      <span class="relative mt-5 block aspect-square bg-plinth">
+                      <span data-plinth class="relative mt-5 block aspect-square bg-plinth">
                         <img
                           src={p.src}
                           alt={`${person.name}, ${p.years ?? ""}`}
                           loading="lazy"
+                          data-coin-photo
                           class="absolute inset-0 size-full object-contain p-5 mix-blend-multiply"
                         />
+                        <PlinthNote failed className="absolute bottom-3 left-3.5" />
                       </span>
                     </a>
                   </li>

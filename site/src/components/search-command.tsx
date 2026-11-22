@@ -132,8 +132,8 @@ function groupsFor(q: string, index: SearchIndex | null): Group[] {
 
 function Thumb({ src }: { src: string | null }) {
   return (
-    <span className="relative size-10 shrink-0 bg-plinth">
-      {src && <img src={src} alt="" loading="lazy" className="absolute inset-0 size-full object-contain p-1 mix-blend-multiply" />}
+    <span data-plinth={src ? "small" : undefined} className="relative size-10 shrink-0 bg-plinth">
+      {src && <img src={src} alt="" loading="lazy" data-coin-photo className="absolute inset-0 size-full object-contain p-1 mix-blend-multiply" />}
     </span>
   )
 }
@@ -142,9 +142,9 @@ function Thumb({ src }: { src: string | null }) {
 function CoinGrid({ srcs }: { srcs?: string[] }) {
   if (!srcs?.length) return <Thumb src={null} />
   return (
-    <span className="grid size-10 shrink-0 grid-cols-2 grid-rows-2 gap-0.5 bg-plinth p-1">
+    <span data-plinth="small" className="grid size-10 shrink-0 grid-cols-2 grid-rows-2 gap-0.5 bg-plinth p-1">
       {srcs.slice(0, 4).map((src) => (
-        <img key={src} src={src} alt="" loading="lazy" className="size-full object-contain mix-blend-multiply" />
+        <img key={src} src={src} alt="" loading="lazy" data-coin-photo className="size-full object-contain mix-blend-multiply" />
       ))}
     </span>
   )

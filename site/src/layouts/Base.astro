@@ -32,8 +32,9 @@ const { title, scripts = false } = Astro.props;
     <ClientRouter />
     <!--
       Coin photo states (components/coin.tsx, global.css). Inline in the head so its listeners
-      exist before any photo can load or fail. A photo is marked loaded or failed; its plinth
-      is failed if any of its photos failed, loaded when all have loaded. Retry reloads failed photos.
+      exist before any photo can load or fail. A photo is marked loaded or failed; its plinth is
+      loaded when all have loaded, failed when all have failed, partial when some failed and the
+      rest loaded. Retry reloads failed photos.
     -->
     <script is:inline>
       (() => {
@@ -44,7 +45,14 @@ const { title, scripts = false } = Astro.props;
         document.addEventListener("astro:after-swap", mark)
         const settle = (plinth) => {
           const photos = [...plinth.querySelectorAll("img[data-coin-photo]")].map((i) => i.dataset.photo)
-          plinth.dataset.photo = photos.includes("failed") ? "failed" : photos.every((p) => p === "loaded") ? "loaded" : ""
+          const settled = photos.every((p) => p === "loaded" || p === "failed")
+          plinth.dataset.photo = !settled
+            ? ""
+            : photos.every((p) => p === "failed")
+              ? "failed"
+              : photos.includes("failed")
+                ? "partial"
+                : "loaded"
         }
         for (const type of ["load", "error"]) {
           document.addEventListener(

@@ -277,9 +277,9 @@ function Card({ card }: { card: MenuCard }) {
       href={card.href}
       className="-m-2 grid grid-cols-[56px_1fr] items-center gap-3.5 p-2 transition-colors hover:bg-wash"
     >
-      <span className="block bg-plinth p-1.5">
+      <span data-plinth={card.image ? "small" : undefined} className="block bg-plinth p-1.5">
         {card.image ? (
-          <img src={card.image} alt="" loading="lazy" className="block aspect-square w-full object-contain mix-blend-multiply" />
+          <img src={card.image} alt="" loading="lazy" data-coin-photo className="block aspect-square w-full object-contain mix-blend-multiply" />
         ) : (
           <span className="block aspect-square w-full" />
         )}

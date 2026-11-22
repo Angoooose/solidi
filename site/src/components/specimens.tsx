@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { LicenceLink } from "@/components/credits"
+import { PlinthNote } from "@/components/coin"
 import type { Licence } from "@/lib/format"
 
 export type SpecimenRow = {
@@ -77,14 +78,19 @@ const WIDTHS: Record<string, number | undefined> = {
 
 function Thumbs({ photos, size }: { photos: SpecimenRow["thumbs"]; size: number }) {
   if (!photos.length) return <span className="text-label text-stone">No photograph</span>
+  // A photo that fails leaves its slot empty; when they all fail, a line of text says so.
   return (
-    <span className="flex gap-1.5">
+    <span data-plinth="small" className="relative flex gap-1.5">
+      <span className="plinth-fallback absolute inset-y-0 left-0 flex items-center text-label whitespace-nowrap text-stone">
+        Photograph didn’t load
+      </span>
       {photos.map((p) => (
         <img
           key={p.src}
           src={p.src}
           alt={p.side === "combined" ? "Obverse and reverse" : p.side === "obverse" ? "Obverse" : "Reverse"}
           loading="lazy"
+          data-coin-photo
           width={size}
           height={size}
           className={cn("object-contain mix-blend-multiply", p.side === "combined" && "w-auto")}
@@ -294,20 +300,27 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
                 </span>
               </div>
               <div
+                // Keyed by coin, so stepping to the next one starts its photo states afresh.
+                key={current.id}
+                data-plinth={current.photos.length ? "" : undefined}
                 className={cn(
-                  "grid items-center gap-[clamp(16px,3vw,40px)] px-[clamp(20px,5vw,72px)] pt-6 pb-10",
+                  "relative grid items-center gap-[clamp(16px,3vw,40px)] px-[clamp(20px,5vw,72px)] pt-6 pb-10",
                   current.photos.length === 2 ? "grid-cols-2" : "grid-cols-1"
                 )}
               >
                 {current.photos.length ? (
-                  current.photos.map((p) => (
-                    <img
-                      key={p.src}
-                      src={p.src}
-                      alt={p.side === "combined" ? "Obverse and reverse" : p.side === "obverse" ? "Obverse" : "Reverse"}
-                      className="aspect-square max-h-[60vh] w-full object-contain mix-blend-multiply"
-                    />
-                  ))
+                  <>
+                    {current.photos.map((p) => (
+                      <img
+                        key={p.src}
+                        src={p.src}
+                        alt={p.side === "combined" ? "Obverse and reverse" : p.side === "obverse" ? "Obverse" : "Reverse"}
+                        data-coin-photo
+                        className="aspect-square max-h-[60vh] w-full object-contain mix-blend-multiply"
+                      />
+                    ))}
+                    <PlinthNote failed retry className="absolute bottom-4 left-5" />
+                  </>
                 ) : (
                   <p className="m-0 py-24 text-center text-label text-stone">No photograph of this coin</p>
                 )}

@@ -113,7 +113,11 @@ export function DoorCoins({ coins, max = 112 }: { coins: { id: string; name: str
         return (
           <span key={c.id} className="min-w-0" style={{ flex: `${c.diameter} 1 0`, maxWidth: `${Math.round((c.diameter / largest) * max)}px` }}>
             {src ? (
-              <img src={src} alt={c.name} loading="lazy" decoding="async" className="block aspect-square w-full object-contain mix-blend-multiply" />
+              // A photo that fails becomes the dashed outline of a coin with no photo.
+              <span data-plinth="small" className="relative block">
+                <img src={src} alt={c.name} loading="lazy" decoding="async" data-coin-photo className="block aspect-square w-full object-contain mix-blend-multiply" />
+                <span className="plinth-fallback absolute inset-0 rounded-full border border-dashed border-field" />
+              </span>
             ) : (
               <span role="img" aria-label={c.name} className="block aspect-square w-full rounded-full border border-dashed border-field" />
             )}
