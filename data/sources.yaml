@@ -144,3 +144,15 @@ unusable_image_hosts:
     reason: returned 403 to our pages in testing; revisit once BnF replies
   - host: kenom.de
     reason: its IIIF URLs redirect through an HTML response, which browsers block (ORB)
+
+# Collections whose photos our pages don't show, keyed by Nomisma dataset URI. Their specimen
+# records stay; only image.usable is set to 0.
+hidden_image_datasets:
+  - id: https://hcr.ashmus.ox.ac.uk/
+    reason: photos under the Ashmolean's own copyright terms, not an open licence
+  - id: https://www.mfa.org/
+    reason: photos under the MFA's own terms of use, not an open licence
+  - id: http://www.harvardartmuseums.org/
+    reason: photos under Harvard Art Museums' own terms of use, not an open licence
+  - id: http://coins.libraries.rutgers.edu/romancoins/
+    reason: no licence stated, only a note on the executor's consent to Rutgers
