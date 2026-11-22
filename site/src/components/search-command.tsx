@@ -191,7 +191,7 @@ function Lines({ name, meta, serif }: { name: string; meta: string; serif?: bool
   return (
     <span className="flex min-w-0 flex-col gap-0.5">
       <span className={cn("truncate", serif ? "font-serif text-reading leading-[1.15]" : "num text-ui")}>{name}</span>
-      {meta && <span className="num truncate text-label text-stone">{meta}</span>}
+      {meta && <span className="num truncate text-ui text-stone">{meta}</span>}
     </span>
   )
 }

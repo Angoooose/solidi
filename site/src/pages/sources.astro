@@ -62,6 +62,9 @@ const JUMP = [
   ["maps", "Maps"],
   ["images", "Images"],
 ]
+/* Small counts read as words in prose, as on About ("nine online catalogues"). */
+const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+const count = (n: number) => WORDS[n] ?? fmt(n)
 const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-colors hover:decoration-ink"
 ---
 
@@ -70,8 +73,8 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
   <main class="mx-auto max-w-page px-[clamp(20px,4vw,56px)]">
     <section class="flex flex-col gap-7 pt-18 pb-10">
       <h1 class="m-0 font-serif text-display font-normal">Sources</h1>
-      <p class="m-0 max-w-[34em] font-serif text-[1.5rem] leading-[1.4] text-pretty">
-        Where Solidi's types, text and photographs come from, and the terms each is shared under.
+      <p class="m-0 max-w-[34em] font-serif text-title leading-[1.35] text-pretty">
+        Solidi is built from {count(s.catalogues.length)} online catalogues, Nomisma.org and Wikipedia, with photographs from {count(s.holders.length)} collections. Each keeps its own licence, listed here beside it.
       </p>
     </section>
 
@@ -83,11 +86,11 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
     <section id="types" class="flex scroll-mt-6 flex-col gap-7 pt-14 pb-18">
       <div class="flex flex-wrap items-baseline gap-x-5 gap-y-1">
         <h2 class="m-0 font-serif text-heading font-normal">Coin types</h2>
-        <span class="num text-label text-stone">{fmt(s.types)} types from {s.catalogues.length} catalogues</span>
+        <span class="num text-ui text-stone">{fmt(s.types)} types from {s.catalogues.length} catalogues</span>
       </div>
       <table class="w-full border-collapse">
         <thead>
-          <tr class="border-b border-ink text-left text-label text-stone">
+          <tr class="border-b border-ink text-left text-ui text-stone">
             <th class="pr-4 pb-2.5 font-normal md:w-[30%]">Catalogue</th>
             <th class="hidden pr-4 pb-2.5 font-normal md:table-cell md:w-[24%]">Published by</th>
             <th class="hidden pr-4 pb-2.5 font-normal lg:table-cell">Covers</th>
@@ -99,7 +102,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
           {s.catalogues.map((c) => (
             <tr class="border-b border-hairline align-baseline text-ui transition-colors hover:bg-wash">
               <td class="py-3.5 pr-4">
-                {c.url ? <ExternalLink href={c.url} className="font-serif text-[1.25rem] leading-[1.2] underline-offset-4 hover:underline">{c.name}</ExternalLink> : <span class="font-serif text-[1.25rem] leading-[1.2]">{c.name}</span>}
+                {c.url ? <ExternalLink href={c.url} className="font-serif text-reading leading-[1.2] underline-offset-4 hover:underline">{c.name}</ExternalLink> : <span class="font-serif text-reading leading-[1.2]">{c.name}</span>}
               </td>
               <td class="hidden py-3.5 pr-4 md:table-cell">{c.publisher}</td>
               <td class="hidden py-3.5 pr-4 lg:table-cell">{c.covers}</td>
@@ -119,7 +122,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
     <section id="download" class="scroll-mt-6 pb-18">
       <div class="grid gap-x-16 gap-y-7 bg-plinth px-[clamp(24px,4vw,48px)] py-10 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <div class="flex flex-col gap-3">
-          <h2 class="m-0 font-serif text-[1.5rem] leading-[1.15] font-normal">Download the database</h2>
+          <h2 class="m-0 font-serif text-title leading-[1.15] font-normal">Download the database</h2>
           <p class="m-0 max-w-[60ch] text-body leading-[1.6] text-graphite text-pretty">
             Every type, specimen and photo link we can share, as one SQLite file under the{" "}
             <ExternalLink href={DOWNLOAD.licenceUrl} rel="license" className={`text-ink ${underline}`}>Open Database Licence</ExternalLink>. Data
@@ -131,7 +134,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
             <DownloadIcon aria-hidden />
             solidi.sqlite.gz
           </a>
-          <ExternalLink href={DOWNLOAD.releases} className={buttonVariants({ variant: "muted", className: "text-label" })}>Every release and its checksum</ExternalLink>
+          <ExternalLink href={DOWNLOAD.releases} className={buttonVariants({ variant: "muted", className: "text-ui" })}>Every release and its checksum</ExternalLink>
         </div>
       </div>
     </section>
@@ -140,10 +143,10 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
     <section class="grid gap-12 pb-18 md:grid-cols-3">
       {others.map((o) => (
         <div id={o.id} class="flex scroll-mt-6 flex-col gap-2.5 border-t border-ink pt-4.5">
-          <span class="text-label text-stone">{o.kicker}</span>
-          <ExternalLink href={o.url} className="self-start font-serif text-[1.5rem] leading-[1.15] underline-offset-4 hover:underline">{o.label}</ExternalLink>
+          <span class="text-ui text-stone">{o.kicker}</span>
+          <ExternalLink href={o.url} className="self-start font-serif text-title leading-[1.15] underline-offset-4 hover:underline">{o.label}</ExternalLink>
           <p class="m-0 text-body leading-[1.6] text-graphite">{o.text}</p>
-          <ExternalLink href={o.licenceUrl} rel="license" className={`self-start text-label ${underline}`}>{o.licence}</ExternalLink>
+          <ExternalLink href={o.licenceUrl} rel="license" className={`self-start text-ui ${underline}`}>{o.licence}</ExternalLink>
         </div>
       ))}
     </section>
@@ -153,16 +156,16 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
       <div class="grid items-end gap-x-24 gap-y-12 md:grid-cols-2">
         <div class="flex flex-col gap-4">
           <h2 class="m-0 font-serif text-heading font-normal">Images</h2>
-          <p class="num m-0 max-w-[62ch] text-subtitle leading-[1.65] text-graphite text-pretty">
+          <p class="num m-0 max-w-[62ch] text-body leading-[1.6] text-graphite text-pretty">
             {fmt(s.photographed)} coins are photographed, in {fmt(s.images)} images from {fmt(s.holders.length)} collections. The photographs are not covered by Solidi's
             database licence: each stays under the terms of the collection that holds the coin, which the credit beside it names.
           </p>
-          <p class="m-0 max-w-[62ch] text-subtitle leading-[1.65] text-graphite">
+          <p class="m-0 max-w-[62ch] text-body leading-[1.6] text-graphite">
             To ask for a photograph to be removed, write to <a href={`mailto:${CONTACT_EMAIL}`} class={`text-ink ${underline}`}>{CONTACT_EMAIL}</a>.
           </p>
         </div>
         <div class="flex flex-col gap-3.5">
-          <span class="text-label text-stone">Photographed coins by licence</span>
+          <span class="text-ui text-stone">Photographed coins by licence</span>
           <div class="flex gap-0.5" role="img" aria-label={groups.map((g) => `${g.label}: ${fmt(g.coins)} coins`).join("; ")}>
             {groups.map((g) => (
               <span
@@ -174,7 +177,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
           </div>
           <div class="flex flex-wrap gap-x-5.5 gap-y-2">
             {groups.map((g) => (
-              <span class="text-label whitespace-nowrap text-graphite">
+              <span class="text-ui whitespace-nowrap text-graphite">
                 <span class={`mr-2 inline-block size-2.5 rounded-[1.5px] align-[-1px] ${SHADE[g.id]}`}></span>{g.label} <span class="num text-stone">{pct(g.coins)}</span>
               </span>
             ))}
@@ -185,7 +188,7 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
       <div class="grid gap-x-24 md:grid-cols-2">
         {columns.map((col, i) => (
           <div class="flex flex-col">
-            <div class:list={["grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 border-b border-ink pb-2.5 text-label text-stone", i > 0 && "max-md:hidden"]}>
+            <div class:list={["grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 border-b border-ink pb-2.5 text-ui text-stone", i > 0 && "max-md:hidden"]}>
               <span>Collection</span><span class="text-right">Coins photographed</span>
             </div>
             {col.map((h) => {
@@ -193,8 +196,8 @@ const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-
               const body = (
                 <>
                   <span class:list={["text-body", h.url && "transition-colors group-hover:text-stone"]}>{h.name}</span>
-                  <span class="num text-right text-label text-stone">{fmt(h.coins)}</span>
-                  <span class="col-span-full text-label text-stone">{h.licence?.label ?? "Not stated"}</span>
+                  <span class="num text-right text-ui text-stone">{fmt(h.coins)}</span>
+                  <span class="col-span-full text-ui text-stone">{h.licence?.label ?? "Not stated"}</span>
                 </>
               )
               return h.url ? <ExternalLink href={h.url} className={row}>{body}</ExternalLink> : <div class={row}>{body}</div>

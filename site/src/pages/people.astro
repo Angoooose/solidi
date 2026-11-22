@@ -72,10 +72,10 @@ const COLS = "md:grid-cols-[minmax(0,300px)_150px_minmax(0,1fr)_64px]"
     </div>
 
     <div class:list={["mt-4 hidden items-end gap-6 border-b border-ink pb-2.5 md:grid", COLS]}>
-      <a href={sortHref("name")} class:list={["text-label underline-offset-4 hover:underline", sort === "name" ? "text-ink" : "text-stone"]}>Name</a>
-      <a href={sortHref("date")} class:list={["text-label underline-offset-4 hover:underline", sort === "date" ? "text-ink" : "text-stone"]}>In office</a>
+      <a href={sortHref("name")} class:list={["text-ui underline-offset-4 hover:underline", sort === "name" ? "text-ink" : "text-stone"]}>Name</a>
+      <a href={sortHref("date")} class:list={["text-ui underline-offset-4 hover:underline", sort === "date" ? "text-ink" : "text-stone"]}>In office</a>
       <YearAxis domain={domain} ticks={ticks} />
-      <a href={sortHref("types")} class:list={["text-right text-label underline-offset-4 hover:underline", sort === "types" ? "text-ink" : "text-stone"]}>Types</a>
+      <a href={sortHref("types")} class:list={["text-right text-ui underline-offset-4 hover:underline", sort === "types" ? "text-ink" : "text-stone"]}>Types</a>
     </div>
 
     <div class="relative mt-6 border-t border-ink md:mt-0 md:border-t-0" data-rows>
@@ -113,7 +113,7 @@ const COLS = "md:grid-cols-[minmax(0,300px)_150px_minmax(0,1fr)_64px]"
                 COLS,
               ]}
             >
-              <span class="col-start-1 row-start-1 font-serif text-[1.1875rem] leading-[1.2] decoration-1 underline-offset-4 group-hover:underline md:col-start-auto md:row-start-auto">{r.name}</span>
+              <span class="col-start-1 row-start-1 font-serif text-subtitle leading-[1.2] decoration-1 underline-offset-4 group-hover:underline md:col-start-auto md:row-start-auto">{r.name}</span>
               <span class:list={["num col-span-2 text-ui md:col-span-1", office ? "text-ink" : "text-stone"]} data-tip={!office && coins ? "No dates in office known: the dates of their coins" : undefined}>
                 {office ?? coins ?? "—"}
               </span>

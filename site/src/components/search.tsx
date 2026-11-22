@@ -30,7 +30,7 @@ export function SearchField({
       <InputGroupAddon className="text-ink">
         <SearchIcon className={hero ? "size-5" : "size-4"} strokeWidth={1.6} />
       </InputGroupAddon>
-      <InputGroupInput type="search" className={cn("text-ui placeholder:text-stone", hero && "text-[18px]")} {...props} />
+      <InputGroupInput type="search" className={cn("text-ui placeholder:text-stone", hero && "text-subtitle")} {...props} />
       {shortcut && (
         <InputGroupAddon align="inline-end">
           <Kbd>{shortcut}</Kbd>
@@ -84,7 +84,7 @@ export function FilterOption({
     <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-ui">
       <Checkbox checked={checked} onCheckedChange={(c) => onCheckedChange(c === true)} />
       <span className="min-w-0 flex-1 truncate">{children}</span>
-      {count != null && <span className="num text-label text-stone">{count}</span>}
+      {count != null && <span className="num text-ui text-stone">{count}</span>}
     </label>
   )
 }

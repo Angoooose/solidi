@@ -136,7 +136,7 @@ export function MobileNav({ current, className }: { current?: MainNavCurrent; cl
                 <a
                   href={href}
                   aria-current={current === label ? "page" : undefined}
-                  className="block py-2.5 font-serif text-[1.625rem] leading-[1.15] text-graphite transition-colors hover:text-ink aria-[current=page]:text-ink"
+                  className="block py-2.5 font-serif text-title leading-[1.15] text-graphite transition-colors hover:text-ink aria-[current=page]:text-ink"
                 >
                   {label}
                 </a>
@@ -196,7 +196,7 @@ function Rail({ data, active, onActivate }: { data: CollectionsMenu; active: str
           <NavigationMenuLink
             key={c.id}
             href={`/category/${c.id}`}
-            className={cn("mb-1.5 font-serif text-[1.25rem] leading-[1.15] text-ink hover:text-stone", i > 0 && "mt-5")}
+            className={cn("mb-1.5 font-serif text-reading leading-[1.15] text-ink hover:text-stone", i > 0 && "mt-5")}
             {...activate(c.id)}
           >
             {c.name}
@@ -205,7 +205,7 @@ function Rail({ data, active, onActivate }: { data: CollectionsMenu; active: str
           <NavigationMenuLink
             key={c.id}
             href={`/category/${c.id}`}
-            className={cn("mt-2.5 mb-0.5 text-label text-stone hover:text-ink", active === c.id && "text-ink")}
+            className={cn("mt-2.5 mb-0.5 text-ui text-stone hover:text-ink", active === c.id && "text-ink")}
             {...activate(c.id)}
           >
             {c.shortName}
@@ -237,7 +237,7 @@ function RailRow({
       {...props}
     >
       {children}
-      <span className="num text-label text-stone">{count.toLocaleString("en-GB")}</span>
+      <span className="num text-ui text-stone">{count.toLocaleString("en-GB")}</span>
     </NavigationMenuLink>
   )
 }
@@ -252,10 +252,10 @@ function Preview({ data, active }: { data: CollectionsMenu; active: string }) {
   return (
     <div className="hidden flex-col gap-6 px-10 pt-8 pb-7 md:flex">
       <div className="flex items-baseline justify-between gap-6">
-        <NavigationMenuLink href={view.href} className="font-serif text-[1.875rem] leading-[1.05] tracking-[-0.01em] hover:text-stone">
+        <NavigationMenuLink href={view.href} className="font-serif text-title leading-[1.05] tracking-[-0.01em] hover:text-stone">
           {view.title}
         </NavigationMenuLink>
-        <span className="num shrink-0 text-label text-stone">{view.meta}</span>
+        <span className="num shrink-0 text-ui text-stone">{view.meta}</span>
       </div>
       {view.cards.length > 0 && (
         <ul className="m-0 grid list-none grid-cols-2 gap-x-10 gap-y-4 p-0">
@@ -285,8 +285,8 @@ function Card({ card }: { card: MenuCard }) {
         )}
       </span>
       <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="font-serif text-[1.1875rem] leading-[1.15] text-ink">{card.name}</span>
-        <span className="num text-label text-stone">{card.meta}</span>
+        <span className="font-serif text-subtitle leading-[1.15] text-ink">{card.name}</span>
+        <span className="num text-ui text-stone">{card.meta}</span>
       </span>
     </NavigationMenuLink>
   )

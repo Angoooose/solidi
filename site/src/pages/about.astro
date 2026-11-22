@@ -32,7 +32,7 @@ const measures = (w: number | null, d: number | null) => [w != null && `${w} g`,
 const typeHref = typePath(EXAMPLE_TYPE.id)
 
 const underline = "underline decoration-[#c9c9c4] underline-offset-4 transition-colors hover:decoration-ink"
-const prose = "m-0 max-w-[62ch] text-subtitle leading-[1.65] text-graphite text-pretty"
+const prose = "m-0 max-w-[62ch] text-body leading-[1.6] text-graphite text-pretty"
 const note = "m-0 max-w-[44ch] text-ui leading-[1.6] text-graphite"
 ---
 
@@ -43,7 +43,7 @@ const note = "m-0 max-w-[44ch] text-ui leading-[1.6] text-graphite"
     <section class="grid items-end gap-x-24 gap-y-12 pt-18 pb-16 md:grid-cols-[minmax(0,1fr)_400px]">
       <div class="flex flex-col gap-7">
         <h1 class="m-0 font-serif text-display font-normal">About</h1>
-        <p class="m-0 max-w-[34em] font-serif text-[1.5rem] leading-[1.4] text-pretty">
+        <p class="m-0 max-w-[34em] font-serif text-title leading-[1.35] text-pretty">
           Solidi is an encyclopedia of Greek and Roman coins, arranged by type. A type is a design as the standard reference books number it:{" "}
           <a href={typeHref} class={underline}>{EXAMPLE_TYPE.title}</a>, for instance, is Trajan’s denarius with a mourning Dacian on the reverse.
         </p>
@@ -67,7 +67,7 @@ const note = "m-0 max-w-[44ch] text-ui leading-[1.6] text-graphite"
             <Plinth photo={c.photo} alt={c.alt} size="large" className="p-[13%]" />
             <span class="flex flex-col">
               <span class="text-ui underline-offset-4 group-hover:underline">{c.label}</span>
-              <span class="num text-label text-stone">{fmt(c.types)} types</span>
+              <span class="num text-ui text-stone">{fmt(c.types)} types</span>
             </span>
           </>
         )
@@ -97,16 +97,16 @@ const note = "m-0 max-w-[44ch] text-ui leading-[1.6] text-graphite"
       </div>
       <figure class="m-0 flex flex-col gap-5">
         <figcaption class="flex flex-col gap-1 border-t border-ink pt-3.5">
-          <a href={typeHref} class="self-start font-serif text-[1.5rem] leading-[1.15] underline-offset-4 hover:underline">{EXAMPLE_TYPE.title}</a>
-          <span class="num text-label text-stone">{EXAMPLE_TYPE.subject} · {fmt(ex.total)} coins in {fmt(ex.collections)} collections</span>
+          <a href={typeHref} class="self-start font-serif text-title leading-[1.15] underline-offset-4 hover:underline">{EXAMPLE_TYPE.title}</a>
+          <span class="num text-ui text-stone">{EXAMPLE_TYPE.subject} · {fmt(ex.total)} coins in {fmt(ex.collections)} collections</span>
         </figcaption>
         <div class="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3">
           {ex.coins.map((coin) => (
             <a href={typeHref} class="group flex min-w-0 flex-col gap-2">
               <Plinth photo={coin.photo} alt={`Reverse of ${EXAMPLE_TYPE.title}, ${coin.holder}`} size="large" className="p-[13%]" />
               <span class="flex flex-col">
-                <span class="text-label leading-[1.35] underline-offset-4 group-hover:underline">{coin.holder}</span>
-                <span class="num text-label text-stone">{measures(coin.weight, coin.diameter)}</span>
+                <span class="text-ui leading-[1.35] underline-offset-4 group-hover:underline">{coin.holder}</span>
+                <span class="num text-ui text-stone">{measures(coin.weight, coin.diameter)}</span>
               </span>
             </a>
           ))}
@@ -117,15 +117,15 @@ const note = "m-0 max-w-[44ch] text-ui leading-[1.6] text-graphite"
     {/* What Solidi is not, and how to reach it */}
     <section class="grid gap-12 border-t border-hairline pt-8 pb-22 md:grid-cols-3">
       <div class="flex flex-col gap-2">
-        <span class="text-label text-stone">Independent</span>
+        <span class="text-ui text-stone">Independent</span>
         <p class={note}>Solidi isn’t a dealer. It doesn’t value, authenticate or sell coins, and isn’t affiliated with the catalogues or museums above.</p>
       </div>
       <div class="flex flex-col gap-2">
-        <span class="text-label text-stone">Corrections</span>
+        <span class="text-ui text-stone">Corrections</span>
         <p class={note}>Found a mistake, or want a photograph taken down? Email <a href={`mailto:${CONTACT_EMAIL}`} class={`text-ink ${underline}`}>{CONTACT_EMAIL}</a> with a link to the page.</p>
       </div>
       <div class="flex flex-col gap-2">
-        <span class="text-label text-stone">Data and code</span>
+        <span class="text-ui text-stone">Data and code</span>
         <p class={note}>The database is free to reuse under the Open Database Licence. The code is on <ExternalLink href={GITHUB_URL} className={`text-ink ${underline}`}>GitHub</ExternalLink>.</p>
       </div>
     </section>

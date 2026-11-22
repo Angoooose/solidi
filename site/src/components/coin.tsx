@@ -178,7 +178,7 @@ export function TypeCard({
     <a href={href} className="group flex flex-col gap-1">
       <Plinth src={image} legend={plinthLegend} className="mb-2" />
       <span className="line-clamp-2 font-serif text-reading leading-snug underline-offset-4 group-hover:underline">{title}</span>
-      <span className="num text-label text-stone">
+      <span className="num text-ui text-stone">
         {reference}
         {meta && <> · {meta}</>}
       </span>

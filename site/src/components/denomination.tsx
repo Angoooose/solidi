@@ -66,13 +66,13 @@ export function CoinScale({ coins, max, caption }: { coins: ScaleCoin[]; max: nu
                 <span className="flex flex-col items-center gap-px">
                   <span
                     className={cn(
-                      "font-serif text-[1.0625rem] leading-[1.15] decoration-1 underline-offset-4",
+                      "font-serif text-subtitle leading-[1.15] decoration-1 underline-offset-4",
                       c.current ? "border-b border-ink pb-[3px] text-ink" : c.href ? "text-ink group-hover:underline" : "pb-1 text-stone"
                     )}
                   >
                     {c.name}
                   </span>
-                  <span className="num text-label text-stone">{c.diameter} mm</span>
+                  <span className="num text-ui text-stone">{c.diameter} mm</span>
                 </span>
               </>
             )
@@ -88,7 +88,7 @@ export function CoinScale({ coins, max, caption }: { coins: ScaleCoin[]; max: nu
           })}
         </div>
       </div>
-      <figcaption className="mt-3 text-label text-stone">{caption}</figcaption>
+      <figcaption className="mt-3 text-ui text-stone">{caption}</figcaption>
     </figure>
   )
 }
@@ -124,7 +124,7 @@ export function DenominationListRow({
         byDate ? (
           <span className="num text-ui text-ink">{dates}</span>
         ) : (
-          <span className="block truncate text-label text-graphite">
+          <span className="block truncate text-ui text-graphite">
             {first?.name}
             {rest.length > 0 && <span className="text-stone"> · {rest.length} more</span>}
           </span>

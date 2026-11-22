@@ -144,7 +144,7 @@ const summary = !list
               <Note>{`${fmt(g.rows.length)} ${g.rows.length === 1 ? "denomination" : "denominations"} · ${typesLabel(g.n)}`}</Note>
             </div>
             <YearAxis domain={domain} ticks={ticks} className="relative top-[5px] hidden md:block" />
-            <span class="hidden text-right text-label text-stone md:block">Types</span>
+            <span class="hidden text-right text-ui text-stone md:block">Types</span>
           </div>
           {(metal ? g.rows : g.rows.slice(0, PER_GROUP)).map((d) => (
             <DenominationListRow row={d} href={href(d.id)} byDate={byDate} domain={domain} ticks={ticks} />

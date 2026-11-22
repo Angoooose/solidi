@@ -20,8 +20,8 @@ const { size = "lg", class: className } = Astro.props
   ]}
 >
   <svg width={size === "lg" ? 20 : 18} height={size === "lg" ? 20 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" class="flex-none text-ink"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
-  <span class:list={["min-w-0 flex-1 truncate text-stone", size === "lg" ? "text-[1.125rem]" : "text-subtitle"]}>Search by catalogue reference, ruler or mint</span>
-  <kbd data-shortcut class="hidden border border-hairline px-1.5 py-px font-sans text-label text-stone sm:inline">⌘K</kbd>
+  <span class:list={["min-w-0 flex-1 truncate text-stone", "text-subtitle"]}>Search by catalogue reference, ruler or mint</span>
+  <kbd data-shortcut class="hidden border border-hairline px-1.5 py-px font-sans text-ui text-stone sm:inline">⌘K</kbd>
 </button>
 
 <script>

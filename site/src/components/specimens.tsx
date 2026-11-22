@@ -78,11 +78,11 @@ const WIDTHS: Record<string, number | undefined> = {
 
 
 function Thumbs({ photos, size }: { photos: SpecimenRow["thumbs"]; size: number }) {
-  if (!photos.length) return <span className="text-label text-stone">No photograph</span>
+  if (!photos.length) return <span className="text-ui text-stone">No photograph</span>
   // A photo that fails leaves its slot empty; when they all fail, a line of text says so.
   return (
     <span data-plinth="small" className="relative flex gap-1.5">
-      <span className="plinth-fallback absolute inset-y-0 left-0 flex items-center text-label whitespace-nowrap text-stone">
+      <span className="plinth-fallback absolute inset-y-0 left-0 flex items-center text-ui whitespace-nowrap text-stone">
         Photograph didn’t load
       </span>
       {photos.map((p) => (
@@ -281,7 +281,7 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
           >
             <div className="bg-plinth">
               <div className="flex items-center justify-between px-5 pt-4">
-                <span className="num text-label text-stone">
+                <span className="num text-ui text-stone">
                   {open! + 1} of {rows.length}
                 </span>
                 <span className="flex items-center gap-1">
@@ -322,7 +322,7 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
                     <PlinthNote failed retry className="absolute bottom-4 left-5" />
                   </>
                 ) : (
-                  <p className="m-0 py-24 text-center text-label text-stone">No photograph of this coin</p>
+                  <p className="m-0 py-24 text-center text-ui text-stone">No photograph of this coin</p>
                 )}
               </div>
             </div>
@@ -330,7 +330,7 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
               <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
                 <div className="flex flex-col gap-1">
                   <DialogTitle className="font-serif text-heading font-normal">{current.holder}</DialogTitle>
-                  <DialogDescription className="num text-label text-stone">
+                  <DialogDescription className="num text-ui text-stone">
                     {current.identifier ?? "No inventory number"}
                   </DialogDescription>
                 </div>
@@ -350,7 +350,7 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
                   ] as const
                 ).map(([label, value]) => (
                   <div key={label} className="flex flex-col gap-1">
-                    <dt className="text-label text-stone">{label}</dt>
+                    <dt className="text-ui text-stone">{label}</dt>
                     <dd className="num m-0">{value}</dd>
                   </div>
                 ))}

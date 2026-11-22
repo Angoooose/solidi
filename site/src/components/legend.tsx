@@ -121,7 +121,7 @@ export function LegendTable({
   const placed = segments.some((s) => s.place)
   return (
     <div className="flex min-w-0 flex-col" lang={lang.text}>
-      <div lang="en" className={cn(COLUMNS, "hidden pb-2 text-label text-stone sm:grid")}>
+      <div lang="en" className={cn(COLUMNS, "hidden pb-2 text-ui text-stone sm:grid")}>
         <span>On the coin</span>
         <span>{lang.reading}</span>
         <span>Meaning</span>
@@ -131,18 +131,18 @@ export function LegendTable({
         return (
           <React.Fragment key={i}>
             {place !== undefined && (
-              <div lang="en" className="border-t border-hairline pt-3.5 pb-0.5 text-label text-stone">
+              <div lang="en" className="border-t border-hairline pt-3.5 pb-0.5 text-ui text-stone">
                 {place ? PLACE_LABEL[place] ?? place : "Also on this side"}
               </div>
             )}
             <div className={cn(COLUMNS, "items-baseline py-3", place === undefined && "border-t border-hairline")}>
-              <span className={cn("col-span-full pb-1 font-serif text-[1.25rem] [overflow-wrap:anywhere] sm:col-span-1 sm:pb-0", lang.tracked && "tracking-[0.12em]")}>
+              <span className={cn("col-span-full pb-1 font-serif text-reading [overflow-wrap:anywhere] sm:col-span-1 sm:pb-0", lang.tracked && "tracking-[0.12em]")}>
                 {linked(s, s.text)}
               </span>
               <span lang={code === "la" ? "la" : "en"} className="text-body break-words">
                 {reading(s)}
               </span>
-              <span lang="en" className="font-serif text-[1.1875rem] leading-snug text-graphite italic">
+              <span lang="en" className="font-serif text-reading leading-snug text-graphite italic">
                 {s.english && linked(s, s.english)}
               </span>
             </div>
@@ -202,7 +202,7 @@ export function LegendText({
         {legend}
       </p>
       {transliteration && (
-        <p className="m-0 font-serif text-[18px] leading-snug text-stone italic">
+        <p className="m-0 font-serif text-subtitle leading-snug text-stone italic">
           <span className="sr-only">Transliteration: </span>
           {transliteration}
         </p>

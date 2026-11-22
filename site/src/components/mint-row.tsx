@@ -36,7 +36,7 @@ export function MintListRow({
         byDate ? (
           <span className="num text-ui text-ink">{dates}</span>
         ) : (
-          <span className="block truncate text-label text-graphite">
+          <span className="block truncate text-ui text-graphite">
             {first?.name}
             {rest.length > 0 && <span className="text-stone"> · {rest.length} more</span>}
           </span>

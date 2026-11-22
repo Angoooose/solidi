@@ -41,7 +41,7 @@ export function ActionLink({ className, ...props }: React.ComponentProps<"a">) {
 }
 
 export function Note({ className, ...props }: React.ComponentProps<"span">) {
-  return <span className={cn("num text-label text-stone", className)} {...props} />
+  return <span className={cn("num text-ui text-stone", className)} {...props} />
 }
 
 /* Key numbers under a collection's title. */
@@ -50,7 +50,7 @@ export function Facts({ items }: { items: [string, React.ReactNode][] }) {
     <dl className="m-0 flex flex-wrap gap-x-12 gap-y-4 border-t border-hairline pt-5">
       {items.map(([label, value]) => (
         <div key={label}>
-          <dt className="text-label text-stone">{label}</dt>
+          <dt className="text-ui text-stone">{label}</dt>
           <dd className="num m-0 mt-1 text-body">{value}</dd>
         </div>
       ))}
@@ -82,11 +82,11 @@ function Card({ href, photo, name, lines, small = false }: { href: string; photo
   return (
     <a href={href} className="group flex flex-col gap-0.5">
       <Plinth photo={photo} alt="" size="large" className="p-[14%]" />
-      <span className={cn("mt-2.5 font-serif leading-[1.15] text-ink decoration-1 underline-offset-4 group-hover:underline", small ? "text-[1.125rem]" : "text-reading")}>
+      <span className={cn("mt-2.5 font-serif leading-[1.15] text-ink decoration-1 underline-offset-4 group-hover:underline", small ? "text-subtitle" : "text-reading")}>
         {name}
       </span>
       {lines.map((l) => (
-        <span key={l} className="num text-label text-stone">
+        <span key={l} className="num text-ui text-stone">
           {l}
         </span>
       ))}
@@ -202,9 +202,9 @@ export function CollectionRow({
       {!dense && <Plinth photo={photo} alt="" size="thumb" className="p-1.5" />}
       {dense && lead !== undefined && <span className="row-span-2 flex items-center justify-center md:row-span-1">{lead}</span>}
       <span className={cn("flex min-w-0 flex-col", dense ? "gap-px" : "gap-[3px]")}>
-        <span className={cn("font-serif leading-[1.15] text-ink decoration-1 underline-offset-4 group-hover:underline", dense ? "text-[1.1875rem]" : "text-reading")}>{name}</span>
-        {dates && <span className="num text-label text-stone">{dates}</span>}
-        {description && <span className="line-clamp-2 text-label leading-[1.45] text-graphite">{description}</span>}
+        <span className={cn("font-serif leading-[1.15] text-ink decoration-1 underline-offset-4 group-hover:underline", dense ? "text-subtitle" : "text-reading")}>{name}</span>
+        {dates && <span className="num text-ui text-stone">{dates}</span>}
+        {description && <span className="line-clamp-2 text-ui leading-[1.45] text-graphite">{description}</span>}
       </span>
       {dense && <span className="hidden min-w-0 md:block">{aside}</span>}
       <Sparkline
@@ -251,11 +251,11 @@ export function RowsHead({
       style={dense ? denseCols({ lead, extra: extra !== undefined }) : undefined}
     >
       {(!dense || lead) && <span className={dense ? undefined : "hidden md:block"} />}
-      <span className="text-label text-stone">{first}</span>
-      {dense && <span className="hidden text-label text-stone md:block">{aside}</span>}
+      <span className="text-ui text-stone">{first}</span>
+      {dense && <span className="hidden text-ui text-stone md:block">{aside}</span>}
       <YearAxis domain={domain} ticks={ticks} className="hidden md:block" />
-      {extra !== undefined && <span className="hidden text-right text-label text-stone md:block">{extra}</span>}
-      <span className="text-right text-label text-stone">Types</span>
+      {extra !== undefined && <span className="hidden text-right text-ui text-stone md:block">{extra}</span>}
+      <span className="text-right text-ui text-stone">Types</span>
     </div>
   )
 }
@@ -275,7 +275,7 @@ export function FacetColumn({
   if (!items.length) return null
   return (
     <div>
-      <h3 className="m-0 mb-3 font-serif text-[1.5rem] leading-[1.15] font-normal">{title}</h3>
+      <h3 className="m-0 mb-3 font-serif text-title leading-[1.15] font-normal">{title}</h3>
       {items.map((f) => (
         <a key={f.id} href={href(f.id)} className="group flex justify-between gap-3 py-1 text-ui text-ink">
           <span className="underline-offset-4 group-hover:underline">{f.name}</span>

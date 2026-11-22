@@ -22,7 +22,7 @@ export function IndexLine({ href, name, n, external = false, className }: { href
         {href && external && <span aria-hidden="true" className="text-stone"> ↗</span>}
       </span>
       <span aria-hidden="true" className="min-w-4 flex-1 -translate-y-1 border-b border-dotted border-field" />
-      <span className="num text-label text-stone">{fmt(n)}</span>
+      <span className="num text-ui text-stone">{fmt(n)}</span>
     </>
   )
   const cls = cn("flex items-baseline gap-2.5 py-1.5 text-ink", className)
@@ -88,8 +88,8 @@ export function Door({
         )}
       </a>
       <a href={href} className="group flex items-baseline justify-between gap-3 text-ink">
-        <span className="font-serif text-[1.875rem] leading-[1.1] decoration-1 underline-offset-4 group-hover:underline">{title}</span>
-        <span className="num text-label text-stone">{fmt(total)}</span>
+        <span className="font-serif text-title leading-[1.1] decoration-1 underline-offset-4 group-hover:underline">{title}</span>
+        <span className="num text-ui text-stone">{fmt(total)}</span>
       </a>
       <p className="m-0 text-ui leading-normal text-graphite">{text}</p>
       <div className="flex flex-col border-t border-hairline pt-1.5">
@@ -145,8 +145,8 @@ export function CollectionHalf({ half }: { half: HomeCollection }) {
           <Coin photo={half.photo} px={84} />
         </span>
         <span className="flex flex-col gap-1">
-          <span className="font-serif text-[1.875rem] leading-[1.1] decoration-1 underline-offset-4 group-hover:underline">{half.category.name}</span>
-          <span className="num text-label text-stone">
+          <span className="font-serif text-title leading-[1.1] decoration-1 underline-offset-4 group-hover:underline">{half.category.name}</span>
+          <span className="num text-ui text-stone">
             {fmt(half.category.types)} types in {leaves.length} {leaves.length === 1 ? "collection" : "collections"}
           </span>
         </span>
@@ -155,7 +155,7 @@ export function CollectionHalf({ half }: { half: HomeCollection }) {
         {half.children.map((c) =>
           c.sub ? (
             <React.Fragment key={c.id}>
-              <a href={`/category/${c.id}`} className="mt-3.5 pt-1.5 pb-0.5 text-label text-stone underline-offset-4 hover:text-ink hover:underline">
+              <a href={`/category/${c.id}`} className="mt-3.5 pt-1.5 pb-0.5 text-ui text-stone underline-offset-4 hover:text-ink hover:underline">
                 {c.name}
               </a>
               {c.sub.map((s) => line(s, true))}

@@ -7,7 +7,7 @@ export function Wordmark({ className }: { className?: string }) {
     <a
       href="/"
       aria-label="Solidi, home"
-      className={cn("font-serif text-2xl leading-none tracking-[0.28em] text-ink", className)}
+      className={cn("font-serif text-latin leading-none tracking-[0.28em] text-ink", className)}
     >
       SOLIDI
     </a>
@@ -44,7 +44,7 @@ export function SectionHeading({ children, aside }: { children: React.ReactNode;
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-3">
       <h2 className="m-0 font-serif text-heading font-normal">{children}</h2>
-      {aside && <span className="text-label text-stone">{aside}</span>}
+      {aside && <span className="text-ui text-stone">{aside}</span>}
     </div>
   )
 }

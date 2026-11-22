@@ -18,7 +18,7 @@ function Badge({
     <Comp
       data-slot="badge"
       className={cn(
-        "inline-flex w-fit shrink-0 items-center gap-2 border border-field px-3 py-[5px] text-label whitespace-nowrap text-ink",
+        "inline-flex w-fit shrink-0 items-center gap-2 border border-field px-3 py-[5px] text-ui whitespace-nowrap text-ink",
         className
       )}
       {...props}

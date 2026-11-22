@@ -116,7 +116,7 @@ export function YearAxis({ domain, ticks, className }: { domain: [number, number
   return (
     <span aria-hidden="true" className={cn("relative block h-[18px]", className)}>
       {ticks.map((t) => (
-        <span key={t} className="num absolute -translate-x-1/2 text-label whitespace-nowrap text-stone" style={{ left: `${pct(t)}%` }}>
+        <span key={t} className="num absolute -translate-x-1/2 text-ui whitespace-nowrap text-stone" style={{ left: `${pct(t)}%` }}>
           {tickLabel(t)}
         </span>
       ))}
@@ -153,7 +153,7 @@ export function Histogram({ bins, binWidth, label }: { bins: Bin[]; binWidth: nu
         </svg>
         <span aria-hidden="true" className="relative">
           {yTicks.map((t) => (
-            <span key={t} className="num absolute -translate-y-1/2 text-label text-stone" style={{ top: pct(t) }}>
+            <span key={t} className="num absolute -translate-y-1/2 text-ui text-stone" style={{ top: pct(t) }}>
               {fmt(t)}
             </span>
           ))}
@@ -231,7 +231,7 @@ export function PersonTrackKey({
   coinsLabel?: string
 }) {
   return (
-    <span className={cn("flex flex-wrap items-center gap-x-5 gap-y-1 text-label text-stone", className)}>
+    <span className={cn("flex flex-wrap items-center gap-x-5 gap-y-1 text-ui text-stone", className)}>
       {layers.includes("lived") && (
         <span className="flex items-center gap-2">
           <span aria-hidden="true" className="relative h-[7px] w-5 border-x border-stone/60 before:absolute before:inset-x-0 before:top-[3px] before:h-px before:bg-stone/60" />

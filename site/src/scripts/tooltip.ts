@@ -39,17 +39,17 @@ function el(tag: string, className: string, text?: string) {
 
 function rich(data: RichTip): HTMLElement {
   const box = el("div", "")
-  box.appendChild(el("div", "font-serif text-[1.1875rem] leading-[1.2]", data.title))
-  if (data.subtitle) box.appendChild(el("div", "mt-0.5 text-label text-stone", data.subtitle))
+  box.appendChild(el("div", "font-serif text-subtitle leading-[1.2]", data.title))
+  if (data.subtitle) box.appendChild(el("div", "mt-0.5 text-ui text-stone", data.subtitle))
   const keyed = data.rows.some(([kind]) => kind)
   const grid = el("div", `mt-2.5 grid items-center gap-x-3 gap-y-1.5 ${keyed ? "grid-cols-[20px_auto_1fr]" : "grid-cols-[auto_1fr]"}`)
   for (const [kind, label, value] of data.rows) {
     if (keyed) grid.appendChild(el("span", kind ? SWATCH[kind] : ""))
-    grid.appendChild(el("span", "text-label text-stone", label))
+    grid.appendChild(el("span", "text-ui text-stone", label))
     grid.appendChild(el("span", "num text-right text-ui text-ink", value))
   }
   box.appendChild(grid)
-  if (data.foot) box.appendChild(el("div", "num mt-2.5 border-t border-hairline pt-2 text-label text-graphite", data.foot))
+  if (data.foot) box.appendChild(el("div", "num mt-2.5 border-t border-hairline pt-2 text-ui text-graphite", data.foot))
   return box
 }
 

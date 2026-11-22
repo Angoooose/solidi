@@ -40,7 +40,7 @@ export function SubjectListRow({ row, href, byDate = false, domain, ticks }: { r
 /** "■ Greek collections ■ Roman collections": the two series of a row's histogram. */
 export function GreekRomanKey() {
   return (
-    <span className="flex flex-wrap gap-x-5 gap-y-1 text-label text-stone">
+    <span className="flex flex-wrap gap-x-5 gap-y-1 text-ui text-stone">
       <span className="flex items-center gap-2">
         <span aria-hidden="true" className="size-2.5 rounded-[2px] bg-ink" />
         Greek collections
@@ -60,7 +60,7 @@ export function PlacesGrid({ rows, href }: { rows: SubjectRow[]; href: (id: stri
       {rows.map((r) => (
         <a key={r.id} href={href(r.id)} className="group flex items-baseline justify-between gap-3 border-b border-hairline py-2.5 text-ui text-ink">
           <span className="truncate underline-offset-4 group-hover:underline">{r.names.join(" · ")}</span>
-          <span className="num text-label text-stone">{fmt(r.n)}</span>
+          <span className="num text-ui text-stone">{fmt(r.n)}</span>
         </a>
       ))}
     </div>
@@ -87,7 +87,7 @@ export function SideSplit({ obverse, reverse }: { obverse: number; reverse: numb
           <span key={s.label} className={cn(s.color, "min-w-[3px] rounded-[1.5px]")} style={{ flex: s.n }} />
         ))}
       </span>
-      <span className="flex flex-wrap gap-x-4 gap-y-1 text-label text-stone">
+      <span className="flex flex-wrap gap-x-4 gap-y-1 text-ui text-stone">
         {sides.map((s) => (
           <span key={s.label} className="flex items-center gap-1.5">
             <span aria-hidden="true" className={cn("size-2.5 rounded-[2px]", s.color)} />

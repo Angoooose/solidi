@@ -91,12 +91,12 @@ const row = (c: Category) => ({
                 <Note>{[yearRange(top.start, top.end), typesLabel(top.types)].filter(Boolean).join(" · ")}</Note>
               </div>
               <YearAxis domain={domain} ticks={ticks} className="relative top-[5px] hidden md:block" />
-              <span class="text-right text-label text-stone">Types</span>
+              <span class="text-right text-ui text-stone">Types</span>
             </div>
             {itemsUnder(top.id).map((item) =>
               item.kind === "sub" ? (
                 <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-hairline pt-9 pb-3">
-                  <h3 class="m-0 font-serif text-[1.5rem] leading-[1.15] font-normal">
+                  <h3 class="m-0 font-serif text-title leading-[1.15] font-normal">
                     <a href={`/category/${item.cat.id}`} class="underline-offset-4 hover:underline">{item.cat.name}</a>
                   </h3>
                   <Note>{[yearRange(item.cat.start, item.cat.end), typesLabel(item.cat.types)].filter(Boolean).join(" · ")}</Note>

@@ -161,7 +161,7 @@ const TRANSLITERATED = new Set(["pgd", "xlc", "xcr"])
                   slot="action"
                   type="button"
                   data-copy={type.reference}
-                  class="text-label text-stone underline-offset-4 hover:text-ink hover:underline"
+                  class="text-ui text-stone underline-offset-4 hover:text-ink hover:underline"
                 >
                   Copy
                 </button>
@@ -273,7 +273,7 @@ const TRANSLITERATED = new Set(["pgd", "xlc", "xcr"])
                     </span>
                   )}
                   <div class="flex flex-col gap-1.5">
-                    <h3 class="m-0 text-label font-normal text-stone">{sideLabel[s.side]}</h3>
+                    <h3 class="m-0 text-ui font-normal text-stone">{sideLabel[s.side]}</h3>
                     {s.description && <p class="m-0 max-w-[30ch] font-serif text-reading leading-[1.35] text-pretty">{s.description}</p>}
                   </div>
                 </div>
@@ -301,7 +301,7 @@ const TRANSLITERATED = new Set(["pgd", "xlc", "xcr"])
                                 <span class="text-center text-credit text-stone">No drawing</span>
                               )}
                             </span>
-                            <figcaption class="flex flex-col gap-0.5 text-label text-stone">
+                            <figcaption class="flex flex-col gap-0.5 text-ui text-stone">
                               <span class="text-body text-ink">{m.name}</span>
                               {m.letters && (
                                 <span>
