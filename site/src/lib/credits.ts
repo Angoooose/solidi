@@ -14,6 +14,19 @@ export type PhotoCreditItem = {
 /** Where every "Image credits" link points (pages/sources.astro). */
 export const IMAGE_CREDITS_URL = "/sources#images"
 
+/**
+ * SQL for the name of the collection holding a specimen: its institution, else its dataset.
+ * Some names carry an HTML line break from the source; it becomes a space.
+ */
+export const holderName = (specimenId: string) =>
+  `(SELECT replace(replace(coalesce(hn.name, hd.name), '<br> ', '<br>'), '<br>', ' ')
+    FROM specimen hs LEFT JOIN institution hn ON hn.id = hs.institution_id LEFT JOIN dataset hd ON hd.id = hs.dataset_id
+    WHERE hs.id = ${specimenId})`
+
+/** The image ids of the photos a page shows, for getPhotoCredits. */
+export const photoIds = (photos: ({ id?: number | null } | null | undefined)[]): number[] =>
+  photos.flatMap((p) => (p?.id != null ? [p.id] : []))
+
 /* D1 allows at most 100 bound parameters per statement. */
 const CHUNK = 90
 
@@ -25,7 +38,7 @@ export async function getPhotoCredits(db: D1Database, imageIds: number[]): Promi
     chunks.map((chunk) =>
       db
         .prepare(
-          `SELECT i.id, coalesce(n.name, d.name, 'Unknown collection') AS holder, s.source_uri,
+          `SELECT i.id, coalesce(${holderName("i.specimen_id")}, 'Unknown collection') AS holder, s.source_uri,
              d.image_licence, d.data_licence
            FROM image i JOIN specimen s ON s.id = i.specimen_id
            LEFT JOIN institution n ON n.id = s.institution_id LEFT JOIN dataset d ON d.id = s.dataset_id

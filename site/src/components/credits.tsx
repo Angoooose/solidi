@@ -17,6 +17,28 @@ export function LicenceLink({ licence, className }: { licence: Licence | null; c
   )
 }
 
+/**
+ * The holder's name over a photo, shown while the pointer is on the card or photo, or the card has
+ * keyboard focus. Its parent must be `relative`; a `group` (the card's link) or `group/plinth`
+ * (the photo itself) around it shows it. Hidden from screen readers: the page's PhotoCredit says it.
+ * Touch screens never see it (Tailwind's hover only applies where the pointer can hover).
+ */
+export function PhotoHolder({ holder, className }: { holder: string | null | undefined; className?: string }) {
+  if (!holder) return null
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "plinth-caption pointer-events-none absolute inset-x-3.5 bottom-3 truncate text-credit text-stone opacity-0 transition-opacity duration-200",
+        "group-hover:opacity-100 group-focus-visible:opacity-100 group-hover/plinth:opacity-100",
+        className
+      )}
+    >
+      {holder}
+    </span>
+  )
+}
+
 /* Up to this many collections are named; more are counted, with a link to the credits page. */
 const MAX_NAMED = 4
 
@@ -27,7 +49,9 @@ const MAX_NAMED = 4
  *   many          Photographs from 14 collections · Image credits
  * Collections sharing a licence are grouped; licence names link to the licence.
  */
-export function PhotoCredit({ photos, className }: { photos: PhotoCreditItem[]; className?: string }) {
+export function PhotoCredit({ photos, onPage = false, className }: { photos: PhotoCreditItem[]; onPage?: boolean; className?: string }) {
+  /* onPage: "Photographs on this page", for a line that stands apart from the photos it credits. */
+  const label = (many: boolean) => (onPage ? (many ? "Photographs on this page:" : "Photograph on this page:") : many ? "Photographs:" : "Photograph:")
   if (!photos.length) return null
   const base = cn("m-0 text-credit text-stone", className)
   const creditsLink = (
@@ -43,7 +67,7 @@ export function PhotoCredit({ photos, className }: { photos: PhotoCreditItem[]; 
     const [p] = photos
     return (
       <p className={base}>
-        Photograph:{" "}
+        {label(false)}{" "}
         {p.sourceUrl ? (
           <a href={p.sourceUrl} rel="noopener" className={linkClass}>
             {p.holder}
@@ -82,7 +106,7 @@ export function PhotoCredit({ photos, className }: { photos: PhotoCreditItem[]; 
 
   return (
     <p className={base}>
-      Photographs:{" "}
+      {label(true)}{" "}
       {[...groups.values()].map((g, i) => (
         <React.Fragment key={g.licence?.label ?? "none"}>
           {i > 0 && "; "}

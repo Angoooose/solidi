@@ -8,6 +8,7 @@ import { fmt } from "@/lib/categories"
 import type { Category } from "@/lib/categories"
 import type { HomeCollection, Top } from "@/lib/home"
 import { Coin } from "@/components/denomination"
+import { PhotoHolder } from "@/components/credits"
 import { MintDots } from "@/components/mint-map"
 import type { Photo } from "@/lib/categories"
 
@@ -72,9 +73,12 @@ export function Door({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <a href={href} tabIndex={-1} aria-hidden="true" className="flex h-[240px] items-center justify-center overflow-hidden bg-plinth transition-colors hover:bg-[#ebebe7]">
+      <a href={href} tabIndex={-1} aria-hidden="true" className="group relative flex h-[240px] items-center justify-center overflow-hidden bg-plinth transition-colors hover:bg-[#ebebe7]">
         {picture.kind === "coin" ? (
-          <Coin photo={picture.photo} px={176} />
+          <>
+            <Coin photo={picture.photo} px={176} />
+            <PhotoHolder holder={picture.photo?.holder} />
+          </>
         ) : picture.kind === "coins" ? (
           <DoorCoins coins={picture.coins} />
         ) : (

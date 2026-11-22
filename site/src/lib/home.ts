@@ -4,7 +4,7 @@
  * a photo per half, and the museums whose photographs we show. Everything reads the summary
  * tables (pipeline/summaries.py).
  */
-import { getCategories, getPreviews, photo, tree, IMAGE_COLS, type Category, type Photo } from "@/lib/categories"
+import { getCategories, getPreviews, photo, tree, type ImageCols, IMAGE_COLS_CREDITED, type Category, type Photo } from "@/lib/categories"
 
 export type Top = { id: string; name: string; n: number }
 export type DoorCoin = { id: string; name: string; diameter: number; photo: Photo | null }
@@ -47,19 +47,19 @@ export async function getHome(db: D1Database): Promise<Home> {
     db.prepare(TOP_EACH(`SELECT cp.category_id AS root, p.id, p.name, cp.n FROM category_person cp JOIN person p ON p.id = cp.person_id
                          WHERE cp.category_id IN ${ROOTS}`)),
     // The most prolific person's portrait.
-    db.prepare(`SELECT ${IMAGE_COLS} FROM category_person cp JOIN image i ON i.id = cp.image_id
+    db.prepare(`SELECT ${IMAGE_COLS_CREDITED} FROM category_person cp JOIN image i ON i.id = cp.image_id
                 WHERE cp.category_id IN ${ROOTS} ORDER BY cp.n DESC LIMIT 1`),
     db.prepare(TOP_EACH(`SELECT cm.category_id AS root, m.id, m.name, cm.n FROM category_mint cm JOIN mint m ON m.id = cm.mint_id
                          WHERE cm.category_id IN ${ROOTS}`)),
     db.prepare(`SELECT m.id, m.lon, m.lat, sum(cm.n) AS n FROM category_mint cm JOIN mint m ON m.id = cm.mint_id
                 WHERE cm.category_id IN ${ROOTS} AND m.lat IS NOT NULL AND m.lon IS NOT NULL GROUP BY m.id ORDER BY n DESC`),
-    db.prepare(`SELECT t.id, t.name, s.types AS n, s.diameter, ${IMAGE_COLS}
+    db.prepare(`SELECT t.id, t.name, s.types AS n, s.diameter, ${IMAGE_COLS_CREDITED}
                 FROM (${TOP_EACH(`SELECT cd.category_id AS root, d.id, d.name, cd.n FROM category_denomination cd
                                   JOIN denomination d ON d.id = cd.denomination_id JOIN denomination_stat x ON x.denomination_id = d.id
                                   WHERE cd.category_id IN ${ROOTS} AND x.metal_group NOT IN ('unlisted', 'units')`)}) t
                 JOIN denomination_stat s ON s.denomination_id = t.id LEFT JOIN image i ON i.id = s.image_id
                 ORDER BY s.types DESC, t.name`),
-    db.prepare(`SELECT t.id, t.name, s.types AS n, ${IMAGE_COLS}
+    db.prepare(`SELECT t.id, t.name, s.types AS n, ${IMAGE_COLS_CREDITED}
                 FROM (${TOP_EACH(`SELECT cs.category_id AS root, x.id, x.name, cs.n FROM category_subject cs
                                   JOIN subject x ON x.id = cs.subject_id JOIN subject_stat y ON y.subject_id = x.id
                                   WHERE cs.category_id IN ${ROOTS} AND y.grp != 'unlisted'`)}) t
@@ -70,7 +70,7 @@ export async function getHome(db: D1Database): Promise<Home> {
   ])
 
   const c = counts.results[0] as { people: number; mints: number; denominations: number; subjects: number; holders: number }
-  type WithImage = Top & { url: string | null; thumb: string | null; iiif: string | null }
+  type WithImage = Top & ImageCols
   const denRows = dens.results as (WithImage & { diameter: number | null })[]
   const subjectRows = subjects.results as WithImage[]
   const top = (rows: unknown[]) => (rows as Top[]).map(({ id, name, n }) => ({ id, name, n }))

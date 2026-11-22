@@ -5,6 +5,7 @@
  * hundreds of rows, never the coin types themselves.
  */
 import { iiif, secure, yearRange } from "@/lib/format"
+import { holderName } from "@/lib/credits"
 
 /* City coinages are browsed by mint; their people are magistrates, governors and client kings. */
 export const BY_MINT = new Set(["archaic-classical", "hellenistic-cities", "roman-provincial"])
@@ -36,12 +37,15 @@ export const typesLabel = (n: number) => `${fmt(n)} ${Math.round(n) === 1 ? "typ
 /** "320–46 BC · 2,555 types" */
 export const metaLine = (s: number | null, e: number | null, n: number) => [yearRange(s, e), typesLabel(n)].filter(Boolean).join(" · ")
 
-export type Photo = { thumb: string | null; large: string | null }
-export type ImageCols = { url: string | null; thumb: string | null; iiif: string | null }
+/** `id` and `holder` (the collection that holds the coin) come with IMAGE_COLS_CREDITED. */
+export type Photo = { thumb: string | null; large: string | null; id?: number | null; holder?: string | null }
+export type ImageCols = { url: string | null; thumb: string | null; iiif: string | null; imageId?: number | null; holder?: string | null }
 /* thumb: small rows and menus (static ~175px files where the holder has them); large: cards. */
 export function photo(r: ImageCols): Photo | null {
   if (!r.url && !r.iiif) return null
   return {
+    ...(r.imageId != null && { id: r.imageId }),
+    ...(r.holder != null && { holder: r.holder }),
     thumb: secure(r.thumb) ?? iiif(r.iiif, 160) ?? secure(r.url),
     // ANS serves ready-made 350px files much faster than its IIIF server renders one.
     // Its "noscale" originals run to 2 MB; their thumbnail (a 600px copy at Corpus Nummorum) reads as well.
@@ -51,6 +55,8 @@ export function photo(r: ImageCols): Photo | null {
   }
 }
 export const IMAGE_COLS = `i.url, i.thumbnail_url AS thumb, i.iiif_service AS iiif`
+/* With the image's id and its holder's name, for photos that show their credit on hover (PhotoHolder). */
+export const IMAGE_COLS_CREDITED = `${IMAGE_COLS}, i.id AS imageId, ${holderName("i.specimen_id")} AS holder`
 
 export type Category = {
   id: string
@@ -153,21 +159,21 @@ export async function getBins(db: D1Database, ids: string[], width: 10 | 25): Pr
 
 const PERSON_SELECT = `
   SELECT cp.category_id AS cat, p.id, p.name, cp.n, cp.start_year AS start, cp.end_year AS "end",
-    cp.dated_by AS datedBy, ${IMAGE_COLS}
+    cp.dated_by AS datedBy, ${IMAGE_COLS_CREDITED}
   FROM category_person cp JOIN person p ON p.id = cp.person_id
   LEFT JOIN image i ON i.id = cp.image_id`
 
 const MINT_SELECT = `
   SELECT cm.category_id AS cat, m.id, m.name, cm.n, cm.start_year AS start, cm.end_year AS "end",
-    r.name AS region, ${IMAGE_COLS}
+    r.name AS region, ${IMAGE_COLS_CREDITED}
   FROM category_mint cm JOIN mint m ON m.id = cm.mint_id
   LEFT JOIN region r ON r.id = m.region_id
   LEFT JOIN image i ON i.id = cm.image_id`
 
 type PersonRow = Omit<PersonCard, "photo"> & ImageCols & { cat: string }
 type MintRow = Omit<MintCard, "photo"> & ImageCols & { cat: string }
-const toPerson = ({ url, thumb, iiif: s, cat: _c, ...r }: PersonRow): PersonCard => ({ ...r, photo: photo({ url, thumb, iiif: s }) })
-const toMint = ({ url, thumb, iiif: s, cat: _c, ...r }: MintRow): MintCard => ({ ...r, photo: photo({ url, thumb, iiif: s }) })
+const toPerson = ({ url, thumb, iiif: s, imageId, holder, cat: _c, ...r }: PersonRow): PersonCard => ({ ...r, photo: photo({ url, thumb, iiif: s, imageId, holder }) })
+const toMint = ({ url, thumb, iiif: s, imageId, holder, cat: _c, ...r }: MintRow): MintCard => ({ ...r, photo: photo({ url, thumb, iiif: s, imageId, holder }) })
 
 /** Top people (by types) for several categories: id -> people, most types first. */
 export async function getTopPeople(db: D1Database, ids: string[], limit: number): Promise<Map<string, PersonCard[]>> {

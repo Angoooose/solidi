@@ -11,6 +11,8 @@ import SiteFooter from "@/components/SiteFooter.astro"
 import { CollectionRow, Note, Page, RowsHead } from "@/components/collection"
 import { YearAxis, yearTicks } from "@/components/charts"
 import { UrlSelect } from "@/components/url-select"
+import { PhotoCredit } from "@/components/credits"
+import { getPhotoCredits, photoIds } from "@/lib/credits"
 import { yearRange } from "@/lib/format"
 import { getBins, getCategories, getPreviews, tree, typesLabel, type Category } from "@/lib/categories"
 
@@ -31,6 +33,7 @@ const to = Math.max(...leaves.map((l) => l.end ?? -Infinity))
 const domain: [number, number] = [Math.floor(from / 25) * 25, Math.ceil((to + 1) / 25) * 25]
 const ticks = yearTicks(domain, 200)
 const yMax = Math.max(1, ...leaves.flatMap((l) => (bins.get(l.id) ?? []).map((b) => b.n)))
+const credits = await getPhotoCredits(env.DB, photoIds(leaves.map((l) => previews.get(l.id)?.photo)))
 
 /* Under a top-level collection: its leaves, with a subheading before each nested collection's. */
 type Item = { kind: "sub"; cat: Category } | { kind: "row"; cat: Category }
@@ -106,6 +109,7 @@ const row = (c: Category) => ({
         ))
       )
     }
+    {credits.length > 0 && <PhotoCredit photos={credits} className="mt-14 border-t border-hairline pt-5" />}
   </Page>
   <SiteFooter />
 </Base>

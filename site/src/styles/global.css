@@ -254,6 +254,7 @@
   display: flex;
 }
 [data-plinth]:is([data-photo="failed"], [data-photo="partial"]) .plinth-caption,
+:has(> [data-plinth][data-photo="failed"]) > .plinth-caption,
 [data-plinth="hide"][data-photo="failed"] {
   display: none;
 }
