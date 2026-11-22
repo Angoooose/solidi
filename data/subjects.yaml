@@ -26,7 +26,7 @@ pairs:
 unlisted:
   - uncertain_value
 
-# Legend words name subjects in Latin. The legend dictionary (data/legend_abbreviations.yaml)
+# Legend words name subjects in Latin. The legend dictionary (data/legends/abbreviations.yaml)
 # gives each word's dictionary form; where that isn't the subject's own name, map it here.
 latin_names:
   Victoria: victory

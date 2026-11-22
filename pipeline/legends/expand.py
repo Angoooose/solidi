@@ -1,4 +1,4 @@
-"""Expand normalised legends into glossed segments using data/legend_abbreviations.yaml.
+"""Expand normalised legends into glossed segments using data/legends/abbreviations.yaml.
 
 'IMP TRAIANO AVG GER DAC P M TR P' ->
   IMP → Imperator → Emperor · TRAIANO → Traiano → Trajan · … · P M → Pontifex Maximus → chief priest · …

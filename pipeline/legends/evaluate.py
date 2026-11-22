@@ -1,7 +1,7 @@
 """Score our legend expansions against Neel Smith's scholar-expanded OCRE legends (ocre-texts, ODbL).
 
-    uv run python -m pipeline.eval_legends            # summary
-    uv run python -m pipeline.eval_legends --show 30  # plus the worst disagreements
+    uv run python -m pipeline.legends.evaluate            # summary
+    uv run python -m pipeline.legends.evaluate --show 30  # plus the worst disagreements
 
 Their expansions are lowercase Latin with Unicode numerals ('consvl Ⅲ'); ours use the dictionary.
 We compare word sequences after normalising case, u/v and numerals.
@@ -18,10 +18,10 @@ from pathlib import Path
 
 import httpx
 
-from pipeline.legend_expand import Dictionary, expand
+from pipeline.legends.expand import Dictionary, expand
 from pipeline.legends import normalise
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 BASE = "https://raw.githubusercontent.com/neelsmith/ocre-texts/master/mappings/mappings{}.csv"
 UNICODE_NUMERALS = {chr(0x2160 + i): r for i, r in enumerate(
     ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"])}
@@ -48,7 +48,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--show", type=int, default=0)
     args = parser.parse_args()
-    dictionary = Dictionary.load(ROOT / "data" / "legend_abbreviations.yaml")
+    dictionary = Dictionary.load(ROOT / "data" / "legends" / "abbreviations.yaml")
     data = pairs(ROOT / "build" / "raw" / "ocre_texts" / "pairs.csv")
 
     scores, exact, results = [], 0, []

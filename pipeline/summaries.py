@@ -50,7 +50,7 @@ UNIT_LIKE = re.compile(r"^(AE(\d|\b)|(Large|Small|Reduced|Light|Heavy) AE|Denomi
 # Subjects: Greek-Roman pairs and placeholders (data/subjects.yaml); places are Nomisma's
 # personifications of a land, city or river, by id (Nomisma spells it both ways).
 SUBJECTS_YAML = Path(__file__).resolve().parents[1] / "data" / "subjects.yaml"
-LEGEND_DICTIONARY = Path(__file__).resolve().parents[1] / "data" / "legend_abbreviations.yaml"
+LEGEND_DICTIONARY = Path(__file__).resolve().parents[1] / "data" / "legends" / "abbreviations.yaml"
 PLACE_ID = re.compile(r"_person(i)?fication$")
 LEGEND_KINDS = ("deity", "personification", "virtue", "place")
 # Legends named by fewer types than this are left off a subject's page.

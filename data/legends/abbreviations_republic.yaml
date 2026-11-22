@@ -1,4 +1,4 @@
-# Senses for coins struck before 27 BC, laid over legend_abbreviations.yaml.
+# Senses for coins struck before 27 BC, laid over abbreviations.yaml.
 #
 # The base dictionary reads legends as Imperial coinage does: IMP = Emperor, AVG = Augustus,
 # ANT = Antoninus. Before Octavian took the name Augustus (January 27 BC) those readings are

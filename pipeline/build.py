@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 from pipeline import categories, image_score, images, legends, regions, search, stage, summaries, transform
-from pipeline.legend_expand import Dictionary
+from pipeline.legends.expand import Dictionary
 from pipeline.checks import checks
 from pipeline.link import wikidata, wikipedia
 from pipeline.sources.cn import monograms as cn_monograms
@@ -48,7 +48,7 @@ def build(authority: str | None, refresh: bool, build_dir: Path) -> int:
     print("enrich: wikipedia")
     wikipedia.enrich(db, raw, refresh=refresh)
 
-    abbreviations = ROOT / "data" / "legend_abbreviations.yaml"
+    abbreviations = ROOT / "data" / "legends" / "abbreviations.yaml"
     dictionary = Dictionary.load(abbreviations) if abbreviations.exists() else None
     languages = {k: c.get("legend_language", "la") for k, c in config["corpora"].items()}
     print(f"index legends: {legends.build_index(db, dictionary, languages)}")

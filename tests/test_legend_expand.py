@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pipeline.legend_expand import Dictionary, coverage, expand, ordinal, roman_value
+from pipeline.legends.expand import Dictionary, coverage, expand, ordinal, roman_value
 
 SAMPLE = Dictionary({
     "phrases": {
@@ -50,7 +50,7 @@ def test_free_numerals_only_when_multi_letter():
 
 
 def test_real_dictionary_parses():
-    path = Path(__file__).resolve().parent.parent / "data" / "legend_abbreviations.yaml"
+    path = Path(__file__).resolve().parent.parent / "data" / "legends" / "abbreviations.yaml"
     if not path.exists():
         pytest.skip("no dictionary yet")
     d = Dictionary.load(path)
@@ -89,7 +89,7 @@ def test_avg_and_f_are_feminine_after_a_womans_name():
 
 
 # Regression cases from review, against the real dictionary.
-REAL = Path(__file__).resolve().parent.parent / "data" / "legend_abbreviations.yaml"
+REAL = Path(__file__).resolve().parent.parent / "data" / "legends" / "abbreviations.yaml"
 
 
 @pytest.fixture(scope="module")
@@ -182,7 +182,7 @@ def test_editorial_marks_in_issuer_names_are_dropped(real):
 @pytest.fixture(scope="module")
 def republic(real):
     import yaml
-    overlay = REAL.parent / "legend_abbreviations_republic.yaml"
+    overlay = REAL.parent / "abbreviations_republic.yaml"
     return real.with_overlay(yaml.safe_load(overlay.read_text()))
 
 
@@ -227,8 +227,8 @@ def test_legion_or_legate(real):
     assert segs[-2].english == "legion" and segs[-1].number == 5
 
 
-GREEK = REAL.parent / "legend_greek.yaml"
-GANDHARI = REAL.parent / "legend_gandhari.yaml"
+GREEK = REAL.parent / "greek.yaml"
+GANDHARI = REAL.parent / "gandhari.yaml"
 
 
 def test_greek_royal_legends_gloss_and_link_rulers():
@@ -291,9 +291,9 @@ def test_greek_person_links_from_review():
 
 
 def test_civic_and_lycian_words_from_the_types_own_names():
-    from pipeline import greek
-    from pipeline.legend_expand import apply_context_names
-    from pipeline.scripts import romanise_lycian
+    from pipeline.legends import greek
+    from pipeline.legends.expand import apply_context_names
+    from pipeline.legends.scripts import romanise_lycian
     segs = expand("ΜΥΡΙΝΑΙΩΝ", Dictionary({}), lang="grc")
     apply_context_names(segs, greek.romanise, [], ["Myrina", "Aeolis"])
     assert segs[0].english == "of the people of Myrina"
@@ -311,7 +311,7 @@ def test_civic_and_lycian_words_from_the_types_own_names():
 def test_greek_imperial_titulature():
     import yaml
     from pipeline.legends import normalise
-    imp = Dictionary.load(GREEK).with_overlay(yaml.safe_load((REAL.parent / "legend_greek_imperial.yaml").read_text()))
+    imp = Dictionary.load(GREEK).with_overlay(yaml.safe_load((REAL.parent / "greek_imperial.yaml").read_text()))
     segs = expand(normalise("ΑΥΤ Κ Μ ΑΥΡ ΑΝΤΩΝΕΙΝΟΣ ΣΕΒ", "grc"), imp, lang="grc",
                   persons=[("caracalla", "Caracalla")], authority="caracalla")
     assert [s.english for s in segs] == ["Imperator Caesar", "Marcus Aurelius", "Antoninus", "Augustus"]

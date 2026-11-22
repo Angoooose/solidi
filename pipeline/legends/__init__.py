@@ -15,8 +15,11 @@ from pathlib import Path
 
 import yaml
 
-from pipeline import greek, scripts
-from pipeline.legend_expand import Dictionary, apply_context_names, as_rows, coverage, expand
+from pipeline.legends import greek, scripts
+from pipeline.legends.expand import Dictionary, apply_context_names, as_rows, coverage, expand
+
+# The legend dictionaries: data/legends/.
+DATA = Path(__file__).resolve().parents[2] / "data" / "legends"
 
 LETTER_MAP = {
     "Ꜹ": "AV", "∈": "E", "Ϥ": "V", "Ʈ": "T", "Λ": "L",
@@ -181,16 +184,15 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
     # Issuer names gloss moneyers' signatures the dictionary can't know (C ABVRI = Gaius Aburius).
     republic = None
     if dictionary:
-        overlay = Path(__file__).resolve().parent.parent / "data" / "legend_abbreviations_republic.yaml"
+        overlay = DATA / "abbreviations_republic.yaml"
         republic = dictionary.with_overlay(yaml.safe_load(overlay.read_text(encoding="utf-8")) or {})
-    data = Path(__file__).resolve().parent.parent / "data"
-    others = {lang: Dictionary.load(data / f"legend_{name}.yaml")
-              for lang, name in (("grc", "greek"), ("pgd", "gandhari")) if (data / f"legend_{name}.yaml").exists()}
+    others = {lang: Dictionary.load(DATA / f"{name}.yaml")
+              for lang, name in (("grc", "greek"), ("pgd", "gandhari")) if (DATA / f"{name}.yaml").exists()}
     # Greek legends of the Roman Empire (after 31 BC): emperors' titles in Greek, read by date.
     greek_imperial = None
-    if "grc" in others and (data / "legend_greek_imperial.yaml").exists():
+    if "grc" in others and (DATA / "greek_imperial.yaml").exists():
         greek_imperial = others["grc"].with_overlay(
-            yaml.safe_load((data / "legend_greek_imperial.yaml").read_text(encoding="utf-8")) or {})
+            yaml.safe_load((DATA / "greek_imperial.yaml").read_text(encoding="utf-8")) or {})
     names: dict[str, list[str]] = {}
     persons: dict[str, list[tuple[str, str]]] = {}
     authority: dict[str, str] = {}
