@@ -22,3 +22,5 @@ Raw downloads are cached in `build/raw/`; the output is `build/solidi.sqlite`, p
 ## Data licences
 
 Type data from OCRE is ODbL, so the built database must be published under ODbL. Each specimen's dataset carries its own licence; see the `dataset` table.
+
+`uv run solidi release` writes the downloadable copy to `build/release/`: only data whose licence can be shared under the ODbL (`release_licences` in `data/sources.yaml`), without the site-only tables, gzipped, with a checksum and release notes. `--publish` creates the GitHub release; the repository must be public.

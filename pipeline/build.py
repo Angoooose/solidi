@@ -93,6 +93,9 @@ def main() -> None:
     s = sub.add_parser("score-images", help="download and score candidate photos into the cache (slow the first time)")
     s.add_argument("--build-dir", type=Path, default=ROOT / "build")
     s.add_argument("--rescore", action="store_true", help="recompute scores from the kept thumbnails, no downloads")
+    r = sub.add_parser("release", help="write the downloadable ODbL copy of the database (build/release/)")
+    r.add_argument("--build-dir", type=Path, default=ROOT / "build")
+    r.add_argument("--publish", action="store_true", help="also publish it as a GitHub release (the repo must be public)")
     args = parser.parse_args()
     if args.command == "score-images":
         raw = args.build_dir / "raw"
@@ -103,6 +106,17 @@ def main() -> None:
         return
     if args.command == "build":
         sys.exit(build(args.authority, args.refresh, args.build_dir))
+    if args.command == "release":
+        from pipeline import release
+        config = yaml.safe_load((ROOT / "data" / "sources.yaml").read_text())
+        out_dir, info = release.build_release(args.build_dir, config["release_licences"])
+        a, b = info["after"], info["before"]
+        size = (out_dir / release.ASSET).stat().st_size / 1e6
+        print(f"{out_dir / release.ASSET} ({size:.1f} MB): {a['coin_type']:,} of {b['coin_type']:,} types, "
+              f"{a['specimen']:,} of {b['specimen']:,} specimens; {len(info['left_out'])} sources left out (NOTES.md)")
+        if args.publish:
+            print(f"published {release.publish(out_dir, info['built_at'])}")
+        return
     if args.command == "export-d1":
         from pipeline import export_d1
         src, out = args.build_dir / "solidi.sqlite", args.build_dir / "solidi.sql"

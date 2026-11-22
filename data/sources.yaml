@@ -105,6 +105,16 @@ licence_rules:
   - match: fdl
     commercial_ok: true
 
+# Licences whose data can go into the downloadable database (`solidi release`), which is shared
+# under the ODbL. Matched as substrings of the dataset's licence. Share-alike licences other than
+# the ODbL (CC BY-SA, GFDL) can't be relicensed, so they are not here; nor are non-commercial,
+# no-derivatives or a collection's own terms. Their data stays on the site, out of the download.
+release_licences:
+  - odbl
+  - publicdomain
+  - cc0
+  - /by/          # CC BY, any version: '/licenses/by/4.0/' (not by-sa, by-nc or by-nd)
+
 # Where an institution's image terms differ from its dataset licence.
 # Keys are Nomisma dataset URIs.
 image_overrides:
