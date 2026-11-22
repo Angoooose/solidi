@@ -279,7 +279,7 @@ export function SearchCommand({ className }: { className?: string }) {
         onClick={() => setOpen(true)}
         className={cn(
           "-mr-2.5 flex size-10 min-w-0 shrink-0 items-center justify-center text-left text-ui text-stone transition-colors hover:text-ink",
-          "lg:mr-0 lg:h-9 lg:w-auto lg:shrink lg:justify-start lg:gap-2.5 lg:border lg:border-input lg:bg-white lg:pr-2 lg:pl-3 lg:hover:border-ink",
+          "lg:mr-0 lg:h-9 lg:w-auto lg:shrink lg:justify-start lg:gap-2.5 lg:border lg:border-input lg:bg-white lg:pr-2 lg:pl-3 lg:hover:bg-wash",
           className
         )}
       >
