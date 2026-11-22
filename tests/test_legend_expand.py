@@ -23,15 +23,15 @@ SAMPLE = Dictionary({
 def test_roman_numerals():
     assert [roman_value(t) for t in ("I", "IV", "V", "IX", "XIV", "XL", "XCIX")] == [1, 4, 5, 9, 14, 40, 99]
     assert roman_value("AVG") is None and roman_value("") is None
-    assert [ordinal(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 22)] == [
-        "1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd"]
+    assert [ordinal(n) for n in (1, 2, 3, 4, 11, 12, 20, 21, 22, 23, 111)] == [
+        "first", "second", "third", "fourth", "eleventh", "twelfth", "twentieth", "21st", "22nd", "23rd", "111th"]
 
 
 def test_longest_phrase_wins_and_numbers_attach():
     segs = expand("IMP TRAIANO AVG P M TR P VII COS V P P", SAMPLE)
     assert [s.text for s in segs] == ["IMP", "TRAIANO", "AVG", "P M", "TR P VII", "COS V", "P P"]
-    assert segs[4].english == "tribunician power (7th year)" and segs[4].number == 7
-    assert segs[5].english == "consul for the 5th time"
+    assert segs[4].english == "tribunician power (seventh year)" and segs[4].number == 7
+    assert segs[5].english == "consul for the fifth time"
     assert segs[0].english == "Emperor" and segs[0].number is None   # IMP followed by a name, not a numeral
     assert coverage(segs) == 1.0
 
@@ -106,7 +106,7 @@ def gloss(text, d):
 
 def test_additive_numerals(real):
     segs = gloss("TR POT XIX COS IIII", real)
-    assert any(s.number == 4 and "4th time" in s.english for s in segs)
+    assert any(s.number == 4 and "fourth time" in s.english for s in segs)
     assert gloss("VOT XXX MVLT XXXX", real)[-1].number == 40
 
 

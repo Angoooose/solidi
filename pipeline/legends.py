@@ -117,6 +117,63 @@ def romanised(normalised: str, lang: str = "grc") -> str | None:
     return None
 
 
+# Where on the side each part of a legend sits. OCRE splits fields with '//' and notes the place
+# after a part: 'SALVS AVGVSTI // COS III (in exergue) // S C (in field)'. PCO and SCO write 'l.'
+# and 'r.' after each word: 'ΠΤΟΛΕΜΑΙΟΥ on l., ΒΑΣΙΛΕΩΣ on r.'.
+_PLACE_NOTE = re.compile(r"\(\s*in (exergue or field|exergue|field)\s*\)\s*$")
+_LEFT_RIGHT = re.compile(r"\s*(.+?)\s+(?:on\s+)?([lr])\.,?(?=\s|$)")
+PLACE_NAMES = {"exergue": "exergue", "field": "field", "exergue or field": "exergue or field",
+               "l": "left field", "r": "right field"}
+
+
+def places(legend: str) -> list[tuple[str | None, str]]:
+    """The legend's parts in order, each with its place on the side ('exergue', 'left field'), or
+    None where the source doesn't say. A single part with no place is [(None, legend)]."""
+    text = legend.strip()
+    if "//" in text:
+        parts = []
+        for part in text.split("//"):
+            part = part.strip()
+            if not part:
+                continue
+            note = _PLACE_NOTE.search(part)
+            parts.append((PLACE_NAMES[note.group(1)] if note else None, part[:note.start()].strip() if note else part))
+        # The first part runs around the edge when the others are placed.
+        if len(parts) > 1 and parts[0][0] is None and any(p for p, _ in parts[1:]):
+            parts[0] = ("around", parts[0][1])
+        return parts or [(None, text)]
+    lr = list(_LEFT_RIGHT.finditer(text))
+    if lr and "".join(m.group(0) for m in lr).strip() == text:
+        return [(PLACE_NAMES[m.group(2)], m.group(1)) for m in lr]
+    return [(None, text)]
+
+
+def _place_segments(rows: list[dict], legend: str, lang: str) -> None:
+    """Mark each segment with its part's place, matching words in order. Left alone where the
+    parts' words don't line up with the segments' (a segment spanning two parts, say)."""
+    parts = places(legend)
+    if all(p is None for p, _ in parts):
+        return
+    bounds, total = [], 0
+    for place, part in parts:
+        total += len(normalise(part, lang).split())
+        bounds.append((total, place))
+    if total != sum(len(r["text"].split()) for r in rows):
+        return
+    marks, seen, i = [], 0, 0
+    for r in rows:
+        while i < len(bounds) - 1 and seen >= bounds[i][0]:
+            i += 1
+        start = seen
+        seen += len(r["text"].split())
+        if seen > bounds[i][0] and start < bounds[i][0]:
+            return                       # straddles two parts
+        marks.append(bounds[i][1])
+    for r, place in zip(rows, marks):
+        if place:
+            r["place"] = place
+
+
 def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
                 languages: dict[str, str] | None = None) -> int:
     """`languages`: each dataset slug's main legend language (sources.yaml `legend_language`)."""
@@ -180,7 +237,9 @@ def build_index(db: sqlite3.Connection, dictionary: "Dictionary | None" = None,
                                   truncations=languages.get(slug) == "grc", authority=authority.get(type_id))
                     apply_context_names(segs, romanisers[lang], persons.get(type_id), places.get(type_id))
                 if segs:
-                    segments = json.dumps(as_rows(segs), ensure_ascii=False)
+                    seg_rows = as_rows(segs)
+                    _place_segments(seg_rows, legend, lang)
+                    segments = json.dumps(seg_rows, ensure_ascii=False)
                     latin = " ".join(s.latin or s.text for s in segs)
                     english = " · ".join(s.english or f"[{s.text}]" for s in segs)
                     cov = round(coverage(segs), 3)

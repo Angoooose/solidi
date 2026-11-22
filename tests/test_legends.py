@@ -97,3 +97,18 @@ def test_cn_resolved_letters_and_ligatures_stay_in_the_word():
     assert g("\u039a\u03a5\u30a8\u0399\u039a\u0397\u039d\u03a9\u039d") == "\u039a\u03a5\u0396\u0399\u039a\u0397\u039d\u03a9\u039d"
     assert normalise("C IVL VER MAXIMVS C(A)ES") == "C IVL VER MAXIMVS CAES"
     assert normalise("IMP CAES (rev.N) TRAIANO") == "IMP CAES TRAIANO"      # editorial notes still go
+
+
+def test_places():
+    from pipeline.legends import places, _place_segments
+    assert places("SALVS AVGVSTI // COS III (in exergue) // S C (in field)") == [
+        ("around", "SALVS AVGVSTI"), ("exergue", "COS III"), ("field", "S C")]
+    assert places("ΠΤΟΛΕΜΑΙΟΥ on l., ΒΑΣΙΛΕΩΣ on r.") == [("left field", "ΠΤΟΛΕΜΑΙΟΥ"), ("right field", "ΒΑΣΙΛΕΩΣ")]
+    assert places("IMP TRAIANO AVG") == [(None, "IMP TRAIANO AVG")]
+    rows = [{"text": "SALVS"}, {"text": "AVGVSTI"}, {"text": "COS III"}, {"text": "S C"}]
+    _place_segments(rows, "SALVS AVGVSTI // COS III (in exergue) // S C (in field)", "la")
+    assert [r.get("place") for r in rows] == ["around", "around", "exergue", "field"]
+    # A segment spanning two parts leaves the whole legend unplaced.
+    rows = [{"text": "SALVS AVGVSTI COS"}, {"text": "III"}, {"text": "S C"}]
+    _place_segments(rows, "SALVS AVGVSTI // COS III (in exergue) // S C (in field)", "la")
+    assert all("place" not in r for r in rows)

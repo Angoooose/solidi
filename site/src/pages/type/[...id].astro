@@ -12,7 +12,7 @@ import { DataList, DataRow, RowLink } from "@/components/data"
 import { CoinPair, TypeCard } from "@/components/coin"
 import { SpecimenTable } from "@/components/specimens"
 import { PhotoCredit } from "@/components/credits"
-import { LegendGloss, LegendText, NEEDS_SCRIPT_FONTS } from "@/components/legend"
+import { LegendTable, LegendText, NEEDS_SCRIPT_FONTS } from "@/components/legend"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Breadcrumb,
@@ -84,7 +84,6 @@ const acsearch = type?.catalogue
 const scripts = !!type?.sides.some((s) => s.legend && NEEDS_SCRIPT_FONTS.test(s.legend + (s.transliteration ?? "")))
 const anyMarks = type?.sides.some((s) => s.marks.length)
 const sideLabel = { obverse: "Obverse", reverse: "Reverse" } as const
-const sideHint = { obverse: "Front of the coin", reverse: "Back of the coin" } as const
 const sidePhoto = (side: "obverse" | "reverse") => type?.hero?.photos.find((p) => p.side === side)?.src ?? null
 /* Show the word-by-word gloss only when it explains something (a lone unexplained Lycian word doesn't). */
 const glossed = (s: { segments: { english?: string | null }[] | null }) => !!s.segments?.some((g) => g.english)
@@ -259,62 +258,53 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
           </div>
         </section>
 
-        {/* Legends, word by word */}
+        {/* Legends: a row per side, its description beside the words like a catalogue entry */}
         {type.sides.length > 0 && (
-          <section class="flex flex-wrap gap-x-20 gap-y-10 border-t border-hairline pt-18 pb-22">
-            <h2 class="m-0 flex-[1_1_220px] font-serif text-heading font-normal">{anyMarks ? "Legends and marks" : "Legends"}</h2>
-            <div class="flex min-w-0 flex-[3_1_640px] flex-col gap-16">
-              {type.sides.map((s) => (
-                <div class="flex flex-col gap-7">
-                  <div class="flex items-center gap-5">
-                    {sidePhoto(s.side) && (
-                      <img src={sidePhoto(s.side)!} alt="" class="size-16 flex-none rounded-full object-cover" loading="lazy" />
-                    )}
-                    <div class="flex min-w-0 flex-col">
-                      <span class="text-body">{sideLabel[s.side]}</span>
-                      <span class="text-label text-stone">
-                        {sideHint[s.side]}
-                        {s.description && ` · ${s.description}`}
-                      </span>
-                    </div>
-                  </div>
+          <section class="border-t border-hairline pt-18 pb-10">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-10 gap-y-2 pb-8">
+              <h2 class="m-0 font-serif text-heading font-normal">{anyMarks ? "Legends and marks" : "Legends"}</h2>
+              {anyGloss && <span class="text-label text-stone">Grey letters complete the abbreviations.</span>}
+            </div>
+            {type.sides.map((s) => (
+              <article class="grid gap-x-18 gap-y-8 border-t border-hairline py-12 md:grid-cols-[340px_minmax(0,1fr)]">
+                <div class="flex flex-col gap-4">
+                  {sidePhoto(s.side) && <img src={sidePhoto(s.side)!} alt="" class="size-20 object-contain" loading="lazy" />}
+                  <span class="text-subtitle text-stone">{sideLabel[s.side]}</span>
+                  {s.description && <p class="m-0 font-serif text-[1.625rem] leading-[1.3]">{s.description}</p>}
+                </div>
+                <div class="flex min-w-0 flex-col gap-9">
                   {s.segments && glossed(s) ? (
                     <div class="flex flex-col gap-5">
                       {/* Gandhari, Lycian and Carian segments are transliterated: show the original script above them. */}
                       {TRANSLITERATED.has(s.language ?? "") && s.legend && <LegendText legend={s.legend} language={s.language} />}
-                      <LegendGloss segments={s.segments} language={s.language} rulers={new Set(s.rulers)} />
-                      {s.transliteration && (
-                        <p class="m-0 font-serif text-[18px] leading-snug text-stone italic">
-                          <span class="sr-only">Transliteration: </span>
-                          {s.transliteration}
-                        </p>
-                      )}
+                      <LegendTable segments={s.segments} language={s.language} rulers={new Set(s.rulers)} />
                     </div>
                   ) : s.legend ? (
                     <LegendText legend={s.legend} language={s.language} transliteration={s.transliteration} />
                   ) : (
-                    <p class="m-0 text-body text-stone">No legend.</p>
+                    <p class="m-0 text-body text-stone md:pt-26">No legend.</p>
                   )}
                   {s.marks.length > 0 && (
                     <ul class="m-0 flex list-none flex-wrap gap-x-8 gap-y-6 p-0" aria-label={`${sideLabel[s.side]} monograms and marks`}>
                       {s.marks.map((m) => (
                         <li>
-                          <figure class="m-0 flex w-28 flex-col gap-2" title={m.definition ?? undefined}>
-                            <span class="flex size-16 items-center justify-center bg-plinth p-2">
+                          <figure class="m-0 flex items-center gap-4" title={m.definition ?? undefined}>
+                            <span class="flex size-14 flex-none items-center justify-center bg-plinth p-1.5">
                               {m.image ? (
                                 <img src={m.image} alt={m.letters ? `Monogram of ${m.letters}` : m.name} class="size-full object-contain mix-blend-multiply" loading="lazy" />
                               ) : (
                                 <span class="text-center text-credit text-stone">No drawing</span>
                               )}
                             </span>
-                            <figcaption class="flex flex-col text-credit text-stone">
-                              <span class="text-ink">{m.name}</span>
+                            <figcaption class="flex flex-col gap-0.5 text-label text-stone">
+                              <span class="text-body text-ink">{m.name}</span>
                               {m.letters && (
-                                <span lang={/[\u0370-\u03FF]/.test(m.letters) ? "grc" : undefined} class="font-serif text-label tracking-[0.08em]">
-                                  {m.letters}
+                                <span>
+                                  <span lang={/[\u0370-\u03FF]/.test(m.letters) ? "grc" : undefined} class="font-serif text-body tracking-[0.08em]">{m.letters}</span>
+                                  {m.uncertain && " · uncertain"}
                                 </span>
                               )}
-                              {m.uncertain && <span>uncertain</span>}
+                              {!m.letters && m.uncertain && <span>uncertain</span>}
                             </figcaption>
                           </figure>
                         </li>
@@ -322,11 +312,8 @@ const anyGloss = type?.sides.some((s) => glossed(s) && (s.language ?? "la") === 
                     </ul>
                   )}
                 </div>
-              ))}
-              {anyGloss && (
-                <p class="-mt-6 text-label text-stone">Letters in grey are not on the coin; they complete the abbreviations.</p>
-              )}
-            </div>
+              </article>
+            ))}
           </section>
         )}
 

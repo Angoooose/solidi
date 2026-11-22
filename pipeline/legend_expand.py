@@ -4,7 +4,7 @@
   IMP → Imperator → Emperor · TRAIANO → Traiano → Trajan · … · P M → Pontifex Maximus → chief priest · …
 
 Deterministic: longest phrase first, then single words; a Roman numeral after a numbered title
-attaches to it (COS V → 'consul for the 5th time'). Anything unmatched is kept as 'unknown',
+attaches to it (COS V → 'consul for the fifth time'). Anything unmatched is kept as 'unknown',
 so the original is never hidden or guessed at.
 """
 
@@ -49,7 +49,14 @@ def free_number(token: str) -> int | None:
     return roman_value(token)
 
 
+_ORDINALS = ("first second third fourth fifth sixth seventh eighth ninth tenth eleventh twelfth thirteenth "
+             "fourteenth fifteenth sixteenth seventeenth eighteenth nineteenth twentieth").split()
+
+
 def ordinal(n: int) -> str:
+    """5 -> 'fifth' up to twenty, as English prose writes them; '23rd' beyond."""
+    if 1 <= n <= len(_ORDINALS):
+        return _ORDINALS[n - 1]
     suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
     return f"{n}{suffix}"
 

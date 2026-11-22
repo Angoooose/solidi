@@ -173,8 +173,8 @@ phrases:
   "CONS D N": {latin: "Conservatori Domini Nostri", english: "to the preserver of our Lord", kind: formula}
   "LIBERO P": {latin: "Libero Patri", english: "to Liber Pater", kind: deity}
   "M SACRA": {latin: "Moneta Sacra", english: "sacred mint", kind: formula, note: "M SACRA AVGG ET CAESS NN"}
-  "P VI F": {latin: "Pia VI Fidelis", english: "loyal and faithful (6th time)", kind: epithet, note: "legion titles under Gallienus: LEG XI CL VI P VI F"}
-  "P VII F": {latin: "Pia VII Fidelis", english: "loyal and faithful (7th time)", kind: epithet}
+  "P VI F": {latin: "Pia VI Fidelis", english: "loyal and faithful (sixth time)", kind: epithet, note: "legion titles under Gallienus: LEG XI CL VI P VI F"}
+  "P VII F": {latin: "Pia VII Fidelis", english: "loyal and faithful (seventh time)", kind: epithet}
   "VOTA SOL DEC": {latin: "Vota Soluta Decennalia", english: "ten-year vows fulfilled", kind: formula}
   "VOTA SOL DECENN": {latin: "Vota Soluta Decennalia", english: "ten-year vows fulfilled", kind: formula}
   "VOT SOL DEC": {latin: "Vota Soluta Decennalia", english: "ten-year vows fulfilled", kind: formula}
@@ -253,12 +253,12 @@ phrases:
 
 words:
   # --- Imperial titles and offices --------------------------------------------------------------
-  AVG: {latin: "Augustus", english: "emperor", kind: title, note: "often genitive Augusti in reverse legends (VICTORIA AVG)"}
-  AV: {latin: "Augustus", english: "emperor", kind: title}
-  AG: {latin: "Augustus", english: "emperor", kind: title}
-  AVGVS: {latin: "Augustus", english: "emperor", kind: title}
-  AVGVST: {latin: "Augustus", english: "emperor", kind: title, note: "also Augusti / Augusta by context"}
-  AVGVSTVS: {latin: "Augustus", english: "emperor", kind: title}
+  AVG: {latin: "Augustus", english: "Augustus", kind: title, note: "often genitive Augusti in reverse legends (VICTORIA AVG)"}
+  AV: {latin: "Augustus", english: "Augustus", kind: title}
+  AG: {latin: "Augustus", english: "Augustus", kind: title}
+  AVGVS: {latin: "Augustus", english: "Augustus", kind: title}
+  AVGVST: {latin: "Augustus", english: "Augustus", kind: title, note: "also Augusti / Augusta by context"}
+  AVGVSTVS: {latin: "Augustus", english: "Augustus", kind: title}
   AVGVSTI: {latin: "Augusti", english: "of the Augustus (emperor)", kind: title, lemma: "Augustus"}
   AVGVSTO: {latin: "Augusto", english: "to the Augustus (emperor)", kind: title, lemma: "Augustus"}
   AVGVSTA: {latin: "Augusta", english: "empress", kind: title}
