@@ -339,12 +339,16 @@ CREATE TABLE image (
 CREATE INDEX idx_type_mint ON coin_type(mint_id);
 CREATE INDEX idx_type_dataset ON coin_type(dataset_id);
 CREATE INDEX idx_mint_region ON mint(region_id);
+CREATE INDEX idx_mint_parent ON mint(parent_id) WHERE parent_id IS NOT NULL; -- a city's workshops
 CREATE INDEX idx_type_reference_work ON type_reference(work_id, sort_key);
 CREATE INDEX idx_type_category_category ON type_category(category_id);
 CREATE INDEX idx_type_region_region ON type_region(region_id);
 CREATE INDEX idx_type_symbol_symbol ON type_symbol(symbol_id);
 CREATE INDEX idx_type_denomination_denom ON type_denomination(denomination_id);
-CREATE INDEX idx_type_parent ON coin_type(parent_id);
+-- Partial: only sub-variants have a parent. A full index on parent_id tempts SQLite to answer
+-- `parent_id IS NULL` (most types) through it, walking ~85k rows before the mint, person or subject
+-- condition narrows anything. Lookups by parent (`parent_id = ?`) still use it.
+CREATE INDEX idx_type_parent ON coin_type(parent_id) WHERE parent_id IS NOT NULL;
 CREATE INDEX idx_type_person_person ON type_person(person_id);
 CREATE INDEX idx_type_subject_subject ON type_subject(subject_id);
 CREATE INDEX idx_specimen_type_type ON specimen_type(type_id);
