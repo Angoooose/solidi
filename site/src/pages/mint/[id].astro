@@ -7,6 +7,7 @@
  */
 import { env } from "cloudflare:workers"
 import Base from "@/layouts/Base.astro"
+import { mintDescription } from "@/lib/meta"
 import SiteHeader from "@/components/SiteHeader.astro"
 import SiteFooter from "@/components/SiteFooter.astro"
 import { Crumbs, FacetColumn, RowsHead, Section } from "@/components/collection"
@@ -79,7 +80,10 @@ const asFacets = (items: { value: string; label: string; count: number }[]) => i
 const COLS = "md:grid-cols-[minmax(0,280px)_150px_minmax(0,1fr)_72px]"
 ---
 
-<Base title={mint?.name ?? "Mint not found"}>
+<Base
+  title={mint?.name ?? "Mint not found"}
+  description={mint ? mintDescription({ name: mint.name, region: mint.region?.name ?? null, dates: yearRange(mint.start, mint.end), total: Astro.url.search ? null : mint.total, people: Astro.url.search ? 0 : mint.people.length }) : undefined}
+>
   <SiteHeader current="Mints" />
   {
     !mint ? (

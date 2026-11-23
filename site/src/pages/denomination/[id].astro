@@ -8,6 +8,7 @@
  */
 import { env } from "cloudflare:workers"
 import Base from "@/layouts/Base.astro"
+import { denominationDescription } from "@/lib/meta"
 import SiteHeader from "@/components/SiteHeader.astro"
 import SiteFooter from "@/components/SiteFooter.astro"
 import { Crumbs, FacetColumn, RowsHead, Section } from "@/components/collection"
@@ -82,7 +83,10 @@ const filters = d
 const metal = d && [d.material, d.also && `also ${d.also.toLowerCase()}`].filter(Boolean).join(", ")
 ---
 
-<Base title={d?.name ?? "Denomination not found"}>
+<Base
+  title={d?.name ?? "Denomination not found"}
+  description={d ? denominationDescription({ name: d.name, metal: d.material, dates: yearRange(d.start, d.end), total: Astro.url.search ? null : d.total, mints: Astro.url.search ? 0 : d.mints.total }) : undefined}
+>
   <SiteHeader current="Denominations" />
   {
     !d ? (

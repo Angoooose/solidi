@@ -69,7 +69,7 @@ const summary = !list
     : `${fmt(one ? one.rows.length : list.total)} in ${category ? category.name : "every collection"}`
 ---
 
-<Base title={[one?.name ?? "Subjects", category?.name].filter(Boolean).join(" · ")}>
+<Base title={[one?.name ?? "Subjects", category?.name].filter(Boolean).join(" · ")} description="The gods, people, animals and objects shown on ancient coins, with the coin types that show each one.">
   <SiteHeader current="Subjects" />
   <Page>
     {groupId && <a href={link({ group: null })} class="text-ui text-stone underline-offset-4 hover:text-ink hover:underline">← All subjects</a>}

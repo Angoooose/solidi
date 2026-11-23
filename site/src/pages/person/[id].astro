@@ -5,6 +5,7 @@
  */
 import { env } from "cloudflare:workers"
 import Base from "@/layouts/Base.astro"
+import { personDescription } from "@/lib/meta"
 import SiteHeader from "@/components/SiteHeader.astro"
 import SiteFooter from "@/components/SiteFooter.astro"
 import { DataList, DataRow, RowLink } from "@/components/data"
@@ -56,7 +57,10 @@ const filters = person
   : []
 ---
 
-<Base title={person?.name ?? "Person not found"}>
+<Base
+  title={person?.name ?? "Person not found"}
+  description={person ? personDescription({ name: person.name, dates: person.ruled ?? person.lived, total: Astro.url.search ? null : person.total, collection: home?.name ?? null }) : undefined}
+>
   <SiteHeader current="People" />
   {
     !person ? (

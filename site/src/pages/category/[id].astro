@@ -8,6 +8,7 @@
  */
 import { env } from "cloudflare:workers"
 import Base from "@/layouts/Base.astro"
+import { collectionDescription } from "@/lib/meta"
 import SiteHeader from "@/components/SiteHeader.astro"
 import SiteFooter from "@/components/SiteFooter.astro"
 import {
@@ -62,7 +63,7 @@ const shown = parent
 const credits = page ? await getPhotoCredits(env.DB, photoIds(shown)) : []
 ---
 
-<Base title={c?.name ?? "Collection not found"}>
+<Base title={c?.name ?? "Collection not found"} description={c ? collectionDescription({ name: c.name, dates, types: c.types, mints: c.mints }) : undefined}>
   <SiteHeader current="Collections" />
   {
     !page || !c ? (

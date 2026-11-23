@@ -8,6 +8,7 @@
  */
 import { env } from "cloudflare:workers"
 import Base from "@/layouts/Base.astro"
+import { subjectDescription } from "@/lib/meta"
 import SiteHeader from "@/components/SiteHeader.astro"
 import SiteFooter from "@/components/SiteFooter.astro"
 import { Crumbs, FacetColumn, RowsHead, Section } from "@/components/collection"
@@ -84,7 +85,10 @@ const filters = s
 const columns = s ? [s.people.total, s.denominations.total, s.mints.total, s.legends.length].filter((n) => n > 0).length : 0
 ---
 
-<Base title={s?.name ?? "Subject not found"}>
+<Base
+  title={s?.name ?? "Subject not found"}
+  description={s ? subjectDescription({ name: s.name, dates: yearRange(s.start, s.end), total: Astro.url.search ? null : s.total, mints: Astro.url.search ? 0 : s.mints.total }) : undefined}
+>
   <SiteHeader current="Subjects" />
   {
     !s ? (

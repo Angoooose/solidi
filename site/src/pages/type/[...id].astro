@@ -24,6 +24,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { getCoinType } from "@/lib/coinType"
+import { typeDescription, typeTitle } from "@/lib/meta"
 import { acsearchUrl, capitalise, plinthLegend, typePath } from "@/lib/format"
 
 /* Astro decodes the path but leaves reserved characters escaped: '%3F' for the '?' in some source IDs (lib/format.ts typePath). */
@@ -78,6 +79,18 @@ const subtitle = type
     )
   : ""
 
+/* Search and link previews: "Trajan denarius, Dacian seated left · RIC II Trajan 98", and the subtitle with the reverse. */
+const reverse = type?.sides.find((s) => s.side === "reverse")?.description ?? null
+const pageTitle = type
+  ? typeTitle({
+      reference: type.reference,
+      who: (strucker ?? stated)?.name ?? type.mint?.name ?? null,
+      denomination: type.denominations[0] ? type.denominations[0].name.charAt(0).toLowerCase() + type.denominations[0].name.slice(1) : null,
+      reverse,
+    })
+  : "Type not found"
+const description = type ? typeDescription({ summary: subtitle, reference: type.reference, reverse }) : undefined
+
 const acsearch = type?.catalogue
   ? acsearchUrl(type.catalogue.work, type.catalogue.volume, type.catalogue.number, ruler?.name ?? null)
   : null
@@ -93,7 +106,7 @@ const TRANSLITERATED = new Set(["pgd", "xlc", "xcr"])
 
 ---
 
-<Base title={type ? `${type.reference}` : "Type not found"} scripts={scripts}>
+<Base title={pageTitle} description={description} scripts={scripts}>
   <SiteHeader />
   {
     !type ? (
