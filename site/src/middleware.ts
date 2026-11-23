@@ -1,6 +1,6 @@
 /*
  * Edge cache for pages that only change when the database is rebuilt: the collection pages, the
- * people list, and the data behind the Collections menu and the ⌘K palette. A cached copy is
+ * people list, the sitemaps, and the data behind the Collections menu and the ⌘K palette. A cached copy is
  * served without running the page or touching D1. Copies are keyed by the database's build time (build_info.built_at), so loading
  * a new database retires them all at once; the build time itself is read at most once a minute
  * per Worker instance.
@@ -10,7 +10,7 @@
 import { defineMiddleware } from "astro:middleware"
 import { env } from "cloudflare:workers"
 
-const CACHED = [/^\/$/, /^\/collections\/?$/, /^\/mints\/?$/, /^\/mint\/[^/]+\/?$/, /^\/denominations\/?$/, /^\/denomination\/[^/]+\/?$/, /^\/subjects\/?$/, /^\/subject\/[^/]+\/?$/, /^\/category\/[^/]+\/?$/, /^\/people\/?$/, /^\/sources\/?$/, /^\/about\/?$/, /^\/api\/collections\.json$/, /^\/api\/search-index\.json$/, /^\/api\/search\.json$/]
+const CACHED = [/^\/$/, /^\/collections\/?$/, /^\/mints\/?$/, /^\/mint\/[^/]+\/?$/, /^\/denominations\/?$/, /^\/denomination\/[^/]+\/?$/, /^\/subjects\/?$/, /^\/subject\/[^/]+\/?$/, /^\/category\/[^/]+\/?$/, /^\/people\/?$/, /^\/sources\/?$/, /^\/about\/?$/, /^\/api\/collections\.json$/, /^\/api\/search-index\.json$/, /^\/api\/search\.json$/, /^\/sitemap\.xml$/, /^\/sitemaps\/[^/]+$/]
 const TTL = 60 * 60 * 24 // a day; the build key retires copies sooner when the data changes
 const BUILD_CHECK_MS = 60_000
 

@@ -8,6 +8,8 @@ import { cn } from 'cn/vite';
 
 // https://astro.build/config
 export default defineConfig({
+  // Canonical, Open Graph and sitemap URLs are built on this (layouts/Base.astro, pages/sitemap*).
+  site: "https://solidi.org",
   output: "server",
   integrations: [react()],
   adapter: cloudflare(),

@@ -1,6 +1,7 @@
 ---
 import "@/styles/global.css";
 import { ClientRouter } from "astro:transitions";
+import { canonicalView } from "@/lib/seo";
 interface Props {
   /** The page's name; " · Solidi" is added unless it already starts with Solidi (Home). */
   title: string
@@ -14,12 +15,15 @@ const DESCRIPTION =
 const { title, scripts = false, description = DESCRIPTION } = Astro.props;
 const fullTitle = title.startsWith("Solidi") ? title : `${title} · Solidi`
 /*
- * Link previews (Open Graph, X). One image for every page for now: public/og.jpg, the Met's
- * aureus of Julia Domna (CC0) beside the wordmark. Previews need absolute URLs; the site has no
- * fixed domain yet, so they're built from the request. The query string is left off og:url.
+ * The canonical URL, and whether search engines may index this view (lib/seo.ts): a page without
+ * a query string, or an index page scoped to one collection. Filtered, sorted and "show more"
+ * views are noindex, follow, and name the page itself as canonical.
  */
-const url = new URL(Astro.url.pathname, Astro.url.origin).href
-const image = new URL("/og.jpg", Astro.url.origin).href
+const site = Astro.site ?? new URL(Astro.url.origin)
+const { canonical: path, indexable } = canonicalView(Astro.url)
+const url = new URL(path, site).href
+/* Link previews (Open Graph, X): one image for every page, public/og.jpg, the Met's aureus of Julia Domna (CC0) beside the wordmark. */
+const image = new URL("/og.jpg", site).href
 ---
 <!doctype html>
 <html lang="en">
@@ -28,6 +32,8 @@ const image = new URL("/og.jpg", Astro.url.origin).href
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={url} />
+    {!indexable && <meta name="robots" content="noindex, follow" />}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Solidi" />
     <meta property="og:title" content={fullTitle} />
