@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="site/public/og.jpg" width="420" alt="Solidi: an aureus of Julia Domna, Metropolitan Museum of Art (CC0)">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/banner-dark.png">
+    <img src=".github/banner-light.png" width="640" alt="Solidi: gold coins of Nero, Nerva, Julian II, Julia Domna and Diocletian (Art Institute of Chicago, CC0)">
+  </picture>
 </p>
 
 <h3 align="center">An open encyclopedia of ancient coinage</h3>
