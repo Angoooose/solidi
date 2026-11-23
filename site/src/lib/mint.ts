@@ -8,7 +8,7 @@
  * sub-variants (the type counting rule), so they match the mints list.
  */
 import { getCategories, tree, type Category, type MapMint } from "@/lib/categories"
-import { COLLECTION, DENOMINATION, ISSUER, MATERIAL, cards, coinage, parseCommon, type Facet, type Sort } from "@/lib/coinage"
+import { COLLECTION, DENOMINATION, ISSUER, MATERIAL, PHOTO, cards, coinage, parseCommon, photoToggle, type Facet, type PhotoToggle, type Sort } from "@/lib/coinage"
 import { lead } from "@/lib/format"
 import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
@@ -27,11 +27,13 @@ export type MintQuery = {
   material: string | null
   sort: Sort
   limit: number
+  /** "1": only types with a photograph. */
+  photo: string | null
 }
 
 export function parseQuery(params: URLSearchParams): MintQuery {
-  const { slug, sort, limit } = parseCommon(params)
-  return { collection: slug("collection"), issuer: slug("issuer"), denomination: slug("denomination"), material: slug("material"), sort, limit }
+  const { slug, photo, sort, limit } = parseCommon(params)
+  return { collection: slug("collection"), issuer: slug("issuer"), denomination: slug("denomination"), material: slug("material"), photo, sort, limit }
 }
 
 type Span = [number, number]
@@ -64,6 +66,8 @@ export type Mint = {
   issuerFacet: Facet[]
   denominationFacet: Facet[]
   materialFacet: Facet[]
+  /** The "Photographed" toggle. */
+  photographed: PhotoToggle
   total: number
   grid: TypeCardData[]
   typeCredits: PhotoCreditItem[]
@@ -71,7 +75,7 @@ export type Mint = {
 
 /* Every live type struck at the mint (?1) or one of its workshops. */
 const BASE = `t.replaced_by_id IS NULL AND t.parent_id IS NULL AND t.mint_id IN (SELECT id FROM mint WHERE id = ?1 OR parent_id = ?1)`
-const FILTERS = [COLLECTION, ISSUER, DENOMINATION, MATERIAL]
+const FILTERS = [COLLECTION, ISSUER, DENOMINATION, MATERIAL, PHOTO]
 
 export async function getMint(db: D1Database, id: string, query: MintQuery): Promise<Mint | { redirect: string } | null> {
   const mint = await db
@@ -87,14 +91,14 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
   if (mint.parent) return { redirect: mint.parent }
 
   const t = tree(await getCategories(db))
-  const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.denomination, query.material])
+  const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.denomination, query.material, query.photo])
   const { one } = c
   const facet = (join: string, table: string) =>
     one(`SELECT x.id AS value, x.name AS label, count(DISTINCT t.id) AS count
          FROM coin_type t JOIN ${join} j ON j.type_id = t.id JOIN ${table} x ON x.id = j.${table}_id
          WHERE ${BASE} GROUP BY x.id ORDER BY count DESC, x.name`)
 
-  const [article, perCollection, stats, people, denominations, materials, subjects, collectionFacet, issuerFacet, denominationFacet, materialFacet, total, types] =
+  const [article, perCollection, stats, people, denominations, materials, subjects, collectionFacet, issuerFacet, denominationFacet, materialFacet, total, photoRows, types] =
     await db.batch([
       one(`SELECT extract, url, licence FROM article WHERE entity_type = 'mint' AND entity_id = ?1
            ORDER BY source = 'wikipedia_en' DESC LIMIT 1`),
@@ -116,6 +120,7 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
       c.denominationFacet(),
       c.materialFacet(),
       c.total(),
+      c.photoFacet(),
       c.types(query.sort, query.limit),
     ])
 
@@ -181,6 +186,7 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
     issuerFacet: issuerFacet.results as Facet[],
     denominationFacet: denominationFacet.results as Facet[],
     materialFacet: materialFacet.results as Facet[],
+    photographed: photoToggle(photoRows),
     total: (total.results[0] as { n: number }).n,
     grid: grid_.types,
     typeCredits: grid_.typeCredits,

@@ -13,7 +13,7 @@
 import { iiif, lead, secure, year, yearRange } from "@/lib/format"
 import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
 import { USABLE, type TypeCardData } from "@/lib/typeCards"
-import { DENOMINATION, ISSUER, PERIOD, cards, coinage, parseCommon, periods, type Facet, type Filter, type Sort } from "@/lib/coinage"
+import { DENOMINATION, ISSUER, PERIOD, PHOTO, cards, coinage, parseCommon, periods, photoToggle, type Facet, type Filter, type PhotoToggle, type Sort } from "@/lib/coinage"
 
 export { PAGE_SIZE } from "@/lib/coinage"
 export type { Facet, Sort }
@@ -36,6 +36,8 @@ export type PersonQuery = {
   struck: string | null
   sort: Sort
   limit: number
+  /** "1": only types with a photograph. */
+  photo: string | null
 }
 
 export type Person = {
@@ -66,6 +68,8 @@ export type Person = {
   issuerFacet: Facet[]
   denominationFacet: Facet[]
   periodFacet: Facet[]
+  /** The "Photographed" toggle. */
+  photographed: PhotoToggle
   total: number
   types: TypeCardData[]
   typeCredits: PhotoCreditItem[]
@@ -78,7 +82,7 @@ const BASE = `t.replaced_by_id IS NULL AND t.id IN (SELECT type_id FROM type_per
 /* Struck in the person's name by someone else: they are named on it but are not its authority. */
 const IN_NAME_SQL = `(t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role = 'stated_authority')
   AND t.id NOT IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role IN ('authority', 'issuer')))`
-/* In the order of their parameters, ?2 to ?6. */
+/* In the order of their parameters, ?2 to ?7. */
 const FILTERS: Filter[] = [
   {
     name: "portrait",
@@ -89,16 +93,18 @@ const FILTERS: Filter[] = [
   DENOMINATION,
   PERIOD,
   { name: "struck", match: (v) => `(${v} = '${IN_NAME}') = ${IN_NAME_SQL}` },
+  PHOTO,
 ]
 
 export function parseQuery(params: URLSearchParams): PersonQuery {
-  const { slug, period, sort, limit } = parseCommon(params)
+  const { slug, period, photo, sort, limit } = parseCommon(params)
   return {
     struck: params.get("struck") === OWN || params.get("struck") === IN_NAME ? params.get("struck") : null,
     portrait: slug("portrait"),
     issuer: slug("issuer"),
     denomination: slug("denomination"),
     period,
+    photo,
     sort,
     limit,
   }
@@ -127,10 +133,10 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
     }>()
   if (!person) return null
 
-  const c = coinage(db, id, BASE, FILTERS, [query.portrait, query.issuer, query.denomination, query.period, query.struck])
+  const c = coinage(db, id, BASE, FILTERS, [query.portrait, query.issuer, query.denomination, query.period, query.struck, query.photo])
   const { one, grid, where } = c
 
-  const [available, article, family, mainMint, ownSpan, categories, struckFacet, portraitFacet, noPortrait, issuerFacet, denoms, periodRows, total, types, portraits] =
+  const [available, article, family, mainMint, ownSpan, categories, struckFacet, portraitFacet, noPortrait, issuerFacet, denoms, periodRows, total, photoRows, types, portraits] =
     await db.batch([
       // Option counts over the unfiltered coinage, to decide which filters the page offers.
       one(`SELECT
@@ -181,6 +187,7 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
       c.denominationFacet(),
       c.periodFacet(),
       c.total(),
+      c.photoFacet(),
       c.types(query.sort, query.limit),
       // Their own portrait, one per distinct start year, earliest to latest; sampled below.
       one(`SELECT t.id, t.title, t.start_year, t.end_year,
@@ -272,6 +279,7 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
     issuerFacet: issuerFacet.results as Facet[],
     denominationFacet: denoms.results as Facet[],
     periodFacet: periods(periodRows),
+    photographed: photoToggle(photoRows),
     total: (total.results[0] as { n: number }).n,
     types: grid_.types,
     typeCredits: grid_.typeCredits,

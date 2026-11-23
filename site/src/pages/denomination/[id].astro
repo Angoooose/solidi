@@ -215,7 +215,7 @@ const metal = d && [d.material, d.also && `also ${d.also.toLowerCase()}`].filter
         <Section id="coinage" className="flex scroll-mt-6 flex-col gap-8">
           <h2 class="m-0 font-serif text-heading font-normal">Coinage</h2>
           <div class="border-b border-hairline pb-3">
-            <CoinageFilters client:idle filters={filters} sort={query.sort} />
+            <CoinageFilters client:idle filters={filters} photo={{ on: query.photo != null, ...d.photographed }} sort={query.sort} />
           </div>
           {d.grid.length ? (
             <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-10">

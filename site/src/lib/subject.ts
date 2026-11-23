@@ -5,7 +5,7 @@
  * the legends naming it (subject_legend), then its coinage with filters (lib/coinage.ts).
  */
 import { getCategories, photo, tree, IMAGE_COLS, type Category, type Photo } from "@/lib/categories"
-import { COLLECTION, DENOMINATION, ISSUER, cards, coinage, parseCommon, type Facet, type Filter, type Sort } from "@/lib/coinage"
+import { COLLECTION, DENOMINATION, ISSUER, PHOTO, cards, coinage, parseCommon, photoToggle, type Facet, type Filter, type PhotoToggle, type Sort } from "@/lib/coinage"
 import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
 import type { Bin } from "@/components/charts"
@@ -24,10 +24,12 @@ export type SubjectQuery = {
   legend: string | null
   sort: Sort
   limit: number
+  /** "1": only types with a photograph. */
+  photo: string | null
 }
 
 export function parseQuery(params: URLSearchParams): SubjectQuery {
-  const { slug, sort, limit } = parseCommon(params)
+  const { slug, photo, sort, limit } = parseCommon(params)
   const side = params.get("side")
   const legend = params.get("legend")
   return {
@@ -36,6 +38,7 @@ export function parseQuery(params: URLSearchParams): SubjectQuery {
     denomination: slug("denomination"),
     side: side === "obverse" || side === "reverse" ? side : null,
     legend: legend && LEGEND.test(legend) ? legend : null,
+    photo,
     sort,
     limit,
   }
@@ -73,6 +76,8 @@ export type Subject = {
   issuerFacet: Facet[]
   denominationFacet: Facet[]
   sideFacet: Facet[]
+  /** The "Photographed" toggle. */
+  photographed: PhotoToggle
   total: number
   grid: TypeCardData[]
   typeCredits: PhotoCreditItem[]
@@ -86,7 +91,7 @@ const LEGEND_FILTER: Filter = {
   name: "legend",
   match: (v) => `t.id IN (SELECT g.type_id FROM legend g JOIN type_subject ts ON ts.type_id = g.type_id AND ts.side = g.side AND ts.subject_id = ?1 WHERE g.normalised = ${v})`,
 }
-const FILTERS = [COLLECTION, ISSUER, DENOMINATION, SIDE, LEGEND_FILTER]
+const FILTERS = [COLLECTION, ISSUER, DENOMINATION, SIDE, LEGEND_FILTER, PHOTO]
 
 export async function getSubject(db: D1Database, id: string, query: SubjectQuery): Promise<Subject | null> {
   const s = await db
@@ -108,10 +113,10 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
   if (!s) return null
 
   const t = tree(await getCategories(db))
-  const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.denomination, query.side, query.legend])
+  const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.denomination, query.side, query.legend, query.photo])
   const { one } = c
 
-  const [article, perCollection, people, denominations, mints, legends, collectionFacet, issuerFacet, denominationFacet, sideFacet, total, types] =
+  const [article, perCollection, people, denominations, mints, legends, collectionFacet, issuerFacet, denominationFacet, sideFacet, total, photoRows, types] =
     await db.batch([
       one(`SELECT extract, url, licence FROM article WHERE entity_type = 'subject' AND entity_id = ?1
            ORDER BY source = 'wikipedia_en' DESC LIMIT 1`),
@@ -133,6 +138,7 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
               FROM coin_type t JOIN type_subject ts ON ts.type_id = t.id AND ts.subject_id = ?1
               WHERE ${c.where("side")} GROUP BY ts.side ORDER BY count DESC`),
       c.total(),
+      c.photoFacet(),
       c.types(query.sort, query.limit),
     ])
 
@@ -180,6 +186,7 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
     issuerFacet: issuerFacet.results as Facet[],
     denominationFacet: denominationFacet.results as Facet[],
     sideFacet: sideFacet.results as Facet[],
+    photographed: photoToggle(photoRows),
     total: (total.results[0] as { n: number }).n,
     grid: grid.types,
     typeCredits: grid.typeCredits,

@@ -6,7 +6,7 @@
  * subjects, and its coinage with filters (lib/coinage.ts).
  */
 import { getCategories, photo, tree, IMAGE_COLS, type Category, type Photo } from "@/lib/categories"
-import { COLLECTION, ISSUER, MINT, cards, coinage, parseCommon, type Facet, type Sort } from "@/lib/coinage"
+import { COLLECTION, ISSUER, MINT, PHOTO, cards, coinage, parseCommon, photoToggle, type Facet, type PhotoToggle, type Sort } from "@/lib/coinage"
 import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
 import type { Bin } from "@/components/charts"
@@ -21,11 +21,13 @@ export type DenominationQuery = {
   mint: string | null
   sort: Sort
   limit: number
+  /** "1": only types with a photograph. */
+  photo: string | null
 }
 
 export function parseQuery(params: URLSearchParams): DenominationQuery {
-  const { slug, sort, limit } = parseCommon(params)
-  return { collection: slug("collection"), issuer: slug("issuer"), mint: slug("mint"), sort, limit }
+  const { slug, photo, sort, limit } = parseCommon(params)
+  return { collection: slug("collection"), issuer: slug("issuer"), mint: slug("mint"), photo, sort, limit }
 }
 
 export type SizeTab = {
@@ -64,6 +66,8 @@ export type Denomination = {
   collectionFacet: Facet[]
   issuerFacet: Facet[]
   mintFacet: Facet[]
+  /** The "Photographed" toggle. */
+  photographed: PhotoToggle
   total: number
   grid: TypeCardData[]
   typeCredits: PhotoCreditItem[]
@@ -71,7 +75,7 @@ export type Denomination = {
 
 /* Every live type of the denomination (?1). */
 const BASE = `t.replaced_by_id IS NULL AND t.parent_id IS NULL AND t.id IN (SELECT type_id FROM type_denomination WHERE denomination_id = ?1)`
-const FILTERS = [COLLECTION, ISSUER, MINT]
+const FILTERS = [COLLECTION, ISSUER, MINT, PHOTO]
 
 export async function getDenomination(db: D1Database, id: string, query: DenominationQuery): Promise<Denomination | null> {
   const d = await db
@@ -91,10 +95,10 @@ export async function getDenomination(db: D1Database, id: string, query: Denomin
   if (!d) return null
 
   const t = tree(await getCategories(db))
-  const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.mint])
+  const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.mint, query.photo])
   const { one } = c
 
-  const [article, perCollection, sizes, people, mints, subjects, collectionFacet, issuerFacet, mintFacet, total, types] = await db.batch([
+  const [article, perCollection, sizes, people, mints, subjects, collectionFacet, issuerFacet, mintFacet, total, photoRows, types] = await db.batch([
     one(`SELECT extract, url, licence FROM article WHERE entity_type = 'denomination' AND entity_id = ?1
          ORDER BY source = 'wikipedia_en' DESC LIMIT 1`),
     one(`SELECT category_id AS id, n, start_year AS start, end_year AS "end", weight, bins FROM category_denomination WHERE denomination_id = ?1`),
@@ -116,6 +120,7 @@ export async function getDenomination(db: D1Database, id: string, query: Denomin
     c.issuerFacet(),
     c.mintFacet(),
     c.total(),
+    c.photoFacet(),
     c.types(query.sort, query.limit),
   ])
 
@@ -168,6 +173,7 @@ export async function getDenomination(db: D1Database, id: string, query: Denomin
     collectionFacet: collectionFacet.results as Facet[],
     issuerFacet: issuerFacet.results as Facet[],
     mintFacet: mintFacet.results as Facet[],
+    photographed: photoToggle(photoRows),
     total: (total.results[0] as { n: number }).n,
     grid: grid.types,
     typeCredits: grid.typeCredits,

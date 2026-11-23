@@ -41,11 +41,17 @@ const CARD_LEGEND = (side: string) => `
   (SELECT l.legend FROM legend l WHERE l.type_id = t.id AND l.side = '${side}' AND l.language IN ('la', 'grc')
    ORDER BY l.id LIMIT 1)`
 
+/* The photos a card can show for `coin_type t`: a reverse or combined image browsers can load. */
+const CARD_IMAGES = `FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
+   WHERE st.type_id = t.id AND i.side IN ('reverse', 'combined') AND ${USABLE("i")}`
+
 /* One reverse photo per type: prefer a reverse, then a combined image; IIIF first. */
 const CARD_IMAGE = (col: string) => `
-  (SELECT i.${col} FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-   WHERE st.type_id = t.id AND i.side IN ('reverse', 'combined') AND ${USABLE("i")}
+  (SELECT i.${col} ${CARD_IMAGES}
    ORDER BY i.side = 'combined', i.iiif_service IS NULL LIMIT 1)`
+
+/** Whether `coin_type t`'s card shows a photo (rather than the plinth): the "Photographed" filter. */
+export const HAS_CARD_IMAGE = `EXISTS (SELECT 1 ${CARD_IMAGES})`
 
 export const CARD_SELECT = `
   SELECT t.id, t.title, t.rev_description, t.start_year, t.end_year,

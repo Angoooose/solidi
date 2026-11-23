@@ -199,7 +199,7 @@ const filters = person
           </div>
 
           <div class="border-b border-hairline pb-3">
-            <CoinageFilters client:idle filters={filters} sort={query.sort} />
+            <CoinageFilters client:idle filters={filters} photo={{ on: query.photo != null, ...person.photographed }} sort={query.sort} />
           </div>
 
           {person.types.length ? (

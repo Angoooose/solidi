@@ -9,7 +9,7 @@
  */
 import { yearRange } from "@/lib/format"
 import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
-import { CARD_SELECT, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
+import { CARD_SELECT, HAS_CARD_IMAGE, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
 
 export const PAGE_SIZE = 30
 
@@ -41,6 +41,13 @@ export const COLLECTION: Filter = {
   match: (v) => `t.id IN (SELECT tc.type_id FROM type_category tc WHERE tc.is_primary = 1 AND tc.category_id IN (
     WITH RECURSIVE d(id) AS (SELECT ${v} UNION ALL SELECT c.id FROM category c JOIN d ON c.parent_id = d.id) SELECT id FROM d))`,
 }
+/* Only types whose card shows a photo (?photo=1). Every coinage has it, last in its filters. */
+export const PHOTO: Filter = { name: "photo", match: () => HAS_CARD_IMAGE }
+
+/** The "Photographed" toggle: types with a photo under the other filters, and whether the
+ *  coinage has both photographed and unphotographed types (fixed per page, like `available`). */
+export type PhotoToggle = { count: number; available: boolean }
+
 /* A mint and its workshops. */
 export const MINT: Filter = { name: "mint", match: (v) => `t.mint_id IN (SELECT id FROM mint WHERE id = ${v} OR parent_id = ${v})` }
 
@@ -53,6 +60,7 @@ export function parseCommon(params: URLSearchParams) {
   return {
     slug: (k: string) => (SLUG.test(params.get(k) ?? "") ? params.get(k) : null),
     period: /^-?\d+--?\d+$/.test(params.get("date") ?? "") ? params.get("date") : null,
+    photo: params.get("photo") === "1" ? "1" : null,
     sort: sort in ORDER ? sort : ("earliest" as Sort),
     limit: Number.isInteger(limit) && limit > 0 ? Math.min(limit, 600) : PAGE_SIZE,
   }
@@ -106,12 +114,22 @@ export function coinage(db: D1Database, id: string, base: string, filters: Filte
       grid(`SELECT coalesce(p.id, m.id) AS value, coalesce(p.name, m.name) AS label, count(*) AS count
             FROM coin_type t JOIN mint m ON m.id = t.mint_id LEFT JOIN mint p ON p.id = m.parent_id
             WHERE ${where("mint")} GROUP BY value ORDER BY count DESC, label`),
+    /** For the "Photographed" toggle (read with `photoToggle`); the coinage must include PHOTO. */
+    photoFacet: () =>
+      grid(`SELECT (SELECT count(*) FROM coin_type t WHERE ${where("photo")} AND ${HAS_CARD_IMAGE}) AS count,
+              (SELECT count(*) FROM coin_type t WHERE ${base}) AS n,
+              (SELECT count(*) FROM coin_type t WHERE ${base} AND ${HAS_CARD_IMAGE}) AS photographed`),
     total: () => grid(`SELECT count(*) AS n FROM coin_type t WHERE ${where()}`),
     types: (sort: Sort, limit: number) =>
       grid(`${CARD_SELECT}
             LEFT JOIN type_reference r ON r.type_id = t.id AND r.is_primary = 1
             WHERE ${where()} ORDER BY ${ORDER[sort]} LIMIT ${limit}`),
   }
+}
+
+export function photoToggle(result: D1Result): PhotoToggle {
+  const r = result.results[0] as { count: number; n: number; photographed: number }
+  return { count: r.count, available: r.photographed > 0 && r.photographed < r.n }
 }
 
 /** Period options labelled by their dates: "AD 103–111". */
