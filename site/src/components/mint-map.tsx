@@ -3,7 +3,7 @@
  * a static file (public/maps/<category>.svg, from scripts/basemaps.mjs), the mints are circles
  * drawn here with the same projection. The biggest mints are labelled and drawn in ink, the rest
  * in grey. Hovering a mint shows a card (data-tip-rich, scripts/tooltip.ts): its region, output and
- * dates. Pan and zoom come from scripts/map-zoom.ts.
+ * dates; clicking one opens its page. Pan and zoom come from scripts/map-zoom.ts.
  *
  * With `focus`, it is a still locator map instead (the mint page): a window onto the basemap
  * centred on one mint, drawn alone, with no pan or zoom.
@@ -108,18 +108,20 @@ export function MintMap({
         <g data-zoom>
           <image href={`/maps/${basemap}.svg`} width={W} height={H} />
           {/* Biggest first, so small mints sit on top and stay hoverable. */}
+          {/* Each dot opens its mint. Out of the tab order: the page's mint list is the keyboard route. */}
           {placed.map((m) => (
-            <circle
-              key={m.id}
-              cx={m.x}
-              cy={m.y}
-              r={m.r}
-              data-r={m.r}
-              strokeWidth={1}
-              className={lead.has(m.id) ? "mint-dot lead" : "mint-dot"}
-              data-tip={[m.name, m.region, yearRange(m.start, m.end), typesLabel(m.n)].filter(Boolean).join(" · ")}
-              data-tip-rich={JSON.stringify(card(m))}
-            />
+            <a key={m.id} href={`/mint/${m.id}`} tabIndex={-1} className="mint-link">
+              <circle
+                cx={m.x}
+                cy={m.y}
+                r={m.r}
+                data-r={m.r}
+                strokeWidth={1}
+                className={lead.has(m.id) ? "mint-dot lead" : "mint-dot"}
+                data-tip={[m.name, m.region, yearRange(m.start, m.end), typesLabel(m.n)].filter(Boolean).join(" · ")}
+                data-tip-rich={JSON.stringify(card(m))}
+              />
+            </a>
           ))}
           {labels.map((l) => (
             <g key={l.id} transform={`translate(${l.x} ${l.y})`} data-label>
