@@ -142,6 +142,14 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
   const current = open != null ? rows[open]?.original : null
   const step = (d: number) => setOpen((i) => (i == null ? i : (i + d + rows.length) % rows.length))
 
+  // Fetch the neighbours' photos while this one is on screen, so stepping shows them at once.
+  React.useEffect(() => {
+    if (open == null || rows.length < 2) return
+    for (const d of [1, -1]) {
+      for (const p of rows[(open + d + rows.length) % rows.length].original.photos) new Image().src = p.src
+    }
+  }, [open, rows])
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
@@ -273,38 +281,36 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
               e.preventDefault()
               ;(e.currentTarget as HTMLElement).focus()
             }}
-            className="max-w-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[860px]"
+            className="grid-cols-[minmax(0,1fr)] max-w-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[860px]"
             onKeyDown={(e) => {
               if (e.key === "ArrowRight") step(1)
               if (e.key === "ArrowLeft") step(-1)
             }}
           >
-            <div className="bg-plinth">
-              <div className="flex items-center justify-between px-5 pt-4">
+            {/*
+              * Fixed size whatever the coin: the stage has one height for one photo, two, a combined
+              * obverse-and-reverse strip or none, and the caption clips long names to a line. A
+              * centred dialog that changed height moved every control, so stepping through coins
+              * meant chasing the arrows.
+              */}
+            <div className="relative bg-plinth">
+              {/* Laid over the stage, so the loading light crosses the whole panel, bar included. */}
+              <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-5 pt-4">
                 <span className="num text-ui text-stone">
                   {open! + 1} of {rows.length}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon-sm" aria-label="Previous coin" onClick={() => step(-1)} disabled={rows.length < 2}>
-                    <ChevronLeftIcon />
+                <DialogClose asChild>
+                  <Button variant="ghost" size="icon-sm" aria-label="Close">
+                    <XIcon />
                   </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label="Next coin" onClick={() => step(1)} disabled={rows.length < 2}>
-                    <ChevronRightIcon />
-                  </Button>
-                  <span aria-hidden="true" className="mx-2 h-5 w-px bg-field" />
-                  <DialogClose asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label="Close">
-                      <XIcon />
-                    </Button>
-                  </DialogClose>
-                </span>
+                </DialogClose>
               </div>
               <div
                 // Keyed by coin, so stepping to the next one starts its photo states afresh.
                 key={current.id}
                 data-plinth={current.photos.length ? "" : undefined}
                 className={cn(
-                  "relative grid items-center gap-[clamp(16px,3vw,40px)] px-[clamp(20px,5vw,72px)] pt-6 pb-10",
+                  "relative grid h-[calc(min(400px,46vh,72vw)+52px)] items-center gap-[clamp(16px,3vw,40px)] px-14 pt-[68px] pb-10 sm:px-[72px]",
                   current.photos.length === 2 ? "grid-cols-2" : "grid-cols-1"
                 )}
               >
@@ -316,27 +322,53 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
                         src={p.src}
                         alt={p.side === "combined" ? "Obverse and reverse" : p.side === "obverse" ? "Obverse" : "Reverse"}
                         data-coin-photo
-                        className="aspect-square max-h-[60vh] w-full object-contain mix-blend-multiply"
+                        className="size-full min-h-0 object-contain mix-blend-multiply"
                       />
                     ))}
                     <PlinthNote failed retry className="absolute bottom-4 left-5" />
                   </>
                 ) : (
-                  <p className="m-0 py-24 text-center text-ui text-stone">No photograph of this coin</p>
+                  <p className="m-0 text-center text-ui text-stone">No photograph of this coin</p>
                 )}
               </div>
+              {/* Pinned to the stage's sides, so they sit in the same place for every coin. */}
+              {rows.length > 1 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Previous coin"
+                    onClick={() => step(-1)}
+                    className="absolute top-1/2 left-2 z-10 -translate-y-1/2 sm:left-4"
+                  >
+                    <ChevronLeftIcon className="size-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Next coin"
+                    onClick={() => step(1)}
+                    className="absolute top-1/2 right-2 z-10 -translate-y-1/2 sm:right-4"
+                  >
+                    <ChevronRightIcon className="size-5" />
+                  </Button>
+                </>
+              )}
             </div>
-            <div className="flex flex-col gap-6 px-10 pt-8 pb-9">
-              <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-                <div className="flex flex-col gap-1">
-                  <DialogTitle className="font-serif text-heading font-normal">{current.holder}</DialogTitle>
-                  <DialogDescription className="num text-ui text-stone">
+            <div className="flex flex-col gap-6 px-6 pt-8 pb-9 sm:px-10">
+              <div className="flex items-end justify-between gap-8">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <DialogTitle className="line-clamp-2 min-h-[2lh] font-serif text-heading leading-[1.25] font-normal sm:line-clamp-1 sm:min-h-0" title={current.holder}>
+                    {current.holder}
+                  </DialogTitle>
+                  <DialogDescription className="num truncate text-ui text-stone">
                     {current.identifier ?? "No inventory number"}
                   </DialogDescription>
                 </div>
-                <Button variant="link" asChild>
+                <Button variant="link" asChild className="shrink-0">
                   <ExternalLink href={current.url}>
-                    View at the museum ↗
+                    <span className="hidden sm:inline">View at the museum ↗</span>
+                    <span className="sm:hidden">Museum ↗</span>
                   </ExternalLink>
                 </Button>
               </div>
@@ -349,9 +381,9 @@ export function SpecimenTable({ specimens }: { specimens: SpecimenRow[] }) {
                     ["Image licence", <LicenceLink licence={current.licence} />],
                   ] as const
                 ).map(([label, value]) => (
-                  <div key={label} className="flex flex-col gap-1">
+                  <div key={label} className="flex min-w-0 flex-col gap-1">
                     <dt className="text-ui text-stone">{label}</dt>
-                    <dd className="num m-0">{value}</dd>
+                    <dd className="num m-0 truncate">{value}</dd>
                   </div>
                 ))}
               </dl>
