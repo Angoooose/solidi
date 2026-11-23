@@ -9,7 +9,11 @@ import { CARD_SELECT, card, type CardRow, type TypeCardData } from "@/lib/typeCa
 
 export type { TypeCardData }
 
-const RELATED_LIMIT = 8
+const ISSUE_LIMIT = 8
+/* How far either side of a type, in catalogue entries, its issue mates are looked for. */
+const ISSUE_WINDOW = 100
+/* Catalogue order: the primary reference's sort key orders volumes and numbers naturally. */
+const REFERENCE_ORDER = `(SELECT r.sort_key FROM type_reference r WHERE r.type_id = t.id AND r.is_primary = 1), t.id`
 
 type Side = "obverse" | "reverse"
 
@@ -226,27 +230,47 @@ export async function getCoinType(db: D1Database, id: string): Promise<CoinTypeR
         id
       ),
       /*
-       * Same ruler and the same reverse legend (one issue), then the same ruler and denomination.
-       * The ruler is the type's authority, or failing that the ruler it names: a posthumous
-       * Alexander's neighbours are other coins in Alexander's name.
+       * The same issue: the nearest types in catalogue order (within ISSUE_WINDOW entries either
+       * side) with the same ruler and the same reverse legend. The ruler is the type's authority,
+       * or failing that the ruler it names: a posthumous Alexander's issue mates are other coins in
+       * Alexander's name. Walking the catalogue index outward keeps this to a few hundred rows, and
+       * only the chosen cards are built.
        */
       q(
         `WITH ruler AS (
            SELECT role, person_id FROM type_person WHERE type_id = ?1
              AND role = (SELECT role FROM type_person WHERE type_id = ?1 AND role IN ('authority', 'stated_authority')
                          ORDER BY role = 'authority' DESC LIMIT 1)
+         ),
+         me AS (
+           SELECT r.work_id, r.sort_key, t.rev_legend FROM type_reference r JOIN coin_type t ON t.id = r.type_id
+           -- No ruler or no reverse legend: no issue to look for, so the walks below read nothing.
+           WHERE r.type_id = ?1 AND r.is_primary = 1 AND t.rev_legend IS NOT NULL AND EXISTS (SELECT 1 FROM ruler)
+         ),
+         after AS (
+           SELECT type_id AS id, row_number() OVER (ORDER BY sort_key) AS d FROM (
+             SELECT type_id, sort_key FROM type_reference
+             WHERE work_id = (SELECT work_id FROM me) AND sort_key > (SELECT sort_key FROM me) AND is_primary = 1
+             ORDER BY sort_key LIMIT ${ISSUE_WINDOW})
+         ),
+         before AS (
+           SELECT type_id AS id, row_number() OVER (ORDER BY sort_key DESC) AS d FROM (
+             SELECT type_id, sort_key FROM type_reference
+             WHERE work_id = (SELECT work_id FROM me) AND sort_key < (SELECT sort_key FROM me) AND is_primary = 1
+             ORDER BY sort_key DESC LIMIT ${ISSUE_WINDOW})
+         ),
+         issue AS (
+           SELECT c.id FROM (SELECT * FROM after UNION ALL SELECT * FROM before) c JOIN coin_type t ON t.id = c.id
+           WHERE t.rev_legend = (SELECT rev_legend FROM me) AND t.replaced_by_id IS NULL
+             AND EXISTS (SELECT 1 FROM type_person tp JOIN ruler ON tp.person_id = ruler.person_id AND tp.role = ruler.role
+                         WHERE tp.type_id = t.id)
+           ORDER BY c.d
+           LIMIT ${ISSUE_LIMIT}
          )
          ${CARD_SELECT}
-         WHERE t.id != ?1 AND t.replaced_by_id IS NULL
-           AND t.id IN (SELECT tp.type_id FROM type_person tp JOIN ruler ON ruler.role = tp.role AND ruler.person_id = tp.person_id)
-         ORDER BY t.rev_legend IS NOT ?2,
-           t.id NOT IN (SELECT type_id FROM type_denomination
-                        WHERE denomination_id IN (SELECT denomination_id FROM type_denomination WHERE type_id = ?1)),
-           abs(coalesce(t.start_year, 0) - coalesce(?3, 0)), t.id
-         LIMIT ${RELATED_LIMIT}`,
-        id,
-        t.rev_legend,
-        t.start_year
+         WHERE t.id IN (SELECT id FROM issue)
+         ORDER BY ${REFERENCE_ORDER}`,
+        id
       ),
     ])
 
