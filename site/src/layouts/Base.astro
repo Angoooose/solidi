@@ -6,15 +6,39 @@ interface Props {
   title: string
   /** The page shows Kharoshthi, Phoenician, Brahmi, Lycian or Carian text: load Noto fonts for those scripts. */
   scripts?: boolean
+  /** What a search result or shared link says about the page; the site's own line when not given. */
+  description?: string
 }
-const { title, scripts = false } = Astro.props;
+const DESCRIPTION =
+  "An encyclopedia of ancient coins: over 100,000 types of coin from the Greek world and Rome, with photographs from museum collections."
+const { title, scripts = false, description = DESCRIPTION } = Astro.props;
+const fullTitle = title.startsWith("Solidi") ? title : `${title} · Solidi`
+/*
+ * Link previews (Open Graph, X). One image for every page for now: public/og.jpg, the Met's
+ * aureus of Julia Domna (CC0) beside the wordmark. Previews need absolute URLs; the site has no
+ * fixed domain yet, so they're built from the request. The query string is left off og:url.
+ */
+const url = new URL(Astro.url.pathname, Astro.url.origin).href
+const image = new URL("/og.jpg", Astro.url.origin).href
 ---
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title.startsWith("Solidi") ? title : `${title} · Solidi`}</title>
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Solidi" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={url} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Solidi, an encyclopedia of ancient coins, beside a gold aureus of Julia Domna" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
