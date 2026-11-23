@@ -301,9 +301,10 @@
   .chart .bar-alt[data-tip-active] {
     fill: var(--color-graphite);
   }
-  /* Map mints (components/mint-map.tsx): labelled mints in ink, the rest in a light grey. */
+  /* Map mints (components/mint-map.tsx): one translucent ink, so overlapping dots darken the
+     crowded coasts; the hovered one, and the mint page's lone mint (.lead), in full ink. */
   .mint-dot {
-    fill: color-mix(in srgb, var(--color-stone) 45%, white);
+    fill: color-mix(in srgb, var(--color-ink) 40%, transparent);
     stroke: var(--color-white);
     transition: fill 0.15s ease;
   }
@@ -319,7 +320,7 @@
   .mint-dot:hover,
   .mint-dot[data-tip-active],
   .mint-dot:focus-visible {
-    fill: var(--color-stone);
+    fill: var(--color-ink);
     outline: none;
   }
   .map-label {

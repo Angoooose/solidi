@@ -1,9 +1,9 @@
 /*
  * A collection's mints on its basemap, sized by number of types. Server-rendered SVG: the land is
  * a static file (public/maps/<category>.svg, from scripts/basemaps.mjs), the mints are circles
- * drawn here with the same projection. The biggest mints are labelled and drawn in ink, the rest
- * in grey. Hovering a mint shows a card (data-tip-rich, scripts/tooltip.ts): its region, output and
- * dates; clicking one opens its page. Pan and zoom come from scripts/map-zoom.ts.
+ * drawn here with the same projection, in one translucent tone so crowded coasts darken where dots
+ * overlap. The biggest mints are named. Hovering a mint shows a card (data-tip-rich,
+ * scripts/tooltip.ts): its region, output and dates; clicking one opens its page. Pan and zoom come from scripts/map-zoom.ts.
  *
  * With `focus`, it is a still locator map instead (the mint page): a window onto the basemap
  * centred on one mint, drawn alone, with no pan or zoom.
@@ -69,7 +69,7 @@ export function MintMap({
   // Labels for the biggest mints: right of the circle, else left, above or below, skipping any
   // that would overlap a label or circle already placed, or run off the frame.
   type Box = { x0: number; y0: number; x1: number; y1: number }
-  // Labels may cover grey mints, never a labelled one's circle.
+  // Labels may cover smaller mints, never a labelled one's circle.
   const boxes: Box[] = placed.slice(0, labelled).map((m) => ({ x0: m.x - m.r, y0: m.y - m.r, x1: m.x + m.r, y1: m.y + m.r }))
   const overlaps = (b: Box) => boxes.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0)
   const labels: { id: string; x: number; y: number; dx: number; dy: number; anchor: "start" | "end" | "middle"; text: string }[] = []
@@ -87,7 +87,6 @@ export function MintMap({
     boxes.push(fit.box)
     labels.push({ id: m.id, x: m.x, y: m.y, dx: fit.dx, dy: fit.dy, anchor: fit.anchor, text })
   }
-  const lead = new Set(labels.map((l) => l.id))
 
   // The hover card: where it is, how much it struck and when.
   const card = (m: (typeof placed)[number]) => {
@@ -117,7 +116,7 @@ export function MintMap({
                 r={m.r}
                 data-r={m.r}
                 strokeWidth={1}
-                className={lead.has(m.id) ? "mint-dot lead" : "mint-dot"}
+                className="mint-dot"
                 data-tip={[m.name, m.region, yearRange(m.start, m.end), typesLabel(m.n)].filter(Boolean).join(" · ")}
                 data-tip-rich={JSON.stringify(card(m))}
               />
