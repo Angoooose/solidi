@@ -7,6 +7,7 @@
  */
 import { getCategories, tree } from "@/lib/categories"
 import { licence, secure } from "@/lib/format"
+import { sections } from "@/lib/summary/store"
 
 export const GITHUB_URL = "https://github.com/Angoooose/solidi"
 export const CONTACT_EMAIL = "contact@solidi.org"
@@ -58,9 +59,7 @@ export async function getFooterData(db: D1Database): Promise<FooterData> {
 async function load(db: D1Database, builtAt: string | null): Promise<FooterData> {
   const [categories, counts, datasets, corpora] = await Promise.all([
     getCategories(db),
-    db
-      .prepare(`SELECT (SELECT count(*) FROM specimen) AS specimens, (SELECT count(*) FROM institution) AS holders`)
-      .first<{ specimens: number; holders: number }>(),
+    sections(db, "totals", "site").then((s) => s.totals),
     db
       .prepare(`SELECT id, slug, data_licence AS licence FROM dataset WHERE slug IS NOT NULL`)
       .all<{ id: string; slug: string; licence: string | null }>(),

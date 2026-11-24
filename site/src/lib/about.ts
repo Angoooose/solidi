@@ -6,6 +6,7 @@ import { IMAGE_COLS, photo, type ImageCols, type Photo } from "@/lib/categories"
 import { sourceLabel } from "@/lib/footer"
 import { secure } from "@/lib/format"
 import { catalogueName } from "@/lib/sources"
+import { sections } from "@/lib/summary/store"
 
 /*
  * RIC II Trajan 98, and six of its coins chosen by hand for the spread of their wear, toning and
@@ -36,10 +37,8 @@ export type About = {
 
 export async function getAbout(db: D1Database): Promise<About> {
   const ids = EXAMPLE_COINS.map(([id]) => id)
-  const [counts, catalogues, coins, example] = await db.batch([
-    db.prepare(`SELECT (SELECT sum(types) FROM catalogue_stat) AS types, (SELECT count(*) FROM specimen) AS coins,
-                       (SELECT sum(photographed) FROM photo_source) AS photographed, (SELECT count(*) FROM institution) AS holders,
-                       (SELECT value FROM build_info WHERE key = 'built_at') AS built_at`),
+  const [{ totals }, [built, catalogues, coins, example]] = await Promise.all([sections(db, "totals", "site"), db.batch([
+    db.prepare(`SELECT value FROM build_info WHERE key = 'built_at'`),
     db.prepare(`SELECT d.slug, d.name, d.id AS url, c.types, ${IMAGE_COLS},
                        (SELECT t.title FROM specimen_type st JOIN coin_type t ON t.id = st.type_id WHERE st.specimen_id = i.specimen_id LIMIT 1) AS title
                 FROM catalogue_stat c JOIN dataset d ON d.id = c.dataset_id LEFT JOIN image i ON i.id = c.image_id
@@ -51,18 +50,18 @@ export async function getAbout(db: D1Database): Promise<About> {
     db.prepare(`SELECT count(DISTINCT s.id) AS total, count(DISTINCT coalesce(s.institution_id, s.dataset_id)) AS collections
                 FROM specimen_type st JOIN specimen s ON s.id = st.specimen_id
                 WHERE st.type_id IN (SELECT id FROM coin_type WHERE id = ?1 OR parent_id = ?1)`).bind(EXAMPLE_TYPE.id),
-  ])
+  ])])
 
-  const c = counts.results[0] as { types: number; coins: number; photographed: number; holders: number; built_at: string | null }
+  const builtAt = (built.results[0] as { value: string } | undefined)?.value ?? null
   const byId = new Map((coins.results as (ImageCols & { id: string; weight: number | null; diameter: number | null })[]).map((r) => [r.id, r]))
   const e = example.results[0] as { total: number; collections: number }
 
   return {
-    types: c.types,
-    coins: c.coins,
-    photographed: c.photographed,
-    holders: c.holders,
-    builtAt: c.built_at,
+    types: totals.types,
+    coins: totals.specimens,
+    photographed: totals.photographed,
+    holders: totals.holders,
+    builtAt,
     catalogues: (catalogues.results as (ImageCols & { slug: string; name: string; url: string; types: number; title: string | null })[]).map((r) => ({
       id: r.slug,
       label: sourceLabel(r.slug),
