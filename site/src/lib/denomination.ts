@@ -6,7 +6,8 @@
  * subjects, and its coinage with filters (lib/coinage.ts).
  */
 import { getCategories, photo, tree, IMAGE_COLS, type Category, type Photo } from "@/lib/categories"
-import { COLLECTION, ISSUER, MINT, PHOTO, cards, coinage, parseCommon, photoToggle, type Facet, type PhotoToggle, type Sort } from "@/lib/coinage"
+import { COLLECTION, ISSUER, MINT, PHOTO, cards, coinage, collectionKeys, denominationBase, issuerKeys, mintKeys, parseCommon, type Facet, type PhotoToggle, type Sort } from "@/lib/coinage"
+import { facetIndex } from "@/lib/facet/store"
 import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
 import type { Bin } from "@/components/charts"
@@ -73,7 +74,8 @@ export type Denomination = {
   typeCredits: PhotoCreditItem[]
 }
 
-/* Every live type of the denomination (?1). */
+/* Every live type of the denomination (?1), for the sections read from D1; the coinage grid takes
+ * the same set from the facet index (denominationBase). */
 const BASE = `t.replaced_by_id IS NULL AND t.parent_id IS NULL AND t.id IN (SELECT type_id FROM type_denomination WHERE denomination_id = ?1)`
 const FILTERS = [COLLECTION, ISSUER, MINT, PHOTO]
 
@@ -94,11 +96,11 @@ export async function getDenomination(db: D1Database, id: string, query: Denomin
     }>()
   if (!d) return null
 
-  const t = tree(await getCategories(db))
-  const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.mint, query.photo])
-  const { one } = c
+  const [t, ix] = await Promise.all([getCategories(db).then(tree), facetIndex(db)])
+  const c = coinage(ix, denominationBase(ix, id), FILTERS, [query.collection, query.issuer, query.mint, query.photo])
+  const one = (sql: string) => db.prepare(sql).bind(id)
 
-  const [article, perCollection, sizes, people, mints, subjects, collectionFacet, issuerFacet, mintFacet, total, photoRows, types] = await db.batch([
+  const [[article, perCollection, sizes, people, mints, subjects], grid] = await Promise.all([db.batch([
     one(`SELECT extract, url, licence FROM article WHERE entity_type = 'denomination' AND entity_id = ?1
          ORDER BY source = 'wikipedia_en' DESC LIMIT 1`),
     one(`SELECT category_id AS id, n, start_year AS start, end_year AS "end", weight, bins FROM category_denomination WHERE denomination_id = ?1`),
@@ -116,13 +118,7 @@ export async function getDenomination(db: D1Database, id: string, query: Denomin
     one(`SELECT x.id AS value, x.name AS label, count(DISTINCT t.id) AS count
          FROM coin_type t JOIN type_subject j ON j.type_id = t.id JOIN subject x ON x.id = j.subject_id
          WHERE ${BASE} GROUP BY x.id ORDER BY count DESC, x.name`),
-    c.collectionFacet(),
-    c.issuerFacet(),
-    c.mintFacet(),
-    c.total(),
-    c.photoFacet(),
-    c.types(query.sort, query.limit),
-  ])
+  ]), cards(db, c.grid(query.sort, query.limit))])
 
   const rows = perCollection.results as { id: string; n: number; start: number | null; end: number | null; weight: number | null; bins: string | null }[]
   const collections = rows
@@ -146,7 +142,6 @@ export async function getDenomination(db: D1Database, id: string, query: Denomin
 
   const art = article.results[0] as { extract: string; url: string; licence: string } | undefined
   const all = (r: D1Result, total: number) => ({ items: r.results as Facet[], total })
-  const grid = await cards(db, types)
 
   return {
     id: d.id,
@@ -170,11 +165,11 @@ export async function getDenomination(db: D1Database, id: string, query: Denomin
     mints: all(mints, d.mints),
     subjects: all(subjects, d.subjects),
     available: { collection: collections.length > 1, issuer: d.people > 1, mint: d.mints > 1 },
-    collectionFacet: collectionFacet.results as Facet[],
-    issuerFacet: issuerFacet.results as Facet[],
-    mintFacet: mintFacet.results as Facet[],
-    photographed: photoToggle(photoRows),
-    total: (total.results[0] as { n: number }).n,
+    collectionFacet: c.facet("collection", collectionKeys(ix), ix.categories),
+    issuerFacet: c.facet("issuer", issuerKeys(ix), ix.persons),
+    mintFacet: c.facet("mint", mintKeys(ix), ix.mints),
+    photographed: c.photo(),
+    total: c.total(),
     grid: grid.types,
     typeCredits: grid.typeCredits,
   }

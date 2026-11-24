@@ -5,7 +5,9 @@
  * the legends naming it (subject_legend), then its coinage with filters (lib/coinage.ts).
  */
 import { getCategories, photo, tree, IMAGE_COLS, type Category, type Photo } from "@/lib/categories"
-import { COLLECTION, DENOMINATION, ISSUER, PHOTO, cards, coinage, parseCommon, photoToggle, type Facet, type Filter, type PhotoToggle, type Sort } from "@/lib/coinage"
+import { COLLECTION, DENOMINATION, ISSUER, PHOTO, cards, coinage, collectionKeys, denominationKeys, find, issuerKeys, parseCommon, ranked, sideKeys, sideLabels, some, subjectBase, type Facet, type Filter, type PhotoToggle, type Sort } from "@/lib/coinage"
+import { SIDES, type FacetIndex } from "@/lib/facet"
+import { facetIndex } from "@/lib/facet/store"
 import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
 import type { Bin } from "@/components/charts"
@@ -83,15 +85,24 @@ export type Subject = {
   typeCredits: PhotoCreditItem[]
 }
 
-/* Every live type showing the subject (?1). */
+/* Every live type showing the subject (?1), for the sections read from D1; the coinage grid takes
+ * the same set from the facet index (subjectBase). */
 const BASE = `t.replaced_by_id IS NULL AND t.parent_id IS NULL AND t.id IN (SELECT type_id FROM type_subject WHERE subject_id = ?1)`
-/* The side it's on, and a legend on that side (from "Named in legends"). */
-const SIDE: Filter = { name: "side", match: (v) => `t.id IN (SELECT type_id FROM type_subject WHERE subject_id = ?1 AND side = ${v})` }
-const LEGEND_FILTER: Filter = {
+/* The side it's on, and a legend on that side (from "Named in legends"), for subject `s`. */
+const side = (s: number): Filter => ({
+  name: "side",
+  keep: (ix, v) => {
+    const side = SIDES.indexOf(v as (typeof SIDES)[number])
+    return side < 0 ? () => false : (t) => some(ix.subject, t, (x) => x === s * 2 + side)
+  },
+})
+const legend = (s: number): Filter => ({
   name: "legend",
-  match: (v) => `t.id IN (SELECT g.type_id FROM legend g JOIN type_subject ts ON ts.type_id = g.type_id AND ts.side = g.side AND ts.subject_id = ?1 WHERE g.normalised = ${v})`,
-}
-const FILTERS = [COLLECTION, ISSUER, DENOMINATION, SIDE, LEGEND_FILTER, PHOTO]
+  keep: (ix: FacetIndex, v) => {
+    const g = ix.legends.indexOf(v)
+    return g < 0 ? () => false : (t) => some(ix.legend, t, (x) => x >> 1 === g && some(ix.subject, t, (y) => y === s * 2 + (x & 1)))
+  },
+})
 
 export async function getSubject(db: D1Database, id: string, query: SubjectQuery): Promise<Subject | null> {
   const s = await db
@@ -112,12 +123,15 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
     }>()
   if (!s) return null
 
-  const t = tree(await getCategories(db))
-  const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.denomination, query.side, query.legend, query.photo])
-  const { one } = c
+  const [t, ix] = await Promise.all([getCategories(db).then(tree), facetIndex(db)])
+  const si = find(ix.subjects, id)
+  const c = coinage(ix, subjectBase(ix, id), [COLLECTION, ISSUER, DENOMINATION, side(si), legend(si), PHOTO], [
+    query.collection, query.issuer, query.denomination, query.side, query.legend, query.photo,
+  ])
+  const one = (sql: string) => db.prepare(sql).bind(id)
 
-  const [article, perCollection, people, denominations, mints, legends, collectionFacet, issuerFacet, denominationFacet, sideFacet, total, photoRows, types] =
-    await db.batch([
+  const [[article, perCollection, people, denominations, mints, legends], grid] = await Promise.all([
+    db.batch([
       one(`SELECT extract, url, licence FROM article WHERE entity_type = 'subject' AND entity_id = ?1
            ORDER BY source = 'wikipedia_en' DESC LIMIT 1`),
       one(`SELECT category_id AS id, n, start_year AS start, end_year AS "end", bins FROM category_subject WHERE subject_id = ?1`),
@@ -131,16 +145,9 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
            FROM coin_type t JOIN mint m ON m.id = t.mint_id LEFT JOIN mint pm ON pm.id = m.parent_id
            WHERE ${BASE} GROUP BY value ORDER BY count DESC, label`),
       one(`SELECT legend AS value, legend AS label, n AS count FROM subject_legend WHERE subject_id = ?1 ORDER BY n DESC, legend`),
-      c.collectionFacet(),
-      c.issuerFacet(),
-      c.denominationFacet(),
-      c.grid(`SELECT ts.side AS value, upper(substr(ts.side, 1, 1)) || substr(ts.side, 2) AS label, count(DISTINCT t.id) AS count
-              FROM coin_type t JOIN type_subject ts ON ts.type_id = t.id AND ts.subject_id = ?1
-              WHERE ${c.where("side")} GROUP BY ts.side ORDER BY count DESC`),
-      c.total(),
-      c.photoFacet(),
-      c.types(query.sort, query.limit),
-    ])
+    ]),
+    cards(db, c.grid(query.sort, query.limit)),
+  ])
 
   const rows = perCollection.results as { id: string; n: number; start: number | null; end: number | null; bins: string | null }[]
   const collections = rows
@@ -156,7 +163,6 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
 
   const art = article.results[0] as { extract: string; url: string; licence: string } | undefined
   const all = (r: D1Result, total: number) => ({ items: r.results as Facet[], total })
-  const grid = await cards(db, types)
   const group = subjectGroup(s.grp)
 
   return {
@@ -182,12 +188,12 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
     mints: all(mints, s.mints),
     legends: legends.results as Facet[],
     available: { collection: collections.length > 1, issuer: s.people > 1, denomination: s.denominations > 1, side: s.obverse > 0 && s.reverse > 0 },
-    collectionFacet: collectionFacet.results as Facet[],
-    issuerFacet: issuerFacet.results as Facet[],
-    denominationFacet: denominationFacet.results as Facet[],
-    sideFacet: sideFacet.results as Facet[],
-    photographed: photoToggle(photoRows),
-    total: (total.results[0] as { n: number }).n,
+    collectionFacet: c.facet("collection", collectionKeys(ix), ix.categories),
+    issuerFacet: c.facet("issuer", issuerKeys(ix), ix.persons),
+    denominationFacet: c.facet("denomination", denominationKeys(ix), ix.denominations),
+    sideFacet: ranked(c.counts("side", sideKeys(ix, si)), sideLabels),
+    photographed: c.photo(),
+    total: c.total(),
     grid: grid.types,
     typeCredits: grid.typeCredits,
   }

@@ -13,7 +13,9 @@
 import { iiif, lead, secure, year, yearRange } from "@/lib/format"
 import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
 import { USABLE, type TypeCardData } from "@/lib/typeCards"
-import { DENOMINATION, ISSUER, PERIOD, PHOTO, cards, coinage, parseCommon, periods, photoToggle, type Facet, type Filter, type PhotoToggle, type Sort } from "@/lib/coinage"
+import { DENOMINATION, ISSUER, PERIOD, PHOTO, cards, coinage, denominationKeys, find, inName, issuerKeys, parseCommon, personBase, portraitKeys, some, type Facet, type Filter, type PhotoToggle, type Sort } from "@/lib/coinage"
+import { PORTRAIT } from "@/lib/facet"
+import { facetIndex } from "@/lib/facet/store"
 
 export { PAGE_SIZE } from "@/lib/coinage"
 export type { Facet, Sort }
@@ -77,22 +79,32 @@ export type Person = {
 
 const RELATION_LABEL: Record<string, string> = { father: "Father", mother: "Mother", spouse: "Spouse", child: "Child" }
 
-/* BASE is every live type connected to the person (?1). */
+/* BASE is every live type connected to the person (?1), for the sections read from D1; the coinage
+ * grid takes the same set from the facet index (personBase). */
 const BASE = `t.replaced_by_id IS NULL AND t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1)`
 /* Struck in the person's name by someone else: they are named on it but are not its authority. */
 const IN_NAME_SQL = `(t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role = 'stated_authority')
   AND t.id NOT IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role IN ('authority', 'issuer')))`
-/* In the order of their parameters, ?2 to ?7. */
-const FILTERS: Filter[] = [
+/* The filters of person `p`'s coinage. */
+const filters = (p: number): Filter[] => [
   {
     name: "portrait",
-    match: (v) => `(${v} = '${NO_PORTRAIT}' AND NOT EXISTS (SELECT 1 FROM type_person WHERE type_id = t.id AND role = 'portrait_obverse'))
-              OR t.id IN (SELECT type_id FROM type_person WHERE role = 'portrait_obverse' AND person_id = ${v})`,
+    keep: (ix, v) => {
+      if (v === NO_PORTRAIT) return (t) => !some(ix.person, t, (x) => (x & 7) === PORTRAIT)
+      const q = find(ix.persons, v)
+      return (t) => q >= 0 && some(ix.person, t, (x) => x === q * 8 + PORTRAIT)
+    },
   },
   ISSUER,
   DENOMINATION,
   PERIOD,
-  { name: "struck", match: (v) => `(${v} = '${IN_NAME}') = ${IN_NAME_SQL}` },
+  {
+    name: "struck",
+    keep: (ix, v) => {
+      const named = inName(ix, p)
+      return (t) => (v === IN_NAME) === named(t)
+    },
+  },
   PHOTO,
 ]
 
@@ -133,10 +145,13 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
     }>()
   if (!person) return null
 
-  const c = coinage(db, id, BASE, FILTERS, [query.portrait, query.issuer, query.denomination, query.period, query.struck, query.photo])
-  const { one, grid, where } = c
+  const ix = await facetIndex(db)
+  const pi = find(ix.persons, id)
+  const c = coinage(ix, personBase(ix, id), filters(pi), [query.portrait, query.issuer, query.denomination, query.period, query.struck, query.photo])
+  const one = (sql: string) => db.prepare(sql).bind(id)
+  const named = inName(ix, pi)
 
-  const [available, article, family, mainMint, ownSpan, categories, struckFacet, portraitFacet, noPortrait, issuerFacet, denoms, periodRows, total, photoRows, types, portraits] =
+  const [available, article, family, mainMint, ownSpan, categories, portraits] =
     await db.batch([
       // Option counts over the unfiltered coinage, to decide which filters the page offers.
       one(`SELECT
@@ -175,20 +190,6 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
              UNION ALL SELECT c.id, c.name, c.parent_id, p.depth + 1 FROM category c JOIN path p ON c.id = p.parent_id
            )
            SELECT id, name FROM path ORDER BY depth DESC`),
-      grid(`SELECT ${IN_NAME_SQL} AS in_name, count(*) AS count FROM coin_type t WHERE ${where("struck")} GROUP BY 1`),
-      // Whose portrait is on the obverse: the person first, then others by count.
-      grid(`SELECT p.id AS value, p.name AS label, count(DISTINCT t.id) AS count
-            FROM coin_type t JOIN type_person tp ON tp.type_id = t.id AND tp.role = 'portrait_obverse'
-            JOIN person p ON p.id = tp.person_id
-            WHERE ${where("portrait")} GROUP BY p.id ORDER BY p.id = ?1 DESC, count DESC, p.name`),
-      grid(`SELECT count(*) AS count FROM coin_type t WHERE ${where("portrait")}
-            AND NOT EXISTS (SELECT 1 FROM type_person WHERE type_id = t.id AND role = 'portrait_obverse')`),
-      c.issuerFacet(true),
-      c.denominationFacet(),
-      c.periodFacet(),
-      c.total(),
-      c.photoFacet(),
-      c.types(query.sort, query.limit),
       // Their own portrait, one per distinct start year, earliest to latest; sampled below.
       one(`SELECT t.id, t.title, t.start_year, t.end_year,
              (SELECT d.name FROM type_denomination td JOIN denomination d ON d.id = td.denomination_id
@@ -241,11 +242,10 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
   const own = ownSpan.results[0] as { s: number | null; e: number | null } | undefined
   const portraitSpan = yearRange(person.start_year, person.end_year) ?? yearRange(own?.s ?? null, own?.e ?? null)
   const shownImages = picks.map((p) => imageIds.get(p.typeId)).filter((id): id is number => id != null)
-  const [portraitCredits, grid_] = await Promise.all([getPhotoCredits(db, shownImages), cards(db, types)])
+  const [portraitCredits, grid_] = await Promise.all([getPhotoCredits(db, shownImages), cards(db, c.grid(query.sort, query.limit))])
 
-  const none = (noPortrait.results[0] as { count: number }).count
+  const none = c.count("portrait", (t) => !some(ix.person, t, (x) => (x & 7) === PORTRAIT))
   const opts = available.results[0] as Record<"in_name" | "own" | "portrait" | "issuer" | "denomination" | "period", number>
-  const struckCounts = new Map((struckFacet.results as { in_name: number; count: number }[]).map((r) => [!!r.in_name, r.count]))
 
   return {
     id: person.id,
@@ -268,19 +268,20 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
       period: opts.period > 1,
     },
     struckFacet: [
-      { value: OWN, label: "Own issues", count: struckCounts.get(false) ?? 0 },
-      { value: IN_NAME, label: "Struck in their name", count: struckCounts.get(true) ?? 0 },
+      { value: OWN, label: "Own issues", count: c.count("struck", (t) => !named(t)) },
+      { value: IN_NAME, label: "Struck in their name", count: c.count("struck", named) },
     ],
     inNameCount: opts.in_name,
     portraitFacet: [
-      ...(portraitFacet.results as Facet[]),
+      // Whose portrait is on the obverse: the person first, then others by count.
+      ...c.facet("portrait", portraitKeys(ix), ix.persons, pi),
       ...(none ? [{ value: NO_PORTRAIT, label: "No portrait", count: none }] : []),
     ],
-    issuerFacet: issuerFacet.results as Facet[],
-    denominationFacet: denoms.results as Facet[],
-    periodFacet: periods(periodRows),
-    photographed: photoToggle(photoRows),
-    total: (total.results[0] as { n: number }).n,
+    issuerFacet: c.facet("issuer", issuerKeys(ix), ix.persons, pi),
+    denominationFacet: c.facet("denomination", denominationKeys(ix), ix.denominations),
+    periodFacet: c.periods(),
+    photographed: c.photo(),
+    total: c.total(),
     types: grid_.types,
     typeCredits: grid_.typeCredits,
   }

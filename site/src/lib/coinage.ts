@@ -1,55 +1,139 @@
 /*
  * A filtered, sorted grid of coin types with a facet per filter: the "Coinage" section of the
- * person and mint pages. Each page supplies its BASE (every type it covers, bound to ?1) and its
- * filters; this module numbers their parameters, builds the WHERE for the grid and each facet,
- * and runs the shared statements (the grid, its total, the common facets).
+ * person, mint, denomination and subject pages. Each page supplies its base (every type it
+ * covers) and its filters; this module counts each facet, the total and the photo toggle, and
+ * picks the grid's types, all from the facet index in memory (lib/facet/index.ts). Only the cards
+ * shown are read from D1.
  *
  * Filters come from the URL so every view is shareable. A facet ignores its own filter, so each
- * option's count is what you'd get by choosing it.
+ * option's count is what you'd get by choosing it. A value the index doesn't know matches nothing.
  */
 import { yearRange } from "@/lib/format"
 import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
-import { CARD_SELECT, HAS_CARD_IMAGE, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
+import { CARD_SELECT, card, type CardRow, type TypeCardData } from "@/lib/typeCards"
+import { AUTHORITY, ISSUER as ISSUER_ROLE, NONE, PHOTO as PHOTO_FLAG, PORTRAIT, ROOT, SIDES, SORTS, STATED, type Entry, type FacetIndex, type Relation, type Sort } from "@/lib/facet"
 
 export const PAGE_SIZE = 30
 
-export type Sort = "earliest" | "latest" | "reference"
+export type { Sort }
 export type Facet = { value: string; label: string; count: number }
+/** Whether a type (its number in the facet index) is in the set. */
+export type Pred = (t: number) => boolean
+/** Calls `emit` with each value a type counts toward in a facet. */
+export type Keys = (t: number, emit: (key: number) => void) => void
 
-/* r is the type's primary catalogue reference, joined by the grid query; its sort_key orders volumes and numbers naturally. */
-const ORDER: Record<Sort, string> = {
-  earliest: `t.start_year IS NULL, t.start_year, t.end_year, r.sort_key, t.id`,
-  latest: `t.start_year IS NULL, t.start_year DESC, t.end_year DESC, r.sort_key, t.id`,
-  reference: `r.sort_key, t.id`,
-}
-
-/**
- * One filter: `match(v)` is the condition on `coin_type t` for the value bound to parameter `v`
- * (a "?n"). It applies only when a value is chosen.
- */
-export type Filter = { name: string; match: (v: string) => string }
-
-/* Filters most coinages share. */
-export const DENOMINATION: Filter = { name: "denomination", match: (v) => `t.id IN (SELECT type_id FROM type_denomination WHERE denomination_id = ${v})` }
-export const PERIOD: Filter = { name: "period", match: (v) => `(coalesce(t.start_year, '') || '-' || coalesce(t.end_year, '')) = ${v}` }
-export const ISSUER: Filter = { name: "issuer", match: (v) => `t.id IN (SELECT type_id FROM type_person WHERE role IN ('authority', 'issuer') AND person_id = ${v})` }
-export const MATERIAL: Filter = { name: "material", match: (v) => `t.id IN (SELECT type_id FROM type_material WHERE material_id = ${v})` }
-
-/* A collection and everything under it (a link from a parent collection's list names the parent). */
-export const COLLECTION: Filter = {
-  name: "collection",
-  match: (v) => `t.id IN (SELECT tc.type_id FROM type_category tc WHERE tc.is_primary = 1 AND tc.category_id IN (
-    WITH RECURSIVE d(id) AS (SELECT ${v} UNION ALL SELECT c.id FROM category c JOIN d ON c.parent_id = d.id) SELECT id FROM d))`,
-}
-/* Only types whose card shows a photo (?photo=1). Every coinage has it, last in its filters. */
-export const PHOTO: Filter = { name: "photo", match: () => HAS_CARD_IMAGE }
+/** One filter: the types it keeps when `v` is chosen. */
+export type Filter = { name: string; keep: (ix: FacetIndex, v: string) => Pred }
 
 /** The "Photographed" toggle: types with a photo under the other filters, and whether the
  *  coinage has both photographed and unphotographed types (fixed per page, like `available`). */
 export type PhotoToggle = { count: number; available: boolean }
 
+const lookups = new WeakMap<Entry[], Map<string, number>>()
+/** An entry's number in its dictionary, or -1. */
+export function find(list: Entry[], id: string | null): number {
+  if (id == null) return -1
+  let m = lookups.get(list)
+  if (!m) lookups.set(list, (m = new Map(list.map((e, i) => [e.id, i]))))
+  return m.get(id) ?? -1
+}
+
+/** Whether any of a type's values of a relation passes `test`. */
+export function some(r: Relation, t: number, test: (v: number) => boolean): boolean {
+  for (let i = r.off[t]; i < r.off[t + 1]; i++) if (test(r.val[i])) return true
+  return false
+}
+/** Each of a type's values of a relation. */
+export function each(r: Relation, t: number, f: (v: number) => void) {
+  for (let i = r.off[t]; i < r.off[t + 1]; i++) f(r.val[i])
+}
+
+const never: Pred = () => false
+const isRoot = (ix: FacetIndex, t: number) => (ix.flags[t] & ROOT) !== 0
+/** Struck at the mint or one of its workshops. */
+const atMint = (ix: FacetIndex, m: number): Pred => (t) => ix.mint[t] !== NONE && (ix.mint[t] === m || ix.mintCity[ix.mint[t]] === m)
+const issuedBy = (ix: FacetIndex, p: number): Pred => (t) => some(ix.person, t, (v) => v >> 3 === p && ((v & 7) === AUTHORITY || (v & 7) === ISSUER_ROLE))
+const period = (ix: FacetIndex, t: number) => `${ix.start[t] === NONE ? "" : ix.start[t]}-${ix.end[t] === NONE ? "" : ix.end[t]}`
+
+/* Filters most coinages share. */
+export const DENOMINATION: Filter = {
+  name: "denomination",
+  keep: (ix, v) => {
+    const d = find(ix.denominations, v)
+    return d < 0 ? never : (t) => some(ix.denomination, t, (x) => x === d)
+  },
+}
+export const MATERIAL: Filter = {
+  name: "material",
+  keep: (ix, v) => {
+    const m = find(ix.materials, v)
+    return m < 0 ? never : (t) => some(ix.material, t, (x) => x === m)
+  },
+}
+export const ISSUER: Filter = {
+  name: "issuer",
+  keep: (ix, v) => {
+    const p = find(ix.persons, v)
+    return p < 0 ? never : issuedBy(ix, p)
+  },
+}
+export const PERIOD: Filter = { name: "period", keep: (ix, v) => (t) => period(ix, t) === v }
+/* A collection and everything under it (a link from a parent collection's list names the parent). */
+export const COLLECTION: Filter = {
+  name: "collection",
+  keep: (ix, v) => {
+    const c = find(ix.categories, v)
+    if (c < 0) return never
+    return (t) => {
+      for (let x = ix.category[t]; x !== NONE; x = ix.categoryParent[x]) if (x === c) return true
+      return false
+    }
+  },
+}
 /* A mint and its workshops. */
-export const MINT: Filter = { name: "mint", match: (v) => `t.mint_id IN (SELECT id FROM mint WHERE id = ${v} OR parent_id = ${v})` }
+export const MINT: Filter = {
+  name: "mint",
+  keep: (ix, v) => {
+    const m = find(ix.mints, v)
+    return m < 0 ? never : atMint(ix, m)
+  },
+}
+/* Only types whose card shows a photo (?photo=1). Every coinage has it, last in its filters. */
+export const PHOTO: Filter = { name: "photo", keep: (ix) => (t) => (ix.flags[t] & PHOTO_FLAG) !== 0 }
+
+/* Each coinage's base: every live type it covers. A person's includes subtypes. */
+export const mintBase = (ix: FacetIndex, id: string): Pred => {
+  const m = find(ix.mints, id)
+  const at = atMint(ix, m)
+  return m < 0 ? never : (t) => isRoot(ix, t) && at(t)
+}
+export const personBase = (ix: FacetIndex, id: string): Pred => {
+  const p = find(ix.persons, id)
+  return p < 0 ? never : (t) => some(ix.person, t, (v) => v >> 3 === p)
+}
+export const denominationBase = (ix: FacetIndex, id: string): Pred => {
+  const d = find(ix.denominations, id)
+  return d < 0 ? never : (t) => isRoot(ix, t) && some(ix.denomination, t, (x) => x === d)
+}
+export const subjectBase = (ix: FacetIndex, id: string): Pred => {
+  const s = find(ix.subjects, id)
+  return s < 0 ? never : (t) => isRoot(ix, t) && some(ix.subject, t, (v) => v >> 1 === s)
+}
+
+/* What a type counts toward in the common facets. */
+export const issuerKeys = (ix: FacetIndex): Keys => (t, emit) =>
+  each(ix.person, t, (v) => ((v & 7) === AUTHORITY || (v & 7) === ISSUER_ROLE) && emit(v >> 3))
+export const portraitKeys = (ix: FacetIndex): Keys => (t, emit) => each(ix.person, t, (v) => (v & 7) === PORTRAIT && emit(v >> 3))
+export const denominationKeys = (ix: FacetIndex): Keys => (t, emit) => each(ix.denomination, t, emit)
+export const materialKeys = (ix: FacetIndex): Keys => (t, emit) => each(ix.material, t, emit)
+/** The leaf collection it sits in. */
+export const collectionKeys = (ix: FacetIndex): Keys => (t, emit) => ix.category[t] !== NONE && emit(ix.category[t])
+/** Where it was struck, a workshop counted as its city. */
+export const mintKeys = (ix: FacetIndex): Keys => (t, emit) => ix.mint[t] !== NONE && emit(ix.mintCity[ix.mint[t]])
+
+/** Struck in the person's name by someone else: they are named on it but are not its authority. */
+export const inName = (ix: FacetIndex, p: number): Pred => (t) =>
+  some(ix.person, t, (v) => v === p * 8 + STATED) && !issuedBy(ix, p)(t)
 
 const SLUG = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/
 
@@ -61,89 +145,112 @@ export function parseCommon(params: URLSearchParams) {
     slug: (k: string) => (SLUG.test(params.get(k) ?? "") ? params.get(k) : null),
     period: /^-?\d+--?\d+$/.test(params.get("date") ?? "") ? params.get("date") : null,
     photo: params.get("photo") === "1" ? "1" : null,
-    sort: sort in ORDER ? sort : ("earliest" as Sort),
+    sort: SORTS.includes(sort) ? sort : ("earliest" as Sort),
     limit: Number.isInteger(limit) && limit > 0 ? Math.min(limit, 600) : PAGE_SIZE,
   }
 }
 
 /**
- * The statements for one coinage: `base` is every type it covers (using ?1 for the page's id),
- * `filters` are numbered ?2, ?3… in order and bound to `values`.
+ * One coinage: `base` is every type it covers, `filters` apply when their value in `values` (in
+ * the same order) is set.
  */
-export function coinage(db: D1Database, id: string, base: string, filters: Filter[], values: (string | null)[]) {
-  const param = (name: string) => `?${filters.findIndex((f) => f.name === name) + 2}`
-  /*
-   * WHERE for the grid, or for one facet (`except` drops its own filter). D1 requires every bound
-   * value to be used, hence `?n IS NOT NULL` in its place.
-   */
-  const where = (except?: string) =>
-    [base, ...filters.map((f) => (f.name === except ? `${param(f.name)} IS NOT NULL` : `(${param(f.name)} = '' OR ${f.match(param(f.name))})`))].join(" AND ")
-  /** Statements about the page's id alone bind ?1; statements about the filtered grid bind every value. */
-  const one = (sql: string) => db.prepare(sql).bind(id)
-  const grid = (sql: string) => db.prepare(sql).bind(id, ...values.map((v) => v ?? ""))
+export function coinage(ix: FacetIndex, base: Pred, filters: Filter[], values: (string | null)[]) {
+  const keeps = filters.map((f, i) => (values[i] == null ? null : f.keep(ix, values[i]!)))
+  // The base's types, and for each the filters it fails, one bit per filter.
+  const types: number[] = []
+  const fails: number[] = []
+  for (let t = 0; t < ix.ids.length; t++) {
+    if (!base(t)) continue
+    let mask = 0
+    keeps.forEach((keep, j) => keep && !keep(t) && (mask |= 1 << j))
+    types.push(t)
+    fails.push(mask)
+  }
+  const bit = (name: string) => {
+    const j = filters.findIndex((f) => f.name === name)
+    if (j < 0) throw new Error(`no filter ${name}`)
+    return 1 << j
+  }
+  /** Each type that passes every filter but `except`'s. */
+  const passing = (except: string | null, f: (t: number) => void) => {
+    const ignore = except == null ? 0 : bit(except)
+    types.forEach((t, i) => (fails[i] & ~ignore) === 0 && f(t))
+  }
+
   return {
-    where,
-    one,
-    grid,
-    /** Who issued them; `selfFirst` puts the page's own person first (?1). */
-    issuerFacet: (selfFirst = false) =>
-      grid(`SELECT p.id AS value, p.name AS label, count(DISTINCT t.id) AS count
-            FROM coin_type t JOIN type_person tp ON tp.type_id = t.id AND tp.role IN ('authority', 'issuer')
-            JOIN person p ON p.id = tp.person_id
-            WHERE ${where("issuer")} GROUP BY p.id ORDER BY ${selfFirst ? "p.id = ?1 DESC, " : ""}count DESC, p.name`),
-    denominationFacet: () =>
-      grid(`SELECT d.id AS value, d.name AS label, count(*) AS count
-            FROM coin_type t JOIN type_denomination td ON td.type_id = t.id JOIN denomination d ON d.id = td.denomination_id
-            WHERE ${where("denomination")} GROUP BY d.id ORDER BY count DESC, d.name`),
-    materialFacet: () =>
-      grid(`SELECT x.id AS value, x.name AS label, count(*) AS count
-            FROM coin_type t JOIN type_material tm ON tm.type_id = t.id JOIN material x ON x.id = tm.material_id
-            WHERE ${where("material")} GROUP BY x.id ORDER BY count DESC, x.name`),
-    periodFacet: () =>
-      grid(`SELECT coalesce(t.start_year, '') || '-' || coalesce(t.end_year, '') AS value,
-              t.start_year AS s, t.end_year AS e, count(*) AS count
-            FROM coin_type t WHERE ${where("period")} AND t.start_year IS NOT NULL
-            GROUP BY value ORDER BY t.start_year, t.end_year`),
-    /** The leaf collections they sit in. */
-    collectionFacet: () =>
-      grid(`SELECT c.id AS value, c.name AS label, count(*) AS count
-            FROM coin_type t JOIN type_category tc ON tc.type_id = t.id AND tc.is_primary = 1 JOIN category c ON c.id = tc.category_id
-            WHERE ${where("collection")} GROUP BY c.id ORDER BY count DESC, c.name`),
-    /** Where they were struck, workshops counted as their city. */
-    mintFacet: () =>
-      grid(`SELECT coalesce(p.id, m.id) AS value, coalesce(p.name, m.name) AS label, count(*) AS count
-            FROM coin_type t JOIN mint m ON m.id = t.mint_id LEFT JOIN mint p ON p.id = m.parent_id
-            WHERE ${where("mint")} GROUP BY value ORDER BY count DESC, label`),
-    /** For the "Photographed" toggle (read with `photoToggle`); the coinage must include PHOTO. */
-    photoFacet: () =>
-      grid(`SELECT (SELECT count(*) FROM coin_type t WHERE ${where("photo")} AND ${HAS_CARD_IMAGE}) AS count,
-              (SELECT count(*) FROM coin_type t WHERE ${base}) AS n,
-              (SELECT count(*) FROM coin_type t WHERE ${base} AND ${HAS_CARD_IMAGE}) AS photographed`),
-    total: () => grid(`SELECT count(*) AS n FROM coin_type t WHERE ${where()}`),
-    types: (sort: Sort, limit: number) =>
-      grid(`${CARD_SELECT}
-            LEFT JOIN type_reference r ON r.type_id = t.id AND r.is_primary = 1
-            WHERE ${where()} ORDER BY ${ORDER[sort]} LIMIT ${limit}`),
+    /** Types counted under each key, by every filter but the facet's own. */
+    counts(filter: string, keys: Keys): Map<number, number> {
+      const counts = new Map<number, number>()
+      const seen = new Map<number, number>()
+      passing(filter, (t) =>
+        keys(t, (k) => {
+          if (seen.get(k) === t) return
+          seen.set(k, t)
+          counts.set(k, (counts.get(k) ?? 0) + 1)
+        })
+      )
+      return counts
+    },
+    /** A facet's options from a dictionary: most types first, then by name; `first` leads. */
+    facet(filter: string, keys: Keys, list: Entry[], first = -1): Facet[] {
+      return ranked(this.counts(filter, keys), list, first)
+    },
+    /** Types passing every filter but `filter` that also pass `test`. */
+    count(filter: string | null, test: Pred = () => true): number {
+      let n = 0
+      passing(filter, (t) => test(t) && n++)
+      return n
+    },
+    /** Catalogue date ranges, earliest first, labelled by their dates: "AD 103–111". */
+    periods(): Facet[] {
+      const groups = new Map<string, { s: number; e: number; count: number }>()
+      passing("period", (t) => {
+        if (ix.start[t] === NONE) return
+        const key = period(ix, t)
+        const g = groups.get(key)
+        if (g) g.count++
+        else groups.set(key, { s: ix.start[t], e: ix.end[t], count: 1 })
+      })
+      return [...groups.entries()]
+        .sort(([, a], [, b]) => a.s - b.s || a.e - b.e)
+        .map(([value, g]) => ({ value, label: yearRange(g.s, g.e === NONE ? null : g.e) ?? value, count: g.count }))
+    },
+    photo(): PhotoToggle {
+      const photographed = (t: number) => (ix.flags[t] & PHOTO_FLAG) !== 0
+      const all = types.filter(photographed).length
+      return { count: this.count("photo", photographed), available: all > 0 && all < types.length }
+    },
+    total(): number {
+      return this.count(null)
+    },
+    /** The grid's type ids, in order. */
+    grid(sort: Sort, limit: number): string[] {
+      const shown: number[] = []
+      passing(null, (t) => shown.push(t))
+      const rank = sort === "latest" ? ix.latest : sort === "reference" ? ix.reference : null
+      if (rank) shown.sort((a, b) => rank[a] - rank[b])
+      return shown.slice(0, limit).map((t) => ix.ids[t])
+    },
   }
 }
 
-export function photoToggle(result: D1Result): PhotoToggle {
-  const r = result.results[0] as { count: number; n: number; photographed: number }
-  return { count: r.count, available: r.photographed > 0 && r.photographed < r.n }
+/** Options by count, most first, then in dictionary (name) order; `first` leads. */
+export function ranked(counts: Map<number, number>, list: Entry[], first = -1): Facet[] {
+  return [...counts.entries()]
+    .sort(([a, n], [b, m]) => Number(b === first) - Number(a === first) || m - n || a - b)
+    .map(([k, count]) => ({ value: list[k].id, label: list[k].name, count }))
 }
 
-/** Period options labelled by their dates: "AD 103–111". */
-export function periods(result: D1Result): Facet[] {
-  return (result.results as { value: string; s: number; e: number | null; count: number }[]).map((p) => ({
-    value: p.value,
-    label: yearRange(p.s, p.e) ?? p.value,
-    count: p.count,
-  }))
-}
+/** The side facet of a subject's coinage: obverse or reverse. */
+export const sideKeys = (ix: FacetIndex, s: number): Keys => (t, emit) => each(ix.subject, t, (v) => v >> 1 === s && emit(v & 1))
+export const sideLabels = SIDES.map((side) => ({ id: side, name: side[0].toUpperCase() + side.slice(1) }))
 
-/** The grid's cards and the credits for their photos. */
-export async function cards(db: D1Database, result: D1Result): Promise<{ types: TypeCardData[]; typeCredits: PhotoCreditItem[] }> {
-  const types = (result.results as CardRow[]).map(card)
+/** The grid's cards, in the order given, and the credits for their photos. */
+export async function cards(db: D1Database, ids: string[]): Promise<{ types: TypeCardData[]; typeCredits: PhotoCreditItem[] }> {
+  if (!ids.length) return { types: [], typeCredits: [] }
+  const rows = await db.prepare(`${CARD_SELECT} WHERE t.id IN (SELECT value FROM json_each(?1))`).bind(JSON.stringify(ids)).all<CardRow>()
+  const byId = new Map(rows.results.map((r) => [r.id, r]))
+  const types = ids.flatMap((id) => (byId.has(id) ? [card(byId.get(id)!)] : []))
   const typeCredits = await getPhotoCredits(db, types.map((c) => c.imageId).filter((i): i is number => i != null))
   return { types, typeCredits }
 }

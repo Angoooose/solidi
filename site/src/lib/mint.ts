@@ -8,7 +8,8 @@
  * sub-variants (the type counting rule), so they match the mints list.
  */
 import { getCategories, tree, type Category, type MapMint } from "@/lib/categories"
-import { COLLECTION, DENOMINATION, ISSUER, MATERIAL, PHOTO, cards, coinage, parseCommon, photoToggle, type Facet, type PhotoToggle, type Sort } from "@/lib/coinage"
+import { COLLECTION, DENOMINATION, ISSUER, MATERIAL, PHOTO, cards, coinage, collectionKeys, denominationKeys, issuerKeys, materialKeys, mintBase, parseCommon, type Facet, type PhotoToggle, type Sort } from "@/lib/coinage"
+import { facetIndex } from "@/lib/facet/store"
 import { lead } from "@/lib/format"
 import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
@@ -73,7 +74,8 @@ export type Mint = {
   typeCredits: PhotoCreditItem[]
 }
 
-/* Every live type struck at the mint (?1) or one of its workshops. */
+/* Every live type struck at the mint (?1) or one of its workshops, for the sections read from D1;
+ * the coinage grid takes the same set from the facet index (mintBase). */
 const BASE = `t.replaced_by_id IS NULL AND t.parent_id IS NULL AND t.mint_id IN (SELECT id FROM mint WHERE id = ?1 OR parent_id = ?1)`
 const FILTERS = [COLLECTION, ISSUER, DENOMINATION, MATERIAL, PHOTO]
 
@@ -90,16 +92,16 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
   if (!mint) return null
   if (mint.parent) return { redirect: mint.parent }
 
-  const t = tree(await getCategories(db))
-  const c = coinage(db, id, BASE, FILTERS, [query.collection, query.issuer, query.denomination, query.material, query.photo])
-  const { one } = c
+  const [t, ix] = await Promise.all([getCategories(db).then(tree), facetIndex(db)])
+  const c = coinage(ix, mintBase(ix, id), FILTERS, [query.collection, query.issuer, query.denomination, query.material, query.photo])
+  const one = (sql: string) => db.prepare(sql).bind(id)
   const facet = (join: string, table: string) =>
     one(`SELECT x.id AS value, x.name AS label, count(DISTINCT t.id) AS count
          FROM coin_type t JOIN ${join} j ON j.type_id = t.id JOIN ${table} x ON x.id = j.${table}_id
          WHERE ${BASE} GROUP BY x.id ORDER BY count DESC, x.name`)
 
-  const [article, perCollection, stats, people, denominations, materials, subjects, collectionFacet, issuerFacet, denominationFacet, materialFacet, total, photoRows, types] =
-    await db.batch([
+  const [[article, perCollection, stats, people, denominations, materials, subjects], grid_] = await Promise.all([
+    db.batch([
       one(`SELECT extract, url, licence FROM article WHERE entity_type = 'mint' AND entity_id = ?1
            ORDER BY source = 'wikipedia_en' DESC LIMIT 1`),
       one(`SELECT category_id AS id, n, start_year AS start, end_year AS "end", bins FROM category_mint WHERE mint_id = ?1`),
@@ -115,14 +117,9 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
       facet("type_denomination", "denomination"),
       facet("type_material", "material"),
       facet("type_subject", "subject"),
-      c.collectionFacet(),
-      c.issuerFacet(),
-      c.denominationFacet(),
-      c.materialFacet(),
-      c.total(),
-      c.photoFacet(),
-      c.types(query.sort, query.limit),
-    ])
+    ]),
+    cards(db, c.grid(query.sort, query.limit)),
+  ])
 
   const rows = perCollection.results as { id: string; n: number; start: number | null; end: number | null; bins: string | null }[]
   const tops = rows.filter((r) => t.byId.get(r.id)?.parentId == null)
@@ -152,7 +149,6 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
     return { items: items.slice(0, FACETS), total: items.length }
   }
   const unfiltered = { denomination: (denominations.results as Facet[]).length, material: (materials.results as Facet[]).length }
-  const grid_ = await cards(db, types)
   const n = tops.reduce((a, r) => a + r.n, 0)
 
   return {
@@ -182,12 +178,12 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
       denomination: unfiltered.denomination > 1,
       material: unfiltered.material > 1,
     },
-    collectionFacet: collectionFacet.results as Facet[],
-    issuerFacet: issuerFacet.results as Facet[],
-    denominationFacet: denominationFacet.results as Facet[],
-    materialFacet: materialFacet.results as Facet[],
-    photographed: photoToggle(photoRows),
-    total: (total.results[0] as { n: number }).n,
+    collectionFacet: c.facet("collection", collectionKeys(ix), ix.categories),
+    issuerFacet: c.facet("issuer", issuerKeys(ix), ix.persons),
+    denominationFacet: c.facet("denomination", denominationKeys(ix), ix.denominations),
+    materialFacet: c.facet("material", materialKeys(ix), ix.materials),
+    photographed: c.photo(),
+    total: c.total(),
     grid: grid_.types,
     typeCredits: grid_.typeCredits,
   }

@@ -30,6 +30,13 @@
 			"database_id": "a029c8a3-cf3f-4ea1-925a-d3c1dbb38d90"
 		}
 	],
+	// The facet index for each database build (src/lib/facet/store.ts), uploaded by `npm run facets:remote`.
+	"kv_namespaces": [
+		{
+			"binding": "FACETS",
+			"id": "dacf3a0528d84feaa6e7d997180c5734"
+		}
+	],
 	// The deploy's version id: part of the edge-cache key (src/middleware.ts), so a deploy retires
 	// cached pages that point at the previous deploy's CSS and JS.
 	"version_metadata": {
