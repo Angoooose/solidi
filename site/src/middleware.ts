@@ -7,10 +7,11 @@
  * code retires them all at once (a page from the last deploy would link CSS and JS that are gone);
  * the build time itself is read at most once a minute per Worker instance.
  *
- * Off in dev, so edits show at once.
+ * The cache is off in dev, so edits show at once; the query check (lib/views.ts) runs everywhere.
  */
 import { defineMiddleware } from "astro:middleware"
 import { env } from "cloudflare:workers"
+import { normalizeQuery } from "@/lib/views"
 
 const CACHED = [/^\/$/, /^\/collections\/?$/, /^\/mints\/?$/, /^\/mint\/[^/]+\/?$/, /^\/person\/[^/]+\/?$/, /^\/type\/.+$/, /^\/denominations\/?$/, /^\/denomination\/[^/]+\/?$/, /^\/subjects\/?$/, /^\/subject\/[^/]+\/?$/, /^\/category\/[^/]+\/?$/, /^\/people\/?$/, /^\/sources\/?$/, /^\/about\/?$/, /^\/api\/collections\.json$/, /^\/api\/search-index\.json$/, /^\/api\/search\.json$/, /^\/sitemap\.xml$/, /^\/sitemaps\/[^/]+$/]
 const TTL = 60 * 60 * 24 // a day; the build key retires copies sooner when the data changes
@@ -30,10 +31,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // The people pages were once /rulers and /ruler/[id]; keep old links working, query and all.
   const moved = url.pathname.match(/^\/ruler(s)?(\/.*)?$/)
   if (moved) return context.redirect(`${moved[1] ? "/people" : "/person"}${moved[2] ?? ""}${url.search}`, 301)
-  if (import.meta.env.DEV || request.method !== "GET" || !CACHED.some((re) => re.test(url.pathname))) return next()
+  if (request.method !== "GET" || !CACHED.some((re) => re.test(url.pathname))) return next()
+
+  // Only the parameters the page reads (lib/views.ts); an unknown or repeated one is redirected
+  // away rather than rendered, so it can't make an uncached copy of the page. Temporary,
+  // so browsers don't remember it if a parameter is added later.
+  const { query, key: params, changed } = normalizeQuery(url)
+  if (changed) return context.redirect(`${url.pathname}${query}`, 302)
+  if (import.meta.env.DEV) return next()
 
   const cache = (caches as unknown as { default: Cache }).default
-  const key = new Request(`${url.origin}${url.pathname}${url.search}${url.search ? "&" : "?"}__build=${encodeURIComponent(await buildId())}&__deploy=${env.CF_VERSION_METADATA.id}`)
+  const key = new Request(`${url.origin}${url.pathname}?${params ? `${params}&` : ""}__build=${encodeURIComponent(await buildId())}&__deploy=${env.CF_VERSION_METADATA.id}`)
   const hit = await cache.match(key)
   if (hit) return hit
 
