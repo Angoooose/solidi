@@ -28,7 +28,7 @@ SHEET_ROWS = 30
 CONTROL = 2000         # ANS coins turned the same way, as a yardstick for the rotation check
 CELL = 112
 CAPTION = 14
-HIT, MISS = (40, 150, 70), (200, 50, 40)
+HIT, NEAR, MISS = (40, 150, 70), (225, 150, 20), (200, 50, 40)
 
 
 def _both_sides(specimen: Specimen, images_dir: Path) -> dict[str, Image.Image]:
@@ -38,7 +38,7 @@ def _both_sides(specimen: Specimen, images_dir: Path) -> dict[str, Image.Image]:
         path = image_path(images_dir, photo.key)
         if path.exists():
             for side, view in views_of(Image.open(path).convert("RGB"), photo.side):
-                sides[side] = prepare(view)
+                sides[side], _ = prepare(view)
     return sides
 
 
@@ -46,8 +46,9 @@ def miss_sheet(results: list[dict], by_id: dict[str, Specimen], images_dir: Path
                seed: int = 0) -> int:
     """Save a picture of queries whose true type ranked outside the top 10. Each row is the query
     (obverse, reverse) and then its three nearest gallery coins, outlined green when the coin is
-    of the query's type and red when not. Returns the number of rows."""
-    misses = [r for r in results if r["rank"]["both"] > 10]
+    of the query's type, amber when it is another type of the same design, and red otherwise.
+    Returns the number of rows."""
+    misses = [r for r in results if r["rank"]["type"]["both"] > 10]
     rows = random.Random(seed).sample(misses, min(SHEET_ROWS, len(misses)))
     if not rows:
         return 0
@@ -58,7 +59,8 @@ def miss_sheet(results: list[dict], by_id: dict[str, Specimen], images_dir: Path
         top = y * (CELL + CAPTION + 8)
         query = by_id[result["id"]]
         draw.text((2, top), f"{query.collection}  {query.type_id}  (true type ranked "
-                            f"{result['rank']['both']:,})", fill="black")
+                            f"{result['rank']['type']['both']:,}, design "
+                            f"{result['rank']['design']['both']:,})", fill="black")
         for x, specimen in enumerate([query] + [by_id[g] for g in result["nearest"]]):
             left = x * (2 * CELL + 12)
             sides = _both_sides(specimen, images_dir)
@@ -66,7 +68,8 @@ def miss_sheet(results: list[dict], by_id: dict[str, Specimen], images_dir: Path
                 if side in sides:
                     sheet.paste(sides[side].resize((CELL, CELL)), (left + i * CELL, top + CAPTION))
             if x:
-                colour = HIT if specimen.type_id == query.type_id else MISS
+                colour = (HIT if specimen.type_id == query.type_id
+                          else NEAR if specimen.design == query.design else MISS)
                 draw.rectangle((left - 1, top + CAPTION - 1, left + 2 * CELL, top + CAPTION + CELL),
                                outline=colour, width=3)
     sheet.save(out)
@@ -76,6 +79,7 @@ def miss_sheet(results: list[dict], by_id: dict[str, Specimen], images_dir: Path
 def _line(results: list[dict]) -> dict:
     s = evaluate.summary(results)
     return {"queries": s["queries"], **{k: s["type"]["both"][k] for k in ("top1", "top10")},
+            "design_top10": s["design"]["both"]["top10"],
             **{name: s["labels"].get(name, {}).get("top1") for name in ("portrait", "denomination")}}
 
 
@@ -83,7 +87,7 @@ def diagnose(specimens: list[Specimen], data_dir: Path, out_dir: Path, log=print
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def vectors_for(subset: list[Specimen], **variant):
-        views, vectors = embed(subset, data_dir, log=log, **embed_args, **variant)
+        views, vectors, _ = embed(subset, data_dir, log=log, **embed_args, **variant)
         return evaluate.complete(subset, views), torch.from_numpy(vectors.astype(np.float32))
 
     rows, tensor = vectors_for(specimens)
@@ -131,9 +135,11 @@ def _pct(x: float | None) -> str:
 
 def markdown(report: dict) -> str:
     def table(lines: dict) -> list[str]:
-        out = ["| Pictures | Queries | Top 1 | Top 10 | Portrait | Denomination |", "|---|---|---|---|---|---|"]
+        out = ["| Pictures | Queries | Type top 1 | Type top 10 | Design top 10 | Portrait | Denomination |",
+               "|---|---|---|---|---|---|---|"]
         return out + [f"| {name} | {v['queries']:,} | {_pct(v['top1'])} | {_pct(v['top10'])} | "
-                      f"{_pct(v['portrait'])} | {_pct(v['denomination'])} |" for name, v in lines.items()]
+                      f"{_pct(v['design_top10'])} | {_pct(v['portrait'])} | {_pct(v['denomination'])} |"
+                      for name, v in lines.items()]
 
     out = [f"# Diagnostics: {report['model']} at {report['resolution']}px, no training", "",
            f"Release `{report['release']}`. Type ranks use both sides; labels are graded on the nearest coin.",
@@ -151,5 +157,5 @@ def markdown(report: dict) -> str:
            *[f"| {c} | {_pct(v)} |" for c, v in report["upright_by_collection"].items()],
            "", f"`misses.png` shows {report['sheet_rows']} held-out coins whose true type ranked "
                "outside the top 10, each with its three nearest gallery coins (green outline: same "
-               "type as the query; red: a different type)."]
+               "type as the query; amber: another type of the same design; red: a different design)."]
     return "\n".join(out) + "\n"

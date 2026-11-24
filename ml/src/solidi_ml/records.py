@@ -7,6 +7,7 @@ denomination and mint are coarser labels that should be easier.
 from __future__ import annotations
 
 import hashlib
+import re
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -53,10 +54,29 @@ class Specimen:
     portrait: str | None = None      # who is on the obverse
     denomination: str | None = None
     mint: str | None = None
+    design: str = ""                 # types that look alike share one: see `design_key`
     photos: list[Photo] = field(default_factory=list)
 
     def label(self, name: str) -> str | None:
         return getattr(self, name)
+
+
+def _plain(text: str) -> str:
+    text = re.sub(r"border of dots|[^a-z0-9 ]", " ", text.lower())
+    return " ".join(text.split())
+
+
+def design_key(type_id: str, portrait: str | None, denomination: str | None,
+               obverse: str | None, reverse: str | None) -> str:
+    """A label shared by types a photograph can hardly tell apart: the same denomination, the same
+    person on the obverse (or, with no portrait recorded, the same obverse description) and the
+    same reverse description. Such types differ in legend breaks, mint marks or small symbols.
+    A type missing a description stands alone."""
+    front = portrait or _plain(obverse or "")
+    back = _plain(reverse or "")
+    if not front or not back:
+        return type_id
+    return f"{denomination or ''}|{front}|{back}"
 
 
 def photo_key(url: str) -> str:
@@ -91,8 +111,9 @@ def load(db_path: Path, size: int = 512) -> list[Specimen]:
                  (SELECT type_id, denomination_id FROM type_denomination
                   ORDER BY type_id, denomination_id) GROUP BY type_id""")),
     }
-    types = {tid: (slug, mint) for tid, slug, mint in db.execute(
-        "SELECT t.id, d.slug, t.mint_id FROM coin_type t LEFT JOIN dataset d ON d.id = t.dataset_id")}
+    types = {tid: (slug, mint, obverse, reverse) for tid, slug, mint, obverse, reverse in db.execute(
+        """SELECT t.id, d.slug, t.mint_id, t.obv_description, t.rev_description
+             FROM coin_type t LEFT JOIN dataset d ON d.id = t.dataset_id""")}
     specimens: dict[str, Specimen] = {}
     rows = db.execute(
         """SELECT s.id, s.dataset_id, st.type_id, i.side, i.url, i.iiif_service
@@ -106,11 +127,13 @@ def load(db_path: Path, size: int = 512) -> list[Specimen]:
             continue
         specimen = specimens.get(sid)
         if specimen is None:
-            corpus, mint = types.get(type_id, (None, None))
+            corpus, mint, obverse, reverse = types.get(type_id, (None, None, None, None))
+            portrait = labels["portrait"].get(type_id)
+            denomination = labels["denomination"].get(type_id)
             specimen = specimens[sid] = Specimen(
                 id=sid, collection=_collection(dataset_id), type_id=type_id, corpus=corpus,
-                portrait=labels["portrait"].get(type_id),
-                denomination=labels["denomination"].get(type_id), mint=mint)
+                portrait=portrait, denomination=denomination, mint=mint,
+                design=design_key(type_id, portrait, denomination, obverse, reverse))
         if any(p.side == side for p in specimen.photos):
             continue   # one photo per side is enough
         specimen.photos.append(Photo(photo_key(url), sid, side, sized_url(url, iiif, size)))

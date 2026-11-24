@@ -15,6 +15,7 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
+from . import crop
 from .crop import crop_coin, split_combined
 from .download import image_path
 from .records import Specimen
@@ -42,16 +43,17 @@ def views_of(picture: Image.Image, side: str) -> list[tuple[str, Image.Image]]:
     return list(zip(("obverse", "reverse"), halves)) if halves else []
 
 
-def prepare(picture: Image.Image, gray: bool = False, angle: int = 0) -> Image.Image:
-    """The square picture the model is shown: the coin cut out, then optionally with its colour
-    removed or turned by `angle` degrees (the corners fill with the background colour)."""
-    picture = crop_coin(picture)
+def prepare(picture: Image.Image, gray: bool = False, angle: int = 0) -> tuple[Image.Image, bool]:
+    """The square picture the model is shown, and whether the coin was found in it: the coin cut
+    out, then optionally with its colour removed or turned by `angle` degrees (the corners fill
+    with the background colour)."""
+    picture, found = crop_coin(picture)
     if gray:
         picture = picture.convert("L").convert("RGB")
     if angle:
         picture = picture.rotate(angle, resample=Image.Resampling.BICUBIC,
                                  fillcolor=picture.getpixel((0, 0)))
-    return picture
+    return picture, found
 
 
 def _tensor(picture: Image.Image, resolution: int) -> torch.Tensor:
@@ -76,23 +78,28 @@ class _Photos(Dataset):
             picture = Image.open(path).convert("RGB")
         except OSError:
             return []
-        return [(specimen_id, name, _tensor(prepare(view, self.gray, self.angle), self.resolution))
-                for name, view in views_of(picture, side)]
+        out = []
+        for name, view in views_of(picture, side):
+            prepared, found = prepare(view, self.gray, self.angle)
+            out.append((specimen_id, name, found, _tensor(prepared, self.resolution)))
+        return out
 
 
 def _collate(batch):
     views = [view for item in batch for view in item]
     if not views:
-        return [], None
-    return [(sid, side) for sid, side, _ in views], torch.stack([t for _, _, t in views])
+        return [], [], None
+    return ([(sid, side) for sid, side, _, _ in views], [found for _, _, found, _ in views],
+            torch.stack([t for *_, t in views]))
 
 
 def embed(specimens: list[Specimen], data_dir: Path, model_name: str = MODEL,
           resolution: int = RESOLUTION, batch_size: int = 256, device: str | None = None,
           workers: int = 4, log=print, gray: bool = False,
-          angle: int = 0) -> tuple[list[tuple[str, str]], np.ndarray]:
-    """Embed every downloaded photo. Returns the views [(specimen id, side)] and their unit
-    vectors, one row each. Results are kept in data/embeddings/ and reused.
+          angle: int = 0) -> tuple[list[tuple[str, str]], np.ndarray, list[bool]]:
+    """Embed every downloaded photo. Returns the views [(specimen id, side)], their unit vectors
+    (one row each) and whether the coin was found in each. Results are kept in data/embeddings/
+    and reused.
 
     `gray` and `angle` embed a variant of each picture (see `prepare`), kept separately."""
     images_dir = data_dir / "images"
@@ -103,9 +110,9 @@ def embed(specimens: list[Specimen], data_dir: Path, model_name: str = MODEL,
     wanted = sorted(f"{sid}/{side}" for sid, side, _ in items)
     if (out_dir / "views.json").exists():
         saved = json.loads((out_dir / "views.json").read_text())
-        if saved["photos"] == wanted:
+        if saved["photos"] == wanted and saved.get("crop") == crop.VERSION:
             log(f"reusing embeddings in {out_dir}")
-            return [tuple(v) for v in saved["views"]], np.load(out_dir / "vectors.npy")
+            return [tuple(v) for v in saved["views"]], np.load(out_dir / "vectors.npy"), saved["found"]
 
     device = device or pick_device()
     log(f"embedding {len(items):,} photos with {model_name} at {resolution}px on {device}"
@@ -115,20 +122,23 @@ def embed(specimens: list[Specimen], data_dir: Path, model_name: str = MODEL,
     loader = DataLoader(_Photos(items, resolution, gray, angle), batch_size=batch_size, num_workers=workers,
                         collate_fn=_collate)
     views: list[tuple[str, str]] = []
+    found: list[bool] = []
     chunks: list[np.ndarray] = []
     with torch.inference_mode():
-        for n, (batch_views, pixels) in enumerate(loader):
+        for n, (batch_views, batch_found, pixels) in enumerate(loader):
             if pixels is None:
                 continue
             with torch.autocast("cuda", enabled=device == "cuda"):
                 vectors = model(pixels.to(device))
             vectors = torch.nn.functional.normalize(vectors.float(), dim=1)
             views += batch_views
+            found += batch_found
             chunks.append(vectors.cpu().numpy().astype(np.float16))
             if n % 50 == 49:
                 log(f"  {len(views):,} views")
     vectors = np.concatenate(chunks) if chunks else np.zeros((0, 0), dtype=np.float16)
     out_dir.mkdir(parents=True, exist_ok=True)
     np.save(out_dir / "vectors.npy", vectors)
-    (out_dir / "views.json").write_text(json.dumps({"photos": wanted, "views": views}))
-    return views, vectors
+    (out_dir / "views.json").write_text(json.dumps(
+        {"photos": wanted, "crop": crop.VERSION, "views": views, "found": found}))
+    return views, vectors, found

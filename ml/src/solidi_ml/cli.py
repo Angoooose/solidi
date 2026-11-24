@@ -51,10 +51,11 @@ def _save(out: Path, report: dict, text: str) -> None:
 
 def _baseline(args) -> None:
     from .embed import embed
-    from .evaluate import evaluate, markdown
+    from .evaluate import coin_found, evaluate, markdown
     name, specimens = _specimens(args)
-    views, vectors = embed(specimens, Path(args.data), **_embed_args(args))
+    views, vectors, found = embed(specimens, Path(args.data), **_embed_args(args))
     report = {"release": name, "model": args.model, "resolution": args.resolution,
+              "coin_found": coin_found(specimens, views, found),
               **evaluate(specimens, views, vectors)}
     _save(_run_dir(args, "baseline"), report, markdown(report))
 

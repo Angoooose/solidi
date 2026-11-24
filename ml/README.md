@@ -33,10 +33,15 @@ shows that everything runs.
 
 The baseline uses DINOv2 (small, with registers) exactly as published. Nothing is trained.
 
-1. Every photo is cut down to the coin and turned into a vector, obverse and reverse separately.
+1. Every photo is cut down to the coin (the largest roundish object that stands out from the
+   background) and turned into a vector, obverse and reverse separately.
 2. Coins from the American Numismatic Society and SITNAM form the gallery.
 3. Each test coin's two sides are compared with every gallery coin's. Types are ranked by their
    best-matching coin, and we record where the true type lands.
+
+Many types look alike and differ only in a legend break or a small symbol, so every score is
+given twice: for the exact **type**, and for the **design**, which groups types with the same
+denomination, portrait and reverse description.
 
 Two tests are reported. **Held-out collections** uses coins from museums that are not in the
 gallery, so the photographer, background and lighting are all new; this is the number that
