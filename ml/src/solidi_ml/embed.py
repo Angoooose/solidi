@@ -33,8 +33,29 @@ def pick_device() -> str:
     return "cpu"
 
 
+def views_of(picture: Image.Image, side: str) -> list[tuple[str, Image.Image]]:
+    """The sides a photo shows, as (side, picture). A 'combined' photo is cut in two; one that
+    isn't laid out as two sides gives nothing."""
+    if side != "combined":
+        return [(side, picture)]
+    halves = split_combined(picture)
+    return list(zip(("obverse", "reverse"), halves)) if halves else []
+
+
+def prepare(picture: Image.Image, gray: bool = False, angle: int = 0) -> Image.Image:
+    """The square picture the model is shown: the coin cut out, then optionally with its colour
+    removed or turned by `angle` degrees (the corners fill with the background colour)."""
+    picture = crop_coin(picture)
+    if gray:
+        picture = picture.convert("L").convert("RGB")
+    if angle:
+        picture = picture.rotate(angle, resample=Image.Resampling.BICUBIC,
+                                 fillcolor=picture.getpixel((0, 0)))
+    return picture
+
+
 def _tensor(picture: Image.Image, resolution: int) -> torch.Tensor:
-    picture = crop_coin(picture).resize((resolution, resolution), Image.Resampling.BICUBIC)
+    picture = picture.resize((resolution, resolution), Image.Resampling.BICUBIC)
     pixels = (np.asarray(picture, dtype=np.float32) / 255.0 - MEAN) / STD
     return torch.from_numpy(pixels.transpose(2, 0, 1).copy())
 
@@ -42,8 +63,9 @@ def _tensor(picture: Image.Image, resolution: int) -> torch.Tensor:
 class _Photos(Dataset):
     """One item per photo file: its views as tensors. Unreadable files give no views."""
 
-    def __init__(self, items: list[tuple[str, str, Path]], resolution: int) -> None:
-        self.items, self.resolution = items, resolution
+    def __init__(self, items: list[tuple[str, str, Path]], resolution: int, gray: bool,
+                 angle: int) -> None:
+        self.items, self.resolution, self.gray, self.angle = items, resolution, gray, angle
 
     def __len__(self) -> int:
         return len(self.items)
@@ -54,13 +76,8 @@ class _Photos(Dataset):
             picture = Image.open(path).convert("RGB")
         except OSError:
             return []
-        if side != "combined":
-            return [(specimen_id, side, _tensor(picture, self.resolution))]
-        halves = split_combined(picture)
-        if halves is None:
-            return []
-        return [(specimen_id, name, _tensor(half, self.resolution))
-                for name, half in zip(("obverse", "reverse"), halves)]
+        return [(specimen_id, name, _tensor(prepare(view, self.gray, self.angle), self.resolution))
+                for name, view in views_of(picture, side)]
 
 
 def _collate(batch):
@@ -72,13 +89,17 @@ def _collate(batch):
 
 def embed(specimens: list[Specimen], data_dir: Path, model_name: str = MODEL,
           resolution: int = RESOLUTION, batch_size: int = 256, device: str | None = None,
-          workers: int = 4, log=print) -> tuple[list[tuple[str, str]], np.ndarray]:
+          workers: int = 4, log=print, gray: bool = False,
+          angle: int = 0) -> tuple[list[tuple[str, str]], np.ndarray]:
     """Embed every downloaded photo. Returns the views [(specimen id, side)] and their unit
-    vectors, one row each. Results are kept in data/embeddings/ and reused."""
+    vectors, one row each. Results are kept in data/embeddings/ and reused.
+
+    `gray` and `angle` embed a variant of each picture (see `prepare`), kept separately."""
     images_dir = data_dir / "images"
     items = [(s.id, p.side, image_path(images_dir, p.key)) for s in specimens for p in s.photos]
     items = [item for item in items if item[2].exists()]
-    out_dir = data_dir / "embeddings" / f"{model_name}-{resolution}"
+    variant = ("-gray" if gray else "") + (f"-rot{angle}" if angle else "")
+    out_dir = data_dir / "embeddings" / f"{model_name}-{resolution}{variant}"
     wanted = sorted(f"{sid}/{side}" for sid, side, _ in items)
     if (out_dir / "views.json").exists():
         saved = json.loads((out_dir / "views.json").read_text())
@@ -87,10 +108,11 @@ def embed(specimens: list[Specimen], data_dir: Path, model_name: str = MODEL,
             return [tuple(v) for v in saved["views"]], np.load(out_dir / "vectors.npy")
 
     device = device or pick_device()
-    log(f"embedding {len(items):,} photos with {model_name} at {resolution}px on {device}")
+    log(f"embedding {len(items):,} photos with {model_name} at {resolution}px on {device}"
+        + (", greyscale" if gray else "") + (f", turned {angle} degrees" if angle else ""))
     model = timm.create_model(model_name, pretrained=True, num_classes=0, img_size=resolution)
     model = model.eval().to(device)
-    loader = DataLoader(_Photos(items, resolution), batch_size=batch_size, num_workers=workers,
+    loader = DataLoader(_Photos(items, resolution, gray, angle), batch_size=batch_size, num_workers=workers,
                         collate_fn=_collate)
     views: list[tuple[str, str]] = []
     chunks: list[np.ndarray] = []

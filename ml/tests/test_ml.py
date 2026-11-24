@@ -82,3 +82,33 @@ def test_evaluate_ranks_types_and_never_matches_a_coin_to_itself():
     assert same["type"]["both"]["top1"] == 1.0
     assert same["by_bucket"] == {"1": {"queries": 2, "top1": 1.0, "top5": 1.0, "top10": 1.0}}
     assert "Held-out collections" in evaluate.markdown({"release": "r", "model": "m", "resolution": 224, **report})
+
+
+def test_alternative_query_vectors_keep_the_best_match():
+    # The query's own vector points at type B; a second version of it (say, turned) points at
+    # its true type A. With both offered, A wins and the second set is reported as the winner.
+    import torch
+    specimens = [_specimen("a1", "ans", "A"), _specimen("b1", "ans", "B"), _specimen("q", "princeton", "A")]
+    views = [(sid, side) for sid in ("a1", "b1", "q") for side in ("obverse", "reverse")]
+    rows = evaluate.complete(specimens, views)
+    gallery, held_out, _ = evaluate.split(specimens, rows)
+    base = torch.tensor([[1, 0], [1, 0], [0, 1], [0, 1], [0.6, 0.8], [0.6, 0.8]], dtype=torch.float32)
+    turned = torch.tensor([[1, 0], [1, 0]], dtype=torch.float32)
+    turned_rows = {"q": (0, 1)}
+    alone = evaluate.run(held_out, gallery, rows, base, "cpu")[0]
+    assert alone["rank"]["both"] == 2 and alone["nearest"][0] == "b1"
+    best = evaluate.run(held_out, gallery, rows, base, "cpu",
+                        query_sets=[(rows, base), (turned_rows, turned)])[0]
+    assert best["rank"]["both"] == 1 and best["set"] == 1
+
+
+def test_prepare_variants_keep_the_square():
+    from solidi_ml.embed import prepare, views_of
+    picture = _coin_picture()
+    plain, gray, turned = prepare(picture), prepare(picture, gray=True), prepare(picture, angle=45)
+    assert plain.size == gray.size == turned.size
+    r, g, b = gray.getpixel((gray.width // 2, gray.height // 2))
+    assert r == g == b
+    assert turned.getpixel((0, 0)) == (255, 255, 255)
+    assert [side for side, _ in views_of(Image.new("RGB", (800, 400)), "combined")] == ["obverse", "reverse"]
+    assert views_of(Image.new("RGB", (500, 400)), "combined") == []
