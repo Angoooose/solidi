@@ -1,0 +1,42 @@
+[project]
+name = "solidi-ml"
+version = "0.1.0"
+description = "Solidi: identifying a coin type from a photograph"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "httpx>=0.28.1",
+    "numpy>=2.1",
+    "pillow>=11.0",
+    "timm>=1.0.15",
+    "torch>=2.6",
+    "torchvision>=0.21",
+    "tqdm>=4.70.1",
+]
+
+[project.scripts]
+solidi-ml = "solidi_ml.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.9,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.uv.build-backend]
+module-name = "solidi_ml"
+
+# PyPI's torch has no CUDA on Windows, so Windows and Linux take the CUDA build from PyTorch's
+# own index; macOS takes the PyPI build (Metal).
+[tool.uv.sources]
+torch = [{ index = "pytorch-cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }]
+torchvision = [{ index = "pytorch-cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
