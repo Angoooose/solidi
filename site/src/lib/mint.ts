@@ -1,7 +1,8 @@
 /*
  * Data for the mint page (/mint/antiocheia_syria): the mint and where it is,
  * its output per collection over time (category_mint), who struck there, its denominations, metals
- * and subjects, and its coinage with filters (lib/coinage.ts).
+ * and subjects (computed when the database is built: lib/summary/), and its coinage with filters
+ * (lib/coinage.ts).
  *
  * A mint covers its workshops (Seleucia on the Tigris II is part of Seleucia), as the summary
  * tables count them; a workshop's own URL redirects to its city. Counts are of live types, not
@@ -10,6 +11,7 @@
 import { getCategories, tree, type Category, type MapMint } from "@/lib/categories"
 import { COLLECTION, DENOMINATION, ISSUER, MATERIAL, PHOTO, cards, coinage, collectionKeys, denominationKeys, issuerKeys, materialKeys, mintBase, parseCommon, type Facet, type PhotoToggle, type Sort } from "@/lib/coinage"
 import { facetIndex } from "@/lib/facet/store"
+import { sections } from "@/lib/summary/store"
 import { lead } from "@/lib/format"
 import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
@@ -19,7 +21,6 @@ import { MINT_BIN } from "@/lib/mints"
 /** "Who struck here" shows this many before "All N people". */
 export const PEOPLE_SHOWN = 20
 const FACETS = 8
-const NOT_PEOPLE = `('anonymous')`
 
 export type MintQuery = {
   collection: string | null
@@ -74,9 +75,6 @@ export type Mint = {
   typeCredits: PhotoCreditItem[]
 }
 
-/* Every live type struck at the mint (?1) or one of its workshops, for the sections read from D1;
- * the coinage grid takes the same set from the facet index (mintBase). */
-const BASE = `t.replaced_by_id IS NULL AND t.parent_id IS NULL AND t.mint_id IN (SELECT id FROM mint WHERE id = ?1 OR parent_id = ?1)`
 const FILTERS = [COLLECTION, ISSUER, DENOMINATION, MATERIAL, PHOTO]
 
 export async function getMint(db: D1Database, id: string, query: MintQuery): Promise<Mint | { redirect: string } | null> {
@@ -94,34 +92,12 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
 
   const [t, ix] = await Promise.all([getCategories(db).then(tree), facetIndex(db)])
   const c = coinage(ix, mintBase(ix, id), FILTERS, [query.collection, query.issuer, query.denomination, query.material, query.photo])
-  const one = (sql: string) => db.prepare(sql).bind(id)
-  const facet = (join: string, table: string) =>
-    one(`SELECT x.id AS value, x.name AS label, count(DISTINCT t.id) AS count
-         FROM coin_type t JOIN ${join} j ON j.type_id = t.id JOIN ${table} x ON x.id = j.${table}_id
-         WHERE ${BASE} GROUP BY x.id ORDER BY count DESC, x.name`)
-
-  const [[article, perCollection, stats, people, denominations, materials, subjects], grid_] = await Promise.all([
-    db.batch([
-      one(`SELECT extract, url, licence FROM article WHERE entity_type = 'mint' AND entity_id = ?1
-           ORDER BY source = 'wikipedia_en' DESC LIMIT 1`),
-      one(`SELECT category_id AS id, n, start_year AS start, end_year AS "end", bins FROM category_mint WHERE mint_id = ?1`),
-      one(`SELECT count(DISTINCT st.specimen_id) AS specimens, count(DISTINCT s.institution_id) AS holders
-           FROM coin_type t JOIN specimen_type st ON st.type_id = t.id JOIN specimen s ON s.id = st.specimen_id WHERE ${BASE}`),
-      one(`SELECT p.id, p.name, p.start_year AS os, coalesce(p.end_year, p.start_year) AS oe, count(DISTINCT t.id) AS n,
-             min(t.start_year) AS cs, max(coalesce(t.end_year, t.start_year)) AS ce
-           FROM coin_type t JOIN type_person tp ON tp.type_id = t.id AND tp.role IN ('authority', 'issuer')
-           JOIN person p ON p.id = tp.person_id
-           WHERE ${BASE} AND p.id NOT IN ${NOT_PEOPLE}
-           GROUP BY p.id
-           ORDER BY coalesce(os, cs) IS NULL, coalesce(os, cs), coalesce(oe, ce), n DESC, p.name`),
-      facet("type_denomination", "denomination"),
-      facet("type_material", "material"),
-      facet("type_subject", "subject"),
-    ]),
+  const [{ article, perCollection, stats, people, denominations, materials, subjects }, grid_] = await Promise.all([
+    sections(db, "mint", id),
     cards(db, c.grid(query.sort, query.limit)),
   ])
 
-  const rows = perCollection.results as { id: string; n: number; start: number | null; end: number | null; bins: string | null }[]
+  const rows = perCollection
   const tops = rows.filter((r) => t.byId.get(r.id)?.parentId == null)
   const sum = (f: (r: (typeof rows)[number]) => number | null, pick: (a: number[]) => number) => {
     const v = tops.map(f).filter((x): x is number => x != null)
@@ -141,14 +117,10 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
     .sort((a, b) => (a.start ?? Infinity) - (b.start ?? Infinity) || b.n - a.n)
 
   const span = (s: number | null, e: number | null): Span | null => (s == null ? null : [Math.min(s, e ?? s), Math.max(s, e ?? s)])
-  type PersonRaw = { id: string; name: string; n: number; os: number | null; oe: number | null; cs: number | null; ce: number | null }
-  const art = article.results[0] as { extract: string; url: string; licence: string } | undefined
-  const st = stats.results[0] as { specimens: number; holders: number }
-  const top = (r: D1Result) => {
-    const items = r.results as Facet[]
-    return { items: items.slice(0, FACETS), total: items.length }
-  }
-  const unfiltered = { denomination: (denominations.results as Facet[]).length, material: (materials.results as Facet[]).length }
+  const art = article[0] as (typeof article)[number] | undefined
+  const st = stats[0]
+  const top = (items: Facet[]) => ({ items: items.slice(0, FACETS), total: items.length })
+  const unfiltered = { denomination: denominations.length, material: materials.length }
   const n = tops.reduce((a, r) => a + r.n, 0)
 
   return {
@@ -168,13 +140,13 @@ export async function getMint(db: D1Database, id: string, query: MintQuery): Pro
     specimens: st.specimens,
     holders: st.holders,
     collections,
-    people: (people.results as PersonRaw[]).map((p) => ({ id: p.id, name: p.name, n: p.n, office: span(p.os, p.oe), coins: span(p.cs, p.ce) })),
+    people: people.map((p) => ({ id: p.id, name: p.name, n: p.n, office: span(p.os, p.oe), coins: span(p.cs, p.ce) })),
     denominations: top(denominations),
     materials: top(materials),
     subjects: top(subjects),
     available: {
       collection: collections.length > 1,
-      issuer: (people.results as unknown[]).length > 1,
+      issuer: people.length > 1,
       denomination: unfiltered.denomination > 1,
       material: unfiltered.material > 1,
     },

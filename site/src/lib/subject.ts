@@ -2,19 +2,20 @@
  * Data for the subject page (/subject/zeus): what it was (Wikipedia,
  * else Nomisma's definition), which side of the coin it's on, its Greek or Roman counterpart,
  * where and when it was struck (category_subject), who issued it, its denominations, mints and
- * the legends naming it (subject_legend), then its coinage with filters (lib/coinage.ts).
+ * the legends naming it (subject_legend), computed when the database is built (lib/summary/),
+ * then its coinage with filters (lib/coinage.ts).
  */
 import { getCategories, photo, tree, IMAGE_COLS, type Category, type Photo } from "@/lib/categories"
 import { COLLECTION, DENOMINATION, ISSUER, PHOTO, cards, coinage, collectionKeys, denominationKeys, find, issuerKeys, parseCommon, ranked, sideKeys, sideLabels, some, subjectBase, type Facet, type Filter, type PhotoToggle, type Sort } from "@/lib/coinage"
 import { SIDES, type FacetIndex } from "@/lib/facet"
 import { facetIndex } from "@/lib/facet/store"
+import { sections } from "@/lib/summary/store"
 import type { PhotoCreditItem } from "@/lib/credits"
 import type { TypeCardData } from "@/lib/typeCards"
 import type { Bin } from "@/components/charts"
 import { lead } from "@/lib/format"
 import { subjectGroup, type SubjectGroup } from "@/lib/subjects"
 
-const NOT_PEOPLE = `('anonymous')`
 /** A normalised Latin legend, as subject_legend stores it: 'VICTORIA AVGG'. */
 const LEGEND = /^[A-Z0-9 ]{1,120}$/
 
@@ -85,9 +86,6 @@ export type Subject = {
   typeCredits: PhotoCreditItem[]
 }
 
-/* Every live type showing the subject (?1), for the sections read from D1; the coinage grid takes
- * the same set from the facet index (subjectBase). */
-const BASE = `t.replaced_by_id IS NULL AND t.parent_id IS NULL AND t.id IN (SELECT type_id FROM type_subject WHERE subject_id = ?1)`
 /* The side it's on, and a legend on that side (from "Named in legends"), for subject `s`. */
 const side = (s: number): Filter => ({
   name: "side",
@@ -128,28 +126,12 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
   const c = coinage(ix, subjectBase(ix, id), [COLLECTION, ISSUER, DENOMINATION, side(si), legend(si), PHOTO], [
     query.collection, query.issuer, query.denomination, query.side, query.legend, query.photo,
   ])
-  const one = (sql: string) => db.prepare(sql).bind(id)
-
-  const [[article, perCollection, people, denominations, mints, legends], grid] = await Promise.all([
-    db.batch([
-      one(`SELECT extract, url, licence FROM article WHERE entity_type = 'subject' AND entity_id = ?1
-           ORDER BY source = 'wikipedia_en' DESC LIMIT 1`),
-      one(`SELECT category_id AS id, n, start_year AS start, end_year AS "end", bins FROM category_subject WHERE subject_id = ?1`),
-      one(`SELECT p.id AS value, p.name AS label, count(DISTINCT t.id) AS count
-           FROM coin_type t JOIN type_person tp ON tp.type_id = t.id AND tp.role IN ('authority', 'issuer') JOIN person p ON p.id = tp.person_id
-           WHERE ${BASE} AND p.id NOT IN ${NOT_PEOPLE} GROUP BY p.id ORDER BY count DESC, p.name`),
-      one(`SELECT d.id AS value, d.name AS label, count(DISTINCT t.id) AS count
-           FROM coin_type t JOIN type_denomination td ON td.type_id = t.id JOIN denomination d ON d.id = td.denomination_id
-           WHERE ${BASE} GROUP BY d.id ORDER BY count DESC, d.name`),
-      one(`SELECT coalesce(pm.id, m.id) AS value, coalesce(pm.name, m.name) AS label, count(*) AS count
-           FROM coin_type t JOIN mint m ON m.id = t.mint_id LEFT JOIN mint pm ON pm.id = m.parent_id
-           WHERE ${BASE} GROUP BY value ORDER BY count DESC, label`),
-      one(`SELECT legend AS value, legend AS label, n AS count FROM subject_legend WHERE subject_id = ?1 ORDER BY n DESC, legend`),
-    ]),
+  const [{ article, perCollection, people, denominations, mints, legends }, grid] = await Promise.all([
+    sections(db, "subject", id),
     cards(db, c.grid(query.sort, query.limit)),
   ])
 
-  const rows = perCollection.results as { id: string; n: number; start: number | null; end: number | null; bins: string | null }[]
+  const rows = perCollection
   const collections = rows
     .filter((r) => t.byId.has(r.id) && t.isLeaf(r.id))
     .map((r) => ({
@@ -161,8 +143,8 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
     }))
     .sort((a, b) => (a.start ?? Infinity) - (b.start ?? Infinity) || b.n - a.n)
 
-  const art = article.results[0] as { extract: string; url: string; licence: string } | undefined
-  const all = (r: D1Result, total: number) => ({ items: r.results as Facet[], total })
+  const art = article[0] as (typeof article)[number] | undefined
+  const all = (items: Facet[], total: number) => ({ items, total })
   const group = subjectGroup(s.grp)
 
   return {
@@ -186,7 +168,7 @@ export async function getSubject(db: D1Database, id: string, query: SubjectQuery
     people: all(people, s.people),
     denominations: all(denominations, s.denominations),
     mints: all(mints, s.mints),
-    legends: legends.results as Facet[],
+    legends,
     available: { collection: collections.length > 1, issuer: s.people > 1, denomination: s.denominations > 1, side: s.obverse > 0 && s.reverse > 0 },
     collectionFacet: c.facet("collection", collectionKeys(ix), ix.categories),
     issuerFacet: c.facet("issuer", issuerKeys(ix), ix.persons),

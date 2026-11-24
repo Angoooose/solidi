@@ -12,10 +12,11 @@
  */
 import { iiif, lead, secure, year, yearRange } from "@/lib/format"
 import { getPhotoCredits, type PhotoCreditItem } from "@/lib/credits"
-import { USABLE, type TypeCardData } from "@/lib/typeCards"
+import type { TypeCardData } from "@/lib/typeCards"
 import { DENOMINATION, ISSUER, PERIOD, PHOTO, cards, coinage, denominationKeys, find, inName, issuerKeys, parseCommon, personBase, portraitKeys, some, type Facet, type Filter, type PhotoToggle, type Sort } from "@/lib/coinage"
 import { PORTRAIT } from "@/lib/facet"
 import { facetIndex } from "@/lib/facet/store"
+import { sections } from "@/lib/summary/store"
 
 export { PAGE_SIZE } from "@/lib/coinage"
 export type { Facet, Sort }
@@ -79,12 +80,6 @@ export type Person = {
 
 const RELATION_LABEL: Record<string, string> = { father: "Father", mother: "Mother", spouse: "Spouse", child: "Child" }
 
-/* BASE is every live type connected to the person (?1), for the sections read from D1; the coinage
- * grid takes the same set from the facet index (personBase). */
-const BASE = `t.replaced_by_id IS NULL AND t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1)`
-/* Struck in the person's name by someone else: they are named on it but are not its authority. */
-const IN_NAME_SQL = `(t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role = 'stated_authority')
-  AND t.id NOT IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role IN ('authority', 'issuer')))`
 /* The filters of person `p`'s coinage. */
 const filters = (p: number): Filter[] => [
   {
@@ -148,73 +143,18 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
   const ix = await facetIndex(db)
   const pi = find(ix.persons, id)
   const c = coinage(ix, personBase(ix, id), filters(pi), [query.portrait, query.issuer, query.denomination, query.period, query.struck, query.photo])
-  const one = (sql: string) => db.prepare(sql).bind(id)
   const named = inName(ix, pi)
 
-  const [available, article, family, mainMint, ownSpan, categories, portraits] =
-    await db.batch([
-      // Option counts over the unfiltered coinage, to decide which filters the page offers.
-      one(`SELECT
-             (SELECT count(*) FROM coin_type t WHERE ${BASE} AND ${IN_NAME_SQL}) AS in_name,
-             (SELECT count(*) FROM coin_type t WHERE ${BASE} AND NOT ${IN_NAME_SQL}) AS own,
-             (SELECT count(DISTINCT tp.person_id) FROM coin_type t JOIN type_person tp ON tp.type_id = t.id AND tp.role = 'portrait_obverse' WHERE ${BASE})
-               + (SELECT count(*) > 0 FROM coin_type t WHERE ${BASE}
-                  AND NOT EXISTS (SELECT 1 FROM type_person WHERE type_id = t.id AND role = 'portrait_obverse')) AS portrait,
-             (SELECT count(DISTINCT tp.person_id) FROM coin_type t JOIN type_person tp ON tp.type_id = t.id AND tp.role IN ('authority', 'issuer') WHERE ${BASE}) AS issuer,
-             (SELECT count(DISTINCT td.denomination_id) FROM coin_type t JOIN type_denomination td ON td.type_id = t.id WHERE ${BASE}) AS denomination,
-             (SELECT count(DISTINCT t.start_year || '-' || coalesce(t.end_year, '')) FROM coin_type t WHERE ${BASE} AND t.start_year IS NOT NULL) AS period`),
-      one(`SELECT extract, url, licence FROM article WHERE entity_type = 'person' AND entity_id = ?1
-           ORDER BY source = 'wikipedia_en' DESC LIMIT 1`),
-      one(`SELECT r.relation, p.id, p.name FROM person_relation r JOIN person p ON p.id = r.related_person_id
-           WHERE r.person_id = ?1 ORDER BY p.birth_year IS NULL, p.birth_year, p.name`),
-      one(`SELECT m.id, m.name FROM coin_type t JOIN mint m ON m.id = t.mint_id
-           WHERE t.replaced_by_id IS NULL
-             AND t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role IN ('authority', 'issuer'))
-           GROUP BY m.id ORDER BY count(*) DESC LIMIT 1`),
-      // Fallback for the portrait heading when the reign is unknown: their own issues, in their lifetime/reign.
-      one(`SELECT min(t.start_year) AS s, max(coalesce(t.end_year, t.start_year)) AS e FROM coin_type t
-           WHERE t.replaced_by_id IS NULL AND t.start_year IS NOT NULL
-             AND t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role != 'stated_authority')
-             AND t.start_year <= coalesce((SELECT coalesce(end_year, death_year) FROM person WHERE id = ?1), t.start_year)`),
-      // Their coins' commonest primary category (their own issues first), then its ancestors.
-      one(`WITH RECURSIVE home AS (
-             SELECT tc.category_id AS id FROM type_category tc JOIN type_person tp ON tp.type_id = tc.type_id
-             WHERE tp.person_id = ?1 AND tc.is_primary = 1
-             GROUP BY tc.category_id
-             ORDER BY count(DISTINCT CASE WHEN tp.role IN ('authority', 'issuer') THEN tc.type_id END) DESC,
-               count(DISTINCT tc.type_id) DESC
-             LIMIT 1
-           ),
-           path(id, name, parent_id, depth) AS (
-             SELECT c.id, c.name, c.parent_id, 0 FROM category c JOIN home ON home.id = c.id
-             UNION ALL SELECT c.id, c.name, c.parent_id, p.depth + 1 FROM category c JOIN path p ON c.id = p.parent_id
-           )
-           SELECT id, name FROM path ORDER BY depth DESC`),
-      // Their own portrait, one per distinct start year, earliest to latest; sampled below.
-      one(`SELECT t.id, t.title, t.start_year, t.end_year,
-             (SELECT d.name FROM type_denomination td JOIN denomination d ON d.id = td.denomination_id
-              WHERE td.type_id = t.id LIMIT 1) AS denomination,
-             (SELECT i.url FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-              WHERE st.type_id = t.id AND i.side = 'obverse' AND ${USABLE("i")}
-              ORDER BY i.iiif_service IS NULL LIMIT 1) AS url,
-             (SELECT i.iiif_service FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-              WHERE st.type_id = t.id AND i.side = 'obverse' AND ${USABLE("i")}
-              ORDER BY i.iiif_service IS NULL LIMIT 1) AS iiif,
-             (SELECT i.id FROM specimen_type st JOIN image i ON i.specimen_id = st.specimen_id
-              WHERE st.type_id = t.id AND i.side = 'obverse' AND ${USABLE("i")}
-              ORDER BY i.iiif_service IS NULL LIMIT 1) AS image_id
-           FROM coin_type t
-           WHERE t.id IN (SELECT type_id FROM type_person WHERE person_id = ?1 AND role = 'portrait_obverse')
-             AND t.replaced_by_id IS NULL AND t.start_year IS NOT NULL
-           ORDER BY t.start_year, t.end_year, t.id`),
-    ])
+  const [{ available, article, family, mainMint, ownSpan, categories, portraits }, grid_] = await Promise.all([
+    sections(db, "person", id),
+    cards(db, c.grid(query.sort, query.limit)),
+  ])
 
-  const art = article.results[0] as { extract: string; url: string; licence: string } | undefined
+  const art = article[0] as (typeof article)[number] | undefined
 
-  const familyRows = family.results as { relation: string; id: string; name: string }[]
   const familyGroups = Object.entries(RELATION_LABEL)
     .map(([rel, label]) => {
-      const people = familyRows.filter((r) => r.relation === rel).map(({ id, name }) => ({ id, name }))
+      const people = family.filter((r) => r.relation === rel).map(({ id, name }) => ({ id, name }))
       const plural = people.length > 1 ? (rel === "child" ? "Children" : label + "s") : label
       return { relation: plural, people }
     })
@@ -223,7 +163,7 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
   // One portrait per start year that has a photo, then evenly spaced picks across the reign.
   const byYear = new Map<number, Person["portraits"][number]>()
   const imageIds = new Map<string, number>()
-  for (const r of portraits.results as { id: string; title: string | null; denomination: string | null; start_year: number; end_year: number | null; url: string | null; iiif: string | null; image_id: number | null }[]) {
+  for (const r of portraits) {
     if (r.image_id != null) imageIds.set(r.id, r.image_id)
     const src = iiif(r.iiif, 400) ?? secure(r.url)
     if (src && !byYear.has(r.start_year))
@@ -239,13 +179,13 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
   const picks =
     all.length <= PORTRAITS ? all : Array.from({ length: PORTRAITS }, (_, i) => all[Math.round((i * (all.length - 1)) / (PORTRAITS - 1))])
 
-  const own = ownSpan.results[0] as { s: number | null; e: number | null } | undefined
+  const own = ownSpan[0] as (typeof ownSpan)[number] | undefined
   const portraitSpan = yearRange(person.start_year, person.end_year) ?? yearRange(own?.s ?? null, own?.e ?? null)
   const shownImages = picks.map((p) => imageIds.get(p.typeId)).filter((id): id is number => id != null)
-  const [portraitCredits, grid_] = await Promise.all([getPhotoCredits(db, shownImages), cards(db, c.grid(query.sort, query.limit))])
+  const portraitCredits = await getPhotoCredits(db, shownImages)
 
   const none = c.count("portrait", (t) => !some(ix.person, t, (x) => (x & 7) === PORTRAIT))
-  const opts = available.results[0] as Record<"in_name" | "own" | "portrait" | "issuer" | "denomination" | "period", number>
+  const opts = available[0]
 
   return {
     id: person.id,
@@ -254,8 +194,8 @@ export async function getPerson(db: D1Database, id: string, query: PersonQuery):
     lived: lifespan(person.birth_year, person.death_year),
     lead: lead(art?.extract ?? person.definition),
     article: art ? { url: art.url, licence: art.licence } : null,
-    mainMint: (mainMint.results[0] as { id: string; name: string } | undefined) ?? null,
-    categoryPath: categories.results as { id: string; name: string }[],
+    mainMint: mainMint[0] ?? null,
+    categoryPath: categories,
     family: familyGroups,
     portraits: picks,
     portraitSpan,

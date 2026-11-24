@@ -36,6 +36,7 @@ SITE_ONLY = [
     "category_stat", "category_bin", "category_facet", "category_person", "category_mint",
     "category_denomination", "category_subject", "denomination_stat", "denomination_size",
     "subject_stat", "subject_legend", "holder_stat", "catalogue_stat", "photo_source",
+    "page_summary",  # written by site/scripts/summaries.ts; holds Wikipedia text (CC BY-SA) too
 ]
 # Text under CC BY-SA: its own terms, not the ODbL's.
 NOT_ODBL = ["article"]

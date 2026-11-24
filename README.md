@@ -37,8 +37,6 @@ cd site && npm install && npm run db:local && npm run dev
 
 Drop `--authority` and `--build-dir` to build everything (about 1 GB of downloads, cached in `build/raw/`). Run the tests with `uv run pytest`.
 
-After loading a build into the remote D1, run `npm run facets:remote` in `site/` to upload the index the coinage filters read (`site/src/lib/facet/`). If it's skipped, the site builds the index from D1 on its first coinage request instead.
-
 `pipeline/` builds the database, `data/` holds the hand-maintained inputs, and `site/` is the Astro website on Cloudflare.
 
 ## Contributing

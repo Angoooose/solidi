@@ -15,6 +15,7 @@
     "db:local": "wrangler d1 execute solidi --local --yes --file=../build/trajan/solidi.sql",
     "db:local:full": "for f in ../build/solidi-*.sql; do wrangler d1 execute solidi --local --yes --file=$f || exit 1; done",
     "basemaps": "node scripts/basemaps.mjs",
+    "summaries": "node --experimental-sqlite --import tsx scripts/summaries.ts",
     "facets": "node --experimental-sqlite --import tsx scripts/facets.ts",
     "facets:remote": "npm run facets -- --remote ../build/solidi.sqlite"
   },
