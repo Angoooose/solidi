@@ -23,6 +23,7 @@ from collections import Counter, defaultdict
 import numpy as np
 import torch
 
+from . import resources
 from .records import GALLERY, Specimen
 
 MODES = ("obverse", "reverse", "both")
@@ -77,9 +78,8 @@ def run(queries: list[Specimen], gallery: list[Specimen], rows: dict[str, tuple[
     side = {"obverse": 0, "reverse": 1}
     g_vec = {m: vectors[[rows[g.id][i] for g in gallery]].to(device) for m, i in side.items()}
     keep = min(NEAREST, len(gallery))
-    results = []
-    for start in range(0, len(queries), CHUNK):
-        chunk = queries[start:start + CHUNK]
+
+    def grade(chunk: list[Specimen]) -> list[dict]:
         sims, best_set = {}, None
         for m, i in side.items():
             closest = None   # each query's best single match so far, to see which set won
@@ -111,9 +111,10 @@ def run(queries: list[Specimen], gallery: list[Specimen], rows: dict[str, tuple[
                 ranks[level][mode] = ((grouped > true_score).sum(dim=1) + 1).tolist()
             if mode == "both":
                 nearest = s.topk(keep, dim=1).indices.tolist()
+        out = []
         for b, q in enumerate(chunk):
             neighbour = gallery[nearest[b][0]]
-            results.append({
+            out.append({
                 "id": q.id, "collection": q.collection, "corpus": q.corpus or "unknown",
                 "bucket": _bucket(per_type[q.type_id] - (q.id in gallery_row)),
                 "rank": {level: {mode: ranks[level][mode][b] for mode in MODES} for level in LEVELS},
@@ -122,6 +123,18 @@ def run(queries: list[Specimen], gallery: list[Specimen], rows: dict[str, tuple[
                 "labels": {name: q.label(name) == neighbour.label(name)
                            for name in LABELS if q.label(name)},
             })
+        return out
+
+    results, start, size = [], 0, CHUNK
+    while start < len(queries):
+        try:
+            results += grade(queries[start:start + size])
+            start += size
+        except Exception as error:   # out of memory: grade fewer queries at a time
+            if not resources.is_out_of_memory(error) or size <= 8:
+                raise
+            size //= 2
+            resources.release()
     return results
 
 

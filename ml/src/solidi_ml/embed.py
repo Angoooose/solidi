@@ -1,12 +1,16 @@
-"""Turn each side of each coin into a vector with a pretrained vision model.
+"""Turn each side of each coin into a vector with a vision model.
 
-The baseline model is DINOv2 (small, with registers), exactly as published: nothing here is
-trained. A "view" is one side of one specimen; a picture showing both sides gives two views.
+The baseline model is DINOv2 (small, with registers) exactly as published; a trained model is the
+same network with its own weights. Vectors are saved a block at a time, so a run that stops can
+pick up where it left off, and a full graphics card makes the batch smaller rather than ending
+the run.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -14,131 +18,131 @@ import timm
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
 
-from . import crop
-from .crop import crop_coin, split_combined
-from .download import image_path
-from .records import Specimen
+from . import crop, resources
+from .crops import View
 
 MODEL = "vit_small_patch14_reg4_dinov2.lvd142m"
 RESOLUTION = 224
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+BLOCK = 16384          # views per saved file
+MIN_BATCH = 1
 
 
-def pick_device() -> str:
-    if torch.cuda.is_available():
-        return "cuda"
-    if torch.backends.mps.is_available():
-        return "mps"
-    return "cpu"
+def load_model(model_name: str, resolution: int, device: str, weights: Path | None = None):
+    """The network, with the published weights or those saved by `train`."""
+    model = timm.create_model(model_name, pretrained=weights is None, num_classes=0, img_size=resolution)
+    if weights is not None:
+        model.load_state_dict(torch.load(weights, map_location="cpu", weights_only=True)["backbone"])
+    return model.eval().to(device)
 
 
-def views_of(picture: Image.Image, side: str) -> list[tuple[str, Image.Image]]:
-    """The sides a photo shows, as (side, picture). A 'combined' photo is cut in two; one that
-    isn't laid out as two sides gives nothing."""
-    if side != "combined":
-        return [(side, picture)]
-    halves = split_combined(picture)
-    return list(zip(("obverse", "reverse"), halves)) if halves else []
-
-
-def prepare(picture: Image.Image, gray: bool = False, angle: int = 0) -> tuple[Image.Image, bool]:
-    """The square picture the model is shown, and whether the coin was found in it: the coin cut
-    out, then optionally with its colour removed or turned by `angle` degrees (the corners fill
-    with the background colour)."""
-    picture, found = crop_coin(picture)
+def variant(picture: Image.Image, gray: bool = False, angle: int = 0) -> Image.Image:
+    """A crop with its colour removed or turned by `angle` degrees (the corners fill with the
+    background colour), for the diagnostics."""
     if gray:
         picture = picture.convert("L").convert("RGB")
     if angle:
         picture = picture.rotate(angle, resample=Image.Resampling.BICUBIC,
                                  fillcolor=picture.getpixel((0, 0)))
-    return picture, found
+    return picture
 
 
-def _tensor(picture: Image.Image, resolution: int) -> torch.Tensor:
-    picture = picture.resize((resolution, resolution), Image.Resampling.BICUBIC)
+def to_tensor(picture: Image.Image, resolution: int) -> torch.Tensor:
+    if picture.size != (resolution, resolution):
+        picture = picture.resize((resolution, resolution), Image.Resampling.BICUBIC)
     pixels = (np.asarray(picture, dtype=np.float32) / 255.0 - MEAN) / STD
     return torch.from_numpy(pixels.transpose(2, 0, 1).copy())
 
 
-class _Photos(Dataset):
-    """One item per photo file: its views as tensors. Unreadable files give no views."""
-
-    def __init__(self, items: list[tuple[str, str, Path]], resolution: int, gray: bool,
-                 angle: int) -> None:
-        self.items, self.resolution, self.gray, self.angle = items, resolution, gray, angle
+class _Crops(Dataset):
+    def __init__(self, paths: list[str], resolution: int, gray: bool, angle: int) -> None:
+        self.paths, self.resolution, self.gray, self.angle = paths, resolution, gray, angle
 
     def __len__(self) -> int:
-        return len(self.items)
+        return len(self.paths)
 
-    def __getitem__(self, i: int):
-        specimen_id, side, path = self.items[i]
-        try:
-            picture = Image.open(path).convert("RGB")
-        except OSError:
-            return []
-        out = []
-        for name, view in views_of(picture, side):
-            prepared, found = prepare(view, self.gray, self.angle)
-            out.append((specimen_id, name, found, _tensor(prepared, self.resolution)))
-        return out
+    def __getitem__(self, i: int) -> torch.Tensor:
+        picture = Image.open(self.paths[i]).convert("RGB")
+        return to_tensor(variant(picture, self.gray, self.angle), self.resolution)
 
 
-def _collate(batch):
-    views = [view for item in batch for view in item]
-    if not views:
-        return [], [], None
-    return ([(sid, side) for sid, side, _, _ in views], [found for _, _, found, _ in views],
-            torch.stack([t for *_, t in views]))
-
-
-def embed(specimens: list[Specimen], data_dir: Path, model_name: str = MODEL,
-          resolution: int = RESOLUTION, batch_size: int = 256, device: str | None = None,
-          workers: int = 4, log=print, gray: bool = False,
-          angle: int = 0) -> tuple[list[tuple[str, str]], np.ndarray, list[bool]]:
-    """Embed every downloaded photo. Returns the views [(specimen id, side)], their unit vectors
-    (one row each) and whether the coin was found in each. Results are kept in data/embeddings/
-    and reused.
-
-    `gray` and `angle` embed a variant of each picture (see `prepare`), kept separately."""
-    images_dir = data_dir / "images"
-    items = [(s.id, p.side, image_path(images_dir, p.key)) for s in specimens for p in s.photos]
-    items = [item for item in items if item[2].exists()]
-    variant = ("-gray" if gray else "") + (f"-rot{angle}" if angle else "")
-    out_dir = data_dir / "embeddings" / f"{model_name}-{resolution}{variant}"
-    wanted = sorted(f"{sid}/{side}" for sid, side, _ in items)
-    if (out_dir / "views.json").exists():
-        saved = json.loads((out_dir / "views.json").read_text())
-        if saved["photos"] == wanted and saved.get("crop") == crop.VERSION:
-            log(f"reusing embeddings in {out_dir}")
-            return [tuple(v) for v in saved["views"]], np.load(out_dir / "vectors.npy"), saved["found"]
-
-    device = device or pick_device()
-    log(f"embedding {len(items):,} photos with {model_name} at {resolution}px on {device}"
-        + (", greyscale" if gray else "") + (f", turned {angle} degrees" if angle else ""))
-    model = timm.create_model(model_name, pretrained=True, num_classes=0, img_size=resolution)
-    model = model.eval().to(device)
-    loader = DataLoader(_Photos(items, resolution, gray, angle), batch_size=batch_size, num_workers=workers,
-                        collate_fn=_collate)
-    views: list[tuple[str, str]] = []
-    found: list[bool] = []
-    chunks: list[np.ndarray] = []
+def _blocks(model, paths: list[str], first: int, resolution: int, gray: bool, angle: int,
+            batch_size: int, device: str, workers: int, bar):
+    """Embed paths[first * BLOCK:] in order, yielding (block number, vectors) as each fills."""
+    loader = DataLoader(_Crops(paths[first * BLOCK:], resolution, gray, angle), batch_size=batch_size,
+                        num_workers=workers)
+    pending: list[np.ndarray] = []
+    held, block = 0, first
     with torch.inference_mode():
-        for n, (batch_views, batch_found, pixels) in enumerate(loader):
-            if pixels is None:
-                continue
+        for pixels in loader:
             with torch.autocast("cuda", enabled=device == "cuda"):
                 vectors = model(pixels.to(device))
             vectors = torch.nn.functional.normalize(vectors.float(), dim=1)
-            views += batch_views
-            found += batch_found
-            chunks.append(vectors.cpu().numpy().astype(np.float16))
-            if n % 50 == 49:
-                log(f"  {len(views):,} views")
-    vectors = np.concatenate(chunks) if chunks else np.zeros((0, 0), dtype=np.float16)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    np.save(out_dir / "vectors.npy", vectors)
-    (out_dir / "views.json").write_text(json.dumps(
-        {"photos": wanted, "crop": crop.VERSION, "views": views, "found": found}))
-    return views, vectors, found
+            pending.append(vectors.cpu().numpy().astype(np.float16))
+            held += len(pixels)
+            bar.update(len(pixels))
+            while held >= BLOCK:
+                joined = np.concatenate(pending)
+                yield block, joined[:BLOCK]
+                pending, held, block = [joined[BLOCK:]], held - BLOCK, block + 1
+    if held:
+        yield block, np.concatenate(pending)
+
+
+def embed(views: list[View], data_dir: Path, tag: str | None = None, model=None,
+          model_name: str = MODEL, weights: Path | None = None, resolution: int = RESOLUTION,
+          batch_size: int = 256, device: str | None = None, workers: int | None = None,
+          gray: bool = False, angle: int = 0, log=print) -> np.ndarray:
+    """One unit vector per view, in the order given. Kept in data/embeddings/<tag>/ and reused.
+
+    Pass `model` to use a network already in memory (training does); otherwise `model_name` is
+    loaded, with `weights` if given. `gray` and `angle` embed a variant of each picture."""
+    tag = (tag or model_name) + f"-{resolution}" + ("-gray" if gray else "") + (f"-rot{angle}" if angle else "")
+    out_dir = data_dir / "embeddings" / tag
+    paths = [str(v.path) for v in views]
+    fingerprint = hashlib.sha1("\n".join(
+        [f"{crop.VERSION}/{BLOCK}/{weights}"] + [f"{v.specimen_id}/{v.side}/{v.path.name}" for v in views]
+    ).encode()).hexdigest()
+    meta = out_dir / "meta.json"
+    if not meta.exists() or json.loads(meta.read_text())["fingerprint"] != fingerprint:
+        shutil.rmtree(out_dir, ignore_errors=True)       # vectors for other pictures or settings
+        out_dir.mkdir(parents=True)
+        meta.write_text(json.dumps({"fingerprint": fingerprint, "views": len(views)}))
+    total = (len(paths) + BLOCK - 1) // BLOCK
+
+    def block_path(i: int) -> Path:
+        return out_dir / f"block-{i:04d}.npy"
+
+    first = next((i for i in range(total) if not block_path(i).exists()), total)
+    if first < total:
+        device = device or resources.pick_device()
+        n = resources.workers(workers)
+        log(f"embedding {len(paths) - first * BLOCK:,} views ({tag}) on {device}, "
+            f"batch {batch_size}, {n} helper processes"
+            + (f"; {first * BLOCK:,} already done" if first else ""))
+        if model is None:
+            model = load_model(model_name, resolution, device, weights)
+        model.eval()
+        with tqdm(total=len(paths), initial=first * BLOCK, unit="view", smoothing=0, dynamic_ncols=True) as bar:
+            while first < total:
+                try:
+                    for block, vectors in _blocks(model, paths, first, resolution, gray, angle,
+                                                  batch_size, device, n, bar):
+                        partial = block_path(block).with_suffix(".part")
+                        with partial.open("wb") as f:
+                            np.save(f, vectors)
+                        partial.replace(block_path(block))
+                        first = block + 1
+                except Exception as error:   # out of memory: carry on from this block with less
+                    if not resources.is_out_of_memory(error) or batch_size <= MIN_BATCH:
+                        raise
+                    batch_size //= 2
+                    resources.release()
+                    bar.n = first * BLOCK
+                    bar.write(f"out of memory: continuing with batch {batch_size}")
+    if not total:
+        return np.zeros((0, 0), dtype=np.float16)
+    return np.concatenate([np.load(block_path(i)) for i in range(total)])

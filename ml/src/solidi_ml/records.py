@@ -55,6 +55,8 @@ class Specimen:
     denomination: str | None = None
     mint: str | None = None
     design: str = ""                 # types that look alike share one: see `design_key`
+    obverse_class: str = ""          # what training calls this side: see `side_key`
+    reverse_class: str = ""
     photos: list[Photo] = field(default_factory=list)
 
     def label(self, name: str) -> str | None:
@@ -77,6 +79,17 @@ def design_key(type_id: str, portrait: str | None, denomination: str | None,
     if not front or not back:
         return type_id
     return f"{denomination or ''}|{front}|{back}"
+
+
+def side_key(type_id: str, side: str, denomination: str | None, *shown: str | None) -> str:
+    """The training label for one side of a coin: everything recorded about that side alone (who
+    or what it shows, and its legend). Two types with the same obverse and different reverses
+    share an obverse label, so the model is never asked to tell apart pictures that are the same.
+    A side with no description is labelled by its type."""
+    parts = [_plain(text or "") for text in shown]
+    if not parts[0]:
+        return f"{type_id}|{side}"
+    return "|".join([side, denomination or ""] + parts)
 
 
 def photo_key(url: str) -> str:
@@ -111,8 +124,9 @@ def load(db_path: Path, size: int = 512) -> list[Specimen]:
                  (SELECT type_id, denomination_id FROM type_denomination
                   ORDER BY type_id, denomination_id) GROUP BY type_id""")),
     }
-    types = {tid: (slug, mint, obverse, reverse) for tid, slug, mint, obverse, reverse in db.execute(
-        """SELECT t.id, d.slug, t.mint_id, t.obv_description, t.rev_description
+    types = {row[0]: row[1:] for row in db.execute(
+        """SELECT t.id, d.slug, t.mint_id, t.obv_description, t.rev_description, t.obv_legend,
+                  t.rev_legend
              FROM coin_type t LEFT JOIN dataset d ON d.id = t.dataset_id""")}
     specimens: dict[str, Specimen] = {}
     rows = db.execute(
@@ -127,13 +141,15 @@ def load(db_path: Path, size: int = 512) -> list[Specimen]:
             continue
         specimen = specimens.get(sid)
         if specimen is None:
-            corpus, mint, obverse, reverse = types.get(type_id, (None, None, None, None))
+            corpus, mint, obverse, reverse, obv_legend, rev_legend = types.get(type_id, (None,) * 6)
             portrait = labels["portrait"].get(type_id)
             denomination = labels["denomination"].get(type_id)
             specimen = specimens[sid] = Specimen(
                 id=sid, collection=_collection(dataset_id), type_id=type_id, corpus=corpus,
                 portrait=portrait, denomination=denomination, mint=mint,
-                design=design_key(type_id, portrait, denomination, obverse, reverse))
+                design=design_key(type_id, portrait, denomination, obverse, reverse),
+                obverse_class=side_key(type_id, "obverse", denomination, obverse, portrait, obv_legend),
+                reverse_class=side_key(type_id, "reverse", denomination, reverse, rev_legend))
         if any(p.side == side for p in specimen.photos):
             continue   # one photo per side is enough
         specimen.photos.append(Photo(photo_key(url), sid, side, sized_url(url, iiif, size)))

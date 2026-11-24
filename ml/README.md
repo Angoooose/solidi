@@ -25,13 +25,37 @@ uv run solidi-ml diagnose     # writes runs/<time>-diagnose/report.md and misses
 It compares the held-out scores as photographed, in greyscale, and with each query turned in
 45-degree steps, and saves a sheet of missed coins beside their nearest matches.
 
+## Train
+
+```sh
+uv run solidi-ml train        # writes runs/finetune/: report.md, best.pt (the best weights), last.pt
+uv run solidi-ml baseline --weights runs/finetune/best.pt     # the full report for the trained model
+```
+
+`train` fine-tunes the model on the gallery collections and, after every pass over the pictures,
+grades it on the held-out collections exactly as the baseline is graded. Pass 0 in its report is
+the untrained model, so every later row can be read against it.
+
+It is safe to interrupt. Progress is saved every ten minutes and after each pass; run the same
+command again and it resumes. Choose `--epochs` before starting: raising it on a resumed run
+works, but the step size, which eases down to zero by the last pass, jumps back up.
+
+## Memory
+
+Every command sizes itself to the machine. The number of helper processes is chosen from the
+processor cores and the memory free when it starts (`--workers N` overrides it), and if the
+graphics card or the system runs out of memory the batch is halved and the work carries on.
+Photos are cut down to the coin once, into `data/crops/` (about 10 GB for the full set), and
+vectors are saved in blocks, so `baseline` and `diagnose` also resume after a stop.
+
 For a five-minute trial first, add `--sample-types 60 --collections ans princeton fralin` to each
 command. With so few types to choose from its scores are far too high to mean anything; it only
 shows that everything runs.
 
 ## What it measures
 
-The baseline uses DINOv2 (small, with registers) exactly as published. Nothing is trained.
+The baseline uses DINOv2 (small, with registers) exactly as published. Nothing is trained;
+`train` starts from the same model.
 
 1. Every photo is cut down to the coin (the largest roundish object that stands out from the
    background) and turned into a vector, obverse and reverse separately.

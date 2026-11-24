@@ -18,9 +18,8 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw
 
-from . import evaluate
-from .download import image_path
-from .embed import embed, prepare, views_of
+from . import crops, evaluate
+from .embed import embed
 from .records import Specimen
 
 ANGLES = (45, 90, 135, 180, 225, 270, 315)
@@ -31,19 +30,8 @@ CAPTION = 14
 HIT, NEAR, MISS = (40, 150, 70), (225, 150, 20), (200, 50, 40)
 
 
-def _both_sides(specimen: Specimen, images_dir: Path) -> dict[str, Image.Image]:
-    """The specimen's sides as the model sees them (cut out, square)."""
-    sides: dict[str, Image.Image] = {}
-    for photo in specimen.photos:
-        path = image_path(images_dir, photo.key)
-        if path.exists():
-            for side, view in views_of(Image.open(path).convert("RGB"), photo.side):
-                sides[side], _ = prepare(view)
-    return sides
-
-
-def miss_sheet(results: list[dict], by_id: dict[str, Specimen], images_dir: Path, out: Path,
-               seed: int = 0) -> int:
+def miss_sheet(results: list[dict], by_id: dict[str, Specimen], crop_of: dict[tuple[str, str], Path],
+               out: Path, seed: int = 0) -> int:
     """Save a picture of queries whose true type ranked outside the top 10. Each row is the query
     (obverse, reverse) and then its three nearest gallery coins, outlined green when the coin is
     of the query's type, amber when it is another type of the same design, and red otherwise.
@@ -63,10 +51,10 @@ def miss_sheet(results: list[dict], by_id: dict[str, Specimen], images_dir: Path
                             f"{result['rank']['design']['both']:,})", fill="black")
         for x, specimen in enumerate([query] + [by_id[g] for g in result["nearest"]]):
             left = x * (2 * CELL + 12)
-            sides = _both_sides(specimen, images_dir)
             for i, side in enumerate(("obverse", "reverse")):
-                if side in sides:
-                    sheet.paste(sides[side].resize((CELL, CELL)), (left + i * CELL, top + CAPTION))
+                if (specimen.id, side) in crop_of:
+                    picture = Image.open(crop_of[specimen.id, side]).convert("RGB")
+                    sheet.paste(picture.resize((CELL, CELL)), (left + i * CELL, top + CAPTION))
             if x:
                 colour = (HIT if specimen.type_id == query.type_id
                           else NEAR if specimen.design == query.design else MISS)
@@ -86,9 +74,14 @@ def _line(results: list[dict]) -> dict:
 def diagnose(specimens: list[Specimen], data_dir: Path, out_dir: Path, log=print, **embed_args) -> dict:
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    views = crops.prepare(specimens, data_dir, embed_args.get("workers"), log=log)
+
     def vectors_for(subset: list[Specimen], **variant):
-        views, vectors, _ = embed(subset, data_dir, log=log, **embed_args, **variant)
-        return evaluate.complete(subset, views), torch.from_numpy(vectors.astype(np.float32))
+        wanted = {s.id for s in subset}
+        chosen = [v for v in views if v.specimen_id in wanted]
+        vectors = embed(chosen, data_dir, log=log, **embed_args, **variant)
+        return (evaluate.complete(subset, [(v.specimen_id, v.side) for v in chosen]),
+                torch.from_numpy(vectors.astype(np.float32)))
 
     rows, tensor = vectors_for(specimens)
     gallery, held_out, same = evaluate.split(specimens, rows)
@@ -125,7 +118,8 @@ def diagnose(specimens: list[Specimen], data_dir: Path, out_dir: Path, log=print
             sum(r["set"] == 0 for r in results) / len(results))
 
     by_id = {s.id: s for s in specimens}
-    report["sheet_rows"] = miss_sheet(base, by_id, data_dir / "images", out_dir / "misses.png")
+    crop_of = {(v.specimen_id, v.side): v.path for v in views}
+    report["sheet_rows"] = miss_sheet(base, by_id, crop_of, out_dir / "misses.png")
     return report
 
 

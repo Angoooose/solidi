@@ -75,6 +75,15 @@ def crop_coin(picture: Image.Image) -> tuple[Image.Image, bool]:
     return square, box is not None
 
 
+def views_of(picture: Image.Image, side: str) -> list[tuple[str, Image.Image]]:
+    """The sides a photo shows, as (side, picture). A 'combined' photo is cut in two; one that
+    isn't laid out as two sides gives nothing."""
+    if side != "combined":
+        return [(side, picture)]
+    halves = split_combined(picture)
+    return list(zip(("obverse", "reverse"), halves)) if halves else []
+
+
 def split_combined(picture: Image.Image) -> tuple[Image.Image, Image.Image] | None:
     """The two halves of a picture showing both sides, obverse first, or None if it isn't laid
     out as two sides in a row or a column. Assumes the usual order: obverse left or on top."""

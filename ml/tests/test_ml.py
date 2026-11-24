@@ -137,14 +137,119 @@ def test_alternative_query_vectors_keep_the_best_match():
     assert best["rank"]["type"]["both"] == 1 and best["set"] == 1
 
 
-def test_prepare_variants_keep_the_square():
-    from solidi_ml.embed import prepare, views_of
-    picture = _coin_picture()
-    plain, gray, turned = (prepare(picture)[0], prepare(picture, gray=True)[0],
-                           prepare(picture, angle=45)[0])
-    assert plain.size == gray.size == turned.size
+def test_variants_and_combined_pictures():
+    from solidi_ml.crop import views_of
+    from solidi_ml.embed import variant
+    picture, _ = crop_coin(_coin_picture())
+    gray, turned = variant(picture, gray=True), variant(picture, angle=45)
+    assert picture.size == gray.size == turned.size
     r, g, b = gray.getpixel((gray.width // 2, gray.height // 2))
     assert r == g == b
     assert turned.getpixel((0, 0)) == (255, 255, 255)
     assert [side for side, _ in views_of(Image.new("RGB", (800, 400)), "combined")] == ["obverse", "reverse"]
     assert views_of(Image.new("RGB", (500, 400)), "combined") == []
+
+
+def test_side_key_gives_types_with_the_same_obverse_one_label():
+    key = records.side_key
+    a = key("ocre/a", "obverse", "denarius", "Head of Trajan, laureate, right", "trajan", "IMP TRAIANO AVG")
+    b = key("ocre/b", "obverse", "denarius", "Head of Trajan, laureate, right.", "trajan", "IMP TRAIANO AVG")
+    assert a == b
+    assert key("ocre/a", "reverse", "denarius", "Victory standing left", "COS V") != \
+        key("ocre/b", "reverse", "denarius", "Pax standing left", "COS V")
+    assert key("ocre/c", "reverse", "denarius", None, "COS V") == "ocre/c|reverse"
+
+
+def _photo_specimens(tmp_path, n=6):
+    """A few made-up coins with photos on disk: two per type, in the gallery collection."""
+    from solidi_ml.download import image_path
+    specimens = []
+    for i in range(n):
+        s = records.Specimen(id=f"s{i}", collection="ans", type_id=f"T{i // 2}", design=f"T{i // 2}",
+                             obverse_class=f"o{i // 2}", reverse_class=f"r{i // 2}", denomination="as")
+        for side in ("obverse", "reverse"):
+            photo = records.Photo(f"{i:02d}{side[0]}".ljust(16, "0"), s.id, side, "")
+            path = image_path(tmp_path / "images", photo.key)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shade = 60 + 30 * (i // 2)
+            _coin_picture(box=(120 + 5 * i, 80, 240 + 5 * i, 200)).point(lambda v: min(v, 255 - shade)).save(path)
+            s.photos.append(photo)
+        specimens.append(s)
+    return specimens
+
+
+def test_crops_are_cut_once_and_remembered(tmp_path):
+    from solidi_ml import crops
+    specimens = _photo_specimens(tmp_path)
+    views = crops.prepare(specimens, tmp_path, workers=0, log=lambda *_: None)
+    assert len(views) == 12 and all(v.found and v.path.exists() for v in views)
+    assert Image.open(views[0].path).size == (crops.SIZE, crops.SIZE)
+    stamp = views[0].path.stat().st_mtime_ns
+    again = crops.prepare(specimens, tmp_path, workers=0, log=lambda *_: None)
+    assert again == views and views[0].path.stat().st_mtime_ns == stamp      # nothing cut twice
+
+
+def test_embedding_resumes_from_saved_blocks(tmp_path, monkeypatch):
+    import torch
+    from solidi_ml import crops, embed
+    specimens = _photo_specimens(tmp_path)
+    views = crops.prepare(specimens, tmp_path, workers=0, log=lambda *_: None)
+    monkeypatch.setattr(embed, "BLOCK", 5)                  # 12 views: blocks of 5, 5 and 2
+    calls = []
+
+    class Tiny(torch.nn.Module):
+        def forward(self, x):
+            calls.append(len(x))
+            return x.mean(dim=(2, 3))
+
+    quiet = dict(model=Tiny(), tag="t", resolution=32, batch_size=4, device="cpu", workers=0, log=lambda *_: None)
+    first = embed.embed(views, tmp_path, **quiet)
+    assert first.shape == (12, 3) and sum(calls) == 12
+    (tmp_path / "embeddings" / "t-32" / "block-0001.npy").unlink()      # as if the run had stopped here
+    calls.clear()
+    second = embed.embed(views, tmp_path, **quiet)
+    assert sum(calls) == 7                                  # only the views from the missing block on
+    assert (first == second).all()
+
+
+def test_embedding_halves_the_batch_when_memory_runs_out(tmp_path):
+    import torch
+    from solidi_ml import crops, embed
+    views = crops.prepare(_photo_specimens(tmp_path), tmp_path, workers=0, log=lambda *_: None)
+
+    class Small(torch.nn.Module):
+        def forward(self, x):
+            if len(x) > 2:
+                raise torch.OutOfMemoryError("CUDA out of memory")
+            return x.mean(dim=(2, 3))
+
+    vectors = embed.embed(views, tmp_path, model=Small(), tag="s", resolution=32, batch_size=8,
+                          device="cpu", workers=0, log=lambda *_: None)
+    assert vectors.shape == (12, 3)
+
+
+def test_training_saves_and_resumes(tmp_path, monkeypatch):
+    import torch
+    from solidi_ml import train
+    specimens = _photo_specimens(tmp_path)
+
+    class Tiny(torch.nn.Module):
+        num_features = 3
+
+        def __init__(self):
+            super().__init__()
+            self.mix = torch.nn.Linear(3, 3)
+
+        def forward(self, x):
+            return self.mix(x.mean(dim=(2, 3)))
+
+    monkeypatch.setattr(train, "load_model", lambda *a, **k: Tiny())
+    settings = train.Settings(resolution=32, epochs=1, batch_size=4)
+    quiet = dict(device="cpu", workers=0, log=lambda *_: None)
+    history = train.train(specimens, tmp_path, tmp_path / "run", settings, **quiet)
+    assert [row["epoch"] for row in history] == [0, 1] and history[1]["loss"] > 0
+    assert (tmp_path / "run" / "best.pt").exists() and "| 1 |" in (tmp_path / "run" / "report.md").read_text()
+    # Asking for one more pass picks up after pass 1 rather than starting again.
+    settings.epochs = 2
+    history = train.train(specimens, tmp_path, tmp_path / "run", settings, **quiet)
+    assert [row["epoch"] for row in history] == [0, 1, 2]
