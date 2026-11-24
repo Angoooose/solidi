@@ -1,4 +1,19 @@
 User-agent: *
 Disallow: /api/
 
+# Filters, sorts and "Show more" (?denomination=, ?material=, ?limit=, …) multiply into endless
+# views of the same page. Each is noindex (lib/seo.ts), but crawling them runs the page's facet
+# queries against D1 on every combination, past the edge cache. Only the collection-scoped index
+# pages (/people?collection=roman-imperial) are pages of their own; the longer Allow wins over
+# Disallow: /*?, and the longer Disallow beats the Allow again once anything follows the collection.
+Disallow: /*?
+Allow: /people?collection=
+Allow: /mints?collection=
+Allow: /denominations?collection=
+Allow: /subjects?collection=
+Disallow: /people?collection=*&
+Disallow: /mints?collection=*&
+Disallow: /denominations?collection=*&
+Disallow: /subjects?collection=*&
+
 Sitemap: https://solidi.org/sitemap.xml
