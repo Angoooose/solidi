@@ -67,6 +67,9 @@ Many types look alike and differ only in a legend break or a small symbol, so ev
 given twice: for the exact **type**, and for the **design**, which groups types with the same
 denomination, portrait and reverse description.
 
+Held-out coins whose catalogue links can't be trusted (listed in `records.DOUBTFUL`) are graded in
+a section of their own and kept out of the held-out score.
+
 Two tests are reported. **Held-out collections** uses coins from museums that are not in the
 gallery, so the photographer, background and lighting are all new; this is the number that
 matters. **Same collection** searches each ANS coin against the others, which is easier but has

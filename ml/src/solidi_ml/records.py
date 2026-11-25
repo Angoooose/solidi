@@ -37,6 +37,15 @@ EXCLUDED = {
 GALLERY = ("ans", "sitnam")
 
 
+# Held-out coins whose type links can't be trusted, by (catalogue, collection). They are graded
+# apart from the rest, so a wrong label in the source isn't counted as the model's mistake.
+DOUBTFUL = {
+    ("crro", "princeton"): "many are linked to a neighbouring catalogue number: of 26 compared by "
+                           "eye with ANS coins of the same type, about 10 were a different coin",
+    ("sco", "princeton"): "not checked; scores as low as Princeton's Republican coins",
+}
+
+
 @dataclass(frozen=True)
 class Photo:
     key: str          # stable across releases: a hash of the source URL
@@ -61,6 +70,10 @@ class Specimen:
 
     def label(self, name: str) -> str | None:
         return getattr(self, name)
+
+    @property
+    def doubtful(self) -> bool:
+        return (self.corpus, self.collection) in DOUBTFUL
 
 
 def _plain(text: str) -> str:

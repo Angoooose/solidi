@@ -24,7 +24,7 @@ import numpy as np
 import torch
 
 from . import resources
-from .records import GALLERY, Specimen
+from .records import DOUBTFUL, GALLERY, Specimen
 
 MODES = ("obverse", "reverse", "both")
 LEVELS = {"type": lambda s: s.type_id, "design": lambda s: s.design}
@@ -55,13 +55,23 @@ def split(specimens: list[Specimen], rows: dict[str, tuple[int, int]],
     """The gallery, the held-out queries and the same-collection queries.
 
     `gallery_from` narrows the gallery to some of the gallery collections, to see what the rest
-    contribute. The held-out queries stay the coins from outside all of them."""
+    contribute. The held-out queries stay the coins from outside all of them, less those whose
+    labels are doubtful (records.DOUBTFUL): see `doubtful`."""
     usable = [s for s in specimens if s.id in rows]
     gallery = [s for s in usable if s.collection in gallery_from]
     gallery_types = Counter(s.type_id for s in gallery)
-    held_out = [s for s in usable if s.collection not in GALLERY and s.type_id in gallery_types]
+    held_out = [s for s in usable if s.collection not in GALLERY and s.type_id in gallery_types
+                and not s.doubtful]
     same = [s for s in gallery if s.collection == "ans" and gallery_types[s.type_id] >= 2]
     return gallery, held_out, same
+
+
+def doubtful(specimens: list[Specimen], rows: dict[str, tuple[int, int]],
+             gallery: list[Specimen]) -> list[Specimen]:
+    """The held-out coins left out of the main test because their labels are doubtful."""
+    gallery_types = {g.type_id for g in gallery}
+    return [s for s in specimens if s.id in rows and s.collection not in GALLERY
+            and s.type_id in gallery_types and s.doubtful]
 
 
 def run(queries: list[Specimen], gallery: list[Specimen], rows: dict[str, tuple[int, int]],
@@ -185,8 +195,10 @@ def evaluate(specimens: list[Specimen], views: list[tuple[str, str]], vectors: n
     device = "cuda" if torch.cuda.is_available() else "cpu"
     rows = complete(specimens, views)
     gallery, held_out, same = split(specimens, rows, gallery_from)
+    unsure = doubtful(specimens, rows, gallery)
     log(f"gallery: {len(gallery):,} coins of {len({g.type_id for g in gallery}):,} types; "
-        f"queries: {len(held_out):,} held out, {len(same):,} same collection")
+        f"queries: {len(held_out):,} held out (and {len(unsure):,} with doubtful labels), "
+        f"{len(same):,} same collection")
     tensor = torch.from_numpy(vectors.astype(np.float32))
     return {
         "gallery": {"specimens": len(gallery), "types": len({g.type_id for g in gallery}),
@@ -194,6 +206,7 @@ def evaluate(specimens: list[Specimen], views: list[tuple[str, str]], vectors: n
                     "collections": dict(Counter(s.collection for s in gallery))},
         "specimens_with_both_sides": len(rows),
         "held_out": summary(run(held_out, gallery, rows, tensor, device)),
+        "doubtful": summary(run(unsure, gallery, rows, tensor, device)),
         "same_collection": summary(run(same, gallery, rows, tensor, device)),
     }
 
@@ -217,10 +230,16 @@ def markdown(report: dict) -> str:
            "", "Pictures in which the crop found a coin (the rest are used whole):", "",
            _table(["Collection", "Pictures", "Coin found"],
                   [[c, f"{v['pictures']:,}", _pct(v["found"])] for c, v in report["coin_found"].items()])]
-    titles = {"held_out": "Held-out collections", "same_collection": "Same collection (ANS, leave one out)"}
+    titles = {"held_out": "Held-out collections", "same_collection": "Same collection (ANS, leave one out)",
+              "doubtful": "Held-out coins with doubtful labels"}
     for key, title in titles.items():
         test = report[key]
         out += ["", f"## {title}", ""]
+        if key == "doubtful":
+            out += ["Left out of the held-out test above, because a low score here may be the "
+                    "catalogue link's fault and not the model's:", "",
+                    *[f"- {corpus} coins at {collection}: {why}." for (corpus, collection), why in DOUBTFUL.items()],
+                    ""]
         if not test["queries"]:
             out.append("No queries.")
             continue

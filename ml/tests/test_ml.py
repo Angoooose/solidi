@@ -125,6 +125,18 @@ def test_evaluate_ranks_types_and_never_matches_a_coin_to_itself():
     assert "Held-out collections" in text and "Design top 10" in text
 
 
+def test_doubtful_labels_are_graded_apart():
+    specimens = [_specimen("a1", "ans", "A"), _specimen("a2", "ans", "A"),
+                 _specimen("good", "princeton", "A"), _specimen("bad", "princeton", "A")]
+    specimens[3].corpus = "crro"                    # Princeton's Republican coins are doubtful
+    assert specimens[3].doubtful and not specimens[2].doubtful
+    views = [(s.id, side) for s in specimens for side in ("obverse", "reverse")]
+    report = evaluate.evaluate(specimens, views, np.ones((8, 2), dtype=np.float32), log=lambda *_: None)
+    assert report["held_out"]["queries"] == 1 and report["doubtful"]["queries"] == 1
+    text = evaluate.markdown({"release": "r", "model": "m", "resolution": 224, "coin_found": {}, **report})
+    assert "Held-out coins with doubtful labels" in text and "crro coins at princeton" in text
+
+
 def test_alternative_query_vectors_keep_the_best_match():
     # The query's own vector points at type B; a second version of it (say, turned) points at
     # its true type A. With both offered, A wins and the second set is reported as the winner.
