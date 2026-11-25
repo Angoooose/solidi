@@ -2,8 +2,10 @@
 
 Each photo is fetched once, shrunk to fit SIZE and saved as a JPEG named after a hash of its URL,
 so a second run only fetches what is missing. Each host has its own small team of downloaders,
-so a slow or dead host never holds up the others; a host that keeps failing is given up on
-rather than hammered.
+so a slow or dead host never holds up the others. A host that keeps failing is paused for a few
+minutes, and given up on for the rest of the run only if repeated pauses don't help. Dropped
+connections are retried; a 404 counts against the photo, not the host. Failures are appended to
+download_failures.jsonl as they happen.
 
 Certificates are checked against the operating system's store, as a browser does. Some museum
 servers leave out part of their certificate chain; the system store fills the gap, and the store
@@ -33,9 +35,16 @@ USER_AGENT = "solidi-ml/0.1 (coin photo research; non-commercial)"
 PER_HOST = 3              # downloads at once from one host
 TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 RETRIES = 3
-GIVE_UP_AFTER = 40        # failures in a row before a host is skipped for the rest of the run
-GIVE_UP_UNSEEN = 9        # the same, for a host that has not yet served a single photo
+PAUSE_AFTER = 40          # failures in a row before a host is paused
+PAUSE_AFTER_UNSEEN = 9    # the same, for a host that has not yet served a single photo
+PAUSE = 120.0             # seconds; the nth pause in a row lasts n times this
+GIVE_UP_AFTER = 3         # pauses in a row, each followed by more failures, before a host is skipped
 JPEG_QUALITY = 92
+SKIPPED = "host given up on after repeated failures"
+
+# A 404 or an unreadable file is one photo's problem. A timeout, a reset, a 403 or a 5xx may be the
+# host's, and only those count against it.
+_PHOTO_ONLY = (400, 404, 410, 414)
 
 
 def image_path(images_dir: Path, key: str) -> Path:
@@ -43,56 +52,91 @@ def image_path(images_dir: Path, key: str) -> Path:
 
 
 class _Hosts:
-    """Per-host limits: how many requests at once, and when to stop trying."""
+    """Per-host health: a host that keeps failing is paused, and given up on if pauses don't help."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._streak: Counter[str] = Counter()
+        self._streak: Counter[str] = Counter()     # failures in a row since the last success or pause
+        self._pauses: Counter[str] = Counter()     # pauses in a row since the last success
+        self._paused_until: dict[str, float] = {}
         self._served: set[str] = set()
         self.dead: set[str] = set()
 
-    def record(self, host: str, ok: bool) -> None:
+    def record(self, host: str, outcome: str) -> None:
+        """outcome: "ok", "bad" (the host may be at fault) or "photo" (only this photo is at fault)."""
         with self._lock:
-            if ok:
+            if outcome == "ok":
                 self._served.add(host)
-            self._streak[host] = 0 if ok else self._streak[host] + 1
-            if self._streak[host] >= (GIVE_UP_AFTER if host in self._served else GIVE_UP_UNSEEN):
-                self.dead.add(host)
+                self._streak[host] = 0
+                self._pauses[host] = 0
+            elif outcome == "bad":
+                self._streak[host] += 1
+                limit = PAUSE_AFTER if host in self._served else PAUSE_AFTER_UNSEEN
+                if self._streak[host] >= limit:
+                    self._streak[host] = 0
+                    self._pauses[host] += 1
+                    if self._pauses[host] >= GIVE_UP_AFTER:
+                        self.dead.add(host)
+                    else:
+                        self._paused_until[host] = time.monotonic() + PAUSE * self._pauses[host]
+
+    def wait(self, host: str) -> bool:
+        """Block while the host is paused. False if it has been given up on."""
+        while True:
+            with self._lock:
+                if host in self.dead:
+                    return False
+                remaining = self._paused_until.get(host, 0.0) - time.monotonic()
+            if remaining <= 0:
+                return True
+            time.sleep(min(remaining, 5.0))
 
 
 def _fetch(client: httpx.Client, hosts: _Hosts, photo: Photo, dest: Path, size: int) -> str | None:
     """Download one photo. Returns None on success, or why it failed."""
     host = urlparse(photo.url).netloc
-    if host in hosts.dead:
-        return "host skipped after repeated failures"
-    error = "failed"
+    error, outcome = "failed", "bad"
     for attempt in range(RETRIES):
-        if host in hosts.dead:
-            return "host skipped after repeated failures"
+        if not hosts.wait(host):
+            return SKIPPED
+        last = attempt == RETRIES - 1
         try:
             response = client.get(photo.url)
-            if response.status_code in (429, 500, 502, 503, 504):
-                error = f"HTTP {response.status_code}"
+        except httpx.ConnectError as exc:
+            error = f"{type(exc).__name__}: {str(exc)[:80]}"
+            if "CERTIFICATE_VERIFY_FAILED" in str(exc) or "refused" in str(exc).lower():
+                break       # retrying won't change a bad certificate or a closed port
+            if not last:    # an SSL EOF or a reset is a dropped connection: try a fresh one
+                time.sleep(1.0 * (attempt + 1))
+            continue
+        except httpx.HTTPError as exc:      # timeouts, dropped connections
+            error = type(exc).__name__
+            if not last:
+                time.sleep(1.0 * (attempt + 1))
+            continue
+        if response.status_code in (429, 500, 502, 503, 504):
+            error = f"HTTP {response.status_code}"
+            if not last:
                 time.sleep(2.0 * (attempt + 1))
-                continue
-            if response.status_code != 200:
-                error = f"HTTP {response.status_code}"
-                break
+            continue
+        if response.status_code != 200:
+            error = f"HTTP {response.status_code}"
+            if response.status_code in _PHOTO_ONLY:
+                outcome = "photo"
+            break
+        try:
             picture = Image.open(io.BytesIO(response.content)).convert("RGB")
             picture.thumbnail((size, size), Image.Resampling.LANCZOS)
             dest.parent.mkdir(parents=True, exist_ok=True)
             partial = dest.with_suffix(".part")
             picture.save(partial, "JPEG", quality=JPEG_QUALITY)
             partial.replace(dest)
-            hosts.record(host, True)
-            return None
-        except httpx.ConnectError as exc:    # refused, timed out or a bad certificate: don't linger
-            error = f"{type(exc).__name__}: {str(exc)[:80]}"
+        except (OSError, ValueError) as exc:    # not a picture, or the disk refused it
+            error, outcome = type(exc).__name__, "photo"
             break
-        except (httpx.HTTPError, OSError, ValueError) as exc:   # network, or not a picture
-            error = type(exc).__name__
-            time.sleep(1.0 * (attempt + 1))
-    hosts.record(host, False)
+        hosts.record(host, "ok")
+        return None
+    hosts.record(host, outcome)
     return error
 
 
@@ -103,16 +147,23 @@ def download(specimens: list[Specimen], data_dir: Path, size: int = 512, log=pri
     total = len(collection_of)
     log(f"{total:,} photos wanted, {total - len(todo):,} already here, {len(todo):,} to download")
     hosts = _Hosts()
-    failures: list[dict] = []
+    failed = skipped = 0
     lock = threading.Lock()
+    log_file = (data_dir / "download_failures.jsonl").open("w", encoding="utf-8")
 
     def work(photo: Photo) -> None:
+        nonlocal failed, skipped
         error = _fetch(client, hosts, photo, image_path(images_dir, photo.key), size)
         with lock:
+            if error == SKIPPED:        # never tried; a rerun picks it up
+                skipped += 1
+            elif error:
+                failed += 1
+                log_file.write(json.dumps({"key": photo.key, "url": photo.url, "error": error,
+                                           "collection": collection_of[photo.key]}) + "\n")
+                log_file.flush()
             if error:
-                failures.append({"key": photo.key, "url": photo.url, "error": error,
-                                 "collection": collection_of[photo.key]})
-                bar.set_postfix(failed=f"{len(failures):,}", refresh=False)
+                bar.set_postfix(failed=f"{failed:,}", skipped=f"{skipped:,}", refresh=False)
             bar.update()
 
     # The bar shows photos done, the rate and the time left; smoothing=0 averages the whole run,
@@ -131,8 +182,7 @@ def download(specimens: list[Specimen], data_dir: Path, size: int = 512, log=pri
         for job in (j for group in jobs for j in group):
             job.result()        # surface anything unexpected
 
-    (data_dir / "download_failures.jsonl").write_text(
-        "".join(json.dumps(f) + "\n" for f in failures))
+    log_file.close()
     have, wanted = defaultdict(int), defaultdict(int)
     for key, collection in collection_of.items():
         wanted[collection] += 1
@@ -142,4 +192,5 @@ def download(specimens: list[Specimen], data_dir: Path, size: int = 512, log=pri
         log(f"  {collection:<12} {have[collection]:>8,} of {wanted[collection]:,}")
     if hosts.dead:
         log(f"gave up on: {', '.join(sorted(hosts.dead))}")
-    return {"wanted": dict(wanted), "have": dict(have), "failed": len(failures)}
+    log(f"{failed:,} failed (see download_failures.jsonl), {skipped:,} skipped; rerun to retry")
+    return {"wanted": dict(wanted), "have": dict(have), "failed": failed, "skipped": skipped}
