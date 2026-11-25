@@ -103,7 +103,8 @@ def test_evaluate_ranks_types_and_never_matches_a_coin_to_itself():
                                  "collections": {"ans": 3, "sitnam": 1}}
     held = report["held_out"]
     assert held["queries"] == 2
-    assert held["type"]["both"] == {"top1": 0.5, "top5": 1.0, "top10": 1.0}   # qa first, qc second
+    assert held["type"]["both"] == {"top1": 0.5, "top5": 1.0, "top10": 1.0, "top50": 1.0,
+                                    "top100": 1.0}                             # qa first, qc second
     assert held["design"]["both"]["top1"] == 1.0    # qc's nearest coin is type B: the same design
     assert held["labels"]["portrait"] == {"queries": 2, "top1": 0.5}
     # Same collection: only a1 and a2 have another coin of their type. Each must find the other,
@@ -112,7 +113,12 @@ def test_evaluate_ranks_types_and_never_matches_a_coin_to_itself():
     assert same["queries"] == 2
     assert same["type"]["both"]["top1"] == 1.0
     assert same["by_bucket"] == {"1": {"queries": 2, "top1": 1.0, "top5": 1.0, "top10": 1.0,
-                                       "design_top10": 1.0}}
+                                       "top50": 1.0, "top100": 1.0, "design_top10": 1.0}}
+    assert set(held["by_pair"]) == {"ocre / princeton"}
+    # Searching the ANS coins alone drops type C from the gallery, so its held-out coin is no
+    # longer a query, and the SITNAM coin does not become one.
+    narrow = evaluate.evaluate(specimens, views, np.stack(vectors), log=lambda *_: None, gallery_from=("ans",))
+    assert narrow["gallery"]["collections"] == {"ans": 3} and narrow["held_out"]["queries"] == 1
     found = evaluate.coin_found(specimens, views, [True] * (len(views) - 1) + [False])
     assert found["princeton"] == {"pictures": 6, "found": 1.0} and found["ans"]["found"] == 6 / 7
     text = evaluate.markdown({"release": "r", "model": "m", "resolution": 224, "coin_found": found, **report})

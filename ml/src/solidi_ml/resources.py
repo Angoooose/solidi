@@ -12,6 +12,7 @@ import torch
 
 RESERVE_GB = 4.0       # memory left alone for the system and the main process
 MAX_WORKERS = 12
+GPU_SHARE = 0.9        # of the graphics card's memory; the rest is left for the desktop
 
 
 def pick_device() -> str:
@@ -34,6 +35,15 @@ def workers(requested: int | None = None, heavy: bool = True) -> int:
     free = psutil.virtual_memory().available / 2**30
     each = 0.4 if not heavy else 3.0 if platform.system() == "Windows" else 1.0
     return int(max(0, min(cores - 1, (free - RESERVE_GB) / each, MAX_WORKERS)))
+
+
+def cap_gpu_memory(device: str) -> None:
+    """Make PyTorch stop at 90% of the graphics card's own memory and raise an out-of-memory
+    error there. Without this, the Windows NVIDIA driver quietly spills into ordinary system
+    memory instead: nothing fails, but the work runs up to a hundred times slower, and the code
+    that shrinks the batch never hears about it."""
+    if device == "cuda":
+        torch.cuda.set_per_process_memory_fraction(GPU_SHARE)
 
 
 def is_out_of_memory(error: BaseException) -> bool:

@@ -61,7 +61,7 @@ def _baseline(args) -> None:
     pairs = [(v.specimen_id, v.side) for v in views]
     report = {"release": name, "model": args.weights or args.model, "resolution": args.resolution,
               "coin_found": coin_found(specimens, pairs, [v.found for v in views]),
-              **evaluate(specimens, pairs, vectors)}
+              **evaluate(specimens, pairs, vectors, gallery_from=tuple(args.gallery))}
     _save(_run_dir(args, "baseline"), report, markdown(report))
 
 
@@ -108,6 +108,9 @@ def main() -> None:
     grading.add_argument("--batch-size", type=int, default=256,
                          help="pictures per batch (halved automatically if memory runs out)")
     grading.add_argument("--weights", help="grade a trained model: a best.pt written by `train`")
+    grading.add_argument("--gallery", nargs="+", metavar="NAME", default=list(records.GALLERY),
+                         help="search only these gallery collections (default: %(default)s); "
+                              "`baseline` only")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("download", parents=[common], help="download the photos (resumable)"
                         ).set_defaults(run=_download)

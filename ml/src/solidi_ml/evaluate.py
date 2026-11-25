@@ -29,7 +29,8 @@ from .records import GALLERY, Specimen
 MODES = ("obverse", "reverse", "both")
 LEVELS = {"type": lambda s: s.type_id, "design": lambda s: s.design}
 LABELS = ("portrait", "denomination", "mint")
-TOPS = (1, 5, 10)
+TOPS = (1, 5, 10, 50, 100)
+SHOWN = (1, 5, 10)      # the ranks in the main table; 50 and 100 get a line of their own
 BUCKETS = ((1, 1, "1"), (2, 4, "2-4"), (5, 9, "5-9"), (10, 10**9, "10+"))
 CHUNK = 512
 NEAREST = 3            # nearest gallery coins kept per query, for looking at afterwards
@@ -48,11 +49,15 @@ def complete(specimens: list[Specimen], views: list[tuple[str, str]]) -> dict[st
             if len(rows.get(s.id, ())) == 2}
 
 
-def split(specimens: list[Specimen], rows: dict[str, tuple[int, int]]
+def split(specimens: list[Specimen], rows: dict[str, tuple[int, int]],
+          gallery_from: tuple[str, ...] = GALLERY
           ) -> tuple[list[Specimen], list[Specimen], list[Specimen]]:
-    """The gallery, the held-out queries and the same-collection queries."""
+    """The gallery, the held-out queries and the same-collection queries.
+
+    `gallery_from` narrows the gallery to some of the gallery collections, to see what the rest
+    contribute. The held-out queries stay the coins from outside all of them."""
     usable = [s for s in specimens if s.id in rows]
-    gallery = [s for s in usable if s.collection in GALLERY]
+    gallery = [s for s in usable if s.collection in gallery_from]
     gallery_types = Counter(s.type_id for s in gallery)
     held_out = [s for s in usable if s.collection not in GALLERY and s.type_id in gallery_types]
     same = [s for s in gallery if s.collection == "ans" and gallery_types[s.type_id] >= 2]
@@ -116,6 +121,7 @@ def run(queries: list[Specimen], gallery: list[Specimen], rows: dict[str, tuple[
             neighbour = gallery[nearest[b][0]]
             out.append({
                 "id": q.id, "collection": q.collection, "corpus": q.corpus or "unknown",
+                "pair": f"{q.corpus or 'unknown'} / {q.collection}",
                 "bucket": _bucket(per_type[q.type_id] - (q.id in gallery_row)),
                 "rank": {level: {mode: ranks[level][mode][b] for mode in MODES} for level in LEVELS},
                 "nearest": [gallery[g].id for g in nearest[b]],
@@ -153,7 +159,7 @@ def summary(results: list[dict]) -> dict:
         hits = [r["labels"][name] for r in results if name in r["labels"]]
         if hits:
             out["labels"][name] = {"queries": len(hits), "top1": float(np.mean(hits))}
-    for key in ("corpus", "collection", "bucket"):
+    for key in ("corpus", "collection", "pair", "bucket"):
         groups: dict[str, list[dict]] = defaultdict(list)
         for r in results:
             groups[r[key]].append(r)
@@ -175,10 +181,10 @@ def coin_found(specimens: list[Specimen], views: list[tuple[str, str]], found: l
 
 
 def evaluate(specimens: list[Specimen], views: list[tuple[str, str]], vectors: np.ndarray,
-             log=print) -> dict:
+             log=print, gallery_from: tuple[str, ...] = GALLERY) -> dict:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     rows = complete(specimens, views)
-    gallery, held_out, same = split(specimens, rows)
+    gallery, held_out, same = split(specimens, rows, gallery_from)
     log(f"gallery: {len(gallery):,} coins of {len({g.type_id for g in gallery}):,} types; "
         f"queries: {len(held_out):,} held out, {len(same):,} same collection")
     tensor = torch.from_numpy(vectors.astype(np.float32))
@@ -222,12 +228,17 @@ def markdown(report: dict) -> str:
                 "top 1, 5 and 10:", "",
                 _table(["Sides used", "Type top 1", "Type top 5", "Type top 10",
                         "Design top 1", "Design top 5", "Design top 10"],
-                       [[mode] + [_pct(test[level][mode][f"top{k}"]) for level in LEVELS for k in TOPS]
+                       [[mode] + [_pct(test[level][mode][f"top{k}"]) for level in LEVELS for k in SHOWN]
                         for mode in MODES]),
+                "", "Further down the list (both sides): the true type is in the top 50 for "
+                    f"{_pct(test['type']['both']['top50'])} and the top 100 for "
+                    f"{_pct(test['type']['both']['top100'])}; the true design for "
+                    f"{_pct(test['design']['both']['top50'])} and {_pct(test['design']['both']['top100'])}.",
                 "", "Nearest coin has the same label (both sides):", "",
                 _table(["Label", "Queries", "Correct"],
                        [[name, f"{v['queries']:,}", _pct(v["top1"])] for name, v in test["labels"].items()])]
         for group, heading in (("corpus", "Catalogue"), ("collection", "Query collection"),
+                               ("pair", "Catalogue / collection"),
                                ("bucket", "Gallery coins of the true type")):
             out += ["", _table([heading, "Queries", "Type top 1", "Type top 10", "Design top 10"],
                                [[name, f"{v['queries']:,}", _pct(v["top1"]), _pct(v["top10"]),

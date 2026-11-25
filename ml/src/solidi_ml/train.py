@@ -152,6 +152,7 @@ def _grade(model, specimens, views, data_dir: Path, tag: str, device: str, worke
     report = evaluate.evaluate(specimens, [(v.specimen_id, v.side) for v in views], vectors, log=log)
     return {test: {"type_top1": report[test]["type"]["both"]["top1"],
                    "type_top10": report[test]["type"]["both"]["top10"],
+                   "type_top100": report[test]["type"]["both"]["top100"],
                    "design_top10": report[test]["design"]["both"]["top10"],
                    "portrait": report[test]["labels"].get("portrait", {}).get("top1")}
             for test in ("held_out", "same_collection") if report[test]["queries"]}
@@ -173,8 +174,13 @@ def markdown(name: str, settings: Settings, history: list[dict]) -> str:
 
 
 def train(specimens: list[Specimen], data_dir: Path, run_dir: Path, settings: Settings,
-          device: str | None = None, workers: int | None = None, log=print) -> list[dict]:
+          device: str | None = None, workers: int | None = None, batch_size: int | None = None,
+          log=print) -> list[dict]:
+    """`batch_size`, when given, replaces the one in `settings` and the one a resumed run saved."""
     device = device or resources.pick_device()
+    resources.cap_gpu_memory(device)
+    if batch_size:
+        settings.batch_size = batch_size
     run_dir.mkdir(parents=True, exist_ok=True)
     views = crops.prepare(specimens, data_dir, workers, log=log)
     items, n_labels, aux_sizes = _training_items(specimens, views)
@@ -204,6 +210,8 @@ def train(specimens: list[Specimen], data_dir: Path, run_dir: Path, settings: Se
         optimiser.load_state_dict(saved["optimiser"])
         scaler.load_state_dict(saved["scaler"])
         state = saved["state"]
+        if batch_size:
+            state["batch_size"] = batch_size
         log(f"resuming {run_dir.name}: pass {state['epoch'] + 1}, "
             f"{state['seen']:,} of {len(items):,} pictures in, batch {state['batch_size']}")
 
@@ -216,7 +224,10 @@ def train(specimens: list[Specimen], data_dir: Path, run_dir: Path, settings: Se
         tag = f"{run_dir.name}-pass{epoch}"
         result = _grade(model, specimens, views, data_dir, tag, device, workers, state["batch_size"], log)
         state["history"].append({"epoch": epoch, "loss": loss, **result})
-        score = result.get("held_out", result.get("same_collection", {})).get("type_top10", 0.0)
+        # The best pass is the one with the highest top 1 and top 10 together: top 10 alone
+        # barely moves late in training, and picked an early pass on a two-coin difference.
+        graded = result.get("held_out", result.get("same_collection", {}))
+        score = graded.get("type_top1", 0.0) + graded.get("type_top10", 0.0)
         if score > state["best"]:
             state["best"] = score
             _save(run_dir / "best.pt", {"backbone": model.state_dict(), "epoch": epoch,
