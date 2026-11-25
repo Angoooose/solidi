@@ -115,6 +115,30 @@ release_licences:
   - cc0
   - /by/          # CC BY, any version: '/licenses/by/4.0/' (not by-sa, by-nc or by-nd)
 
+# What the coin-identification model (ml/) may be trained on: `solidi training-data`. The project
+# is non-commercial and weights trained on this are shared under CC BY-NC-SA 4.0, so non-commercial
+# licences qualify here though they can't go into the ODbL download. Not here: no-derivatives
+# licences, and CC BY-SA, whose share-alike terms can't be combined with non-commercial ones.
+training:
+  licences:
+    - odbl
+    - publicdomain
+    - cc0
+    - /by/
+    - /by-nc/
+    - /by-nc-sa/
+  # Left out whatever their licence says. Keys are Nomisma dataset URIs.
+  excluded:
+    http://bnf.fr/: CC BY on the data, but the BnF disputes reuse of its photographs
+    https://www.corpus-nummorum.eu/: an aggregator; its copyright page says to ask each photo's rights holder
+    https://www.kbr.be: declares CC BY-NC, but its website requires permission for any reuse
+  # Declared usable, but not confirmed on the collection's own website (checked 2026-11-24).
+  # Delete a line once someone has read that collection's terms.
+  unconfirmed:
+    https://www.britishmuseum.org/: CC BY-NC-SA 4.0 only on content marked with the CC logo, and its copyright page asks text and data mining to be cleared with permissions@britishmuseum.org (not yet asked)
+    https://www.mupreva.org/nomisma/data: website unreachable
+    http://gams.uni-graz.at/numis: no licence statement found on its website
+
 # Where an institution's image terms differ from its dataset licence.
 # Keys are Nomisma dataset URIs.
 image_overrides:

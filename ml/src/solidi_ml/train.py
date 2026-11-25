@@ -34,7 +34,7 @@ from tqdm import tqdm
 
 from . import crops, evaluate, resources
 from .embed import MODEL, RESOLUTION, embed, load_model, to_tensor
-from .records import GALLERY, Specimen
+from .records import Specimen
 
 AUX = ("portrait", "denomination", "mint")
 SAVE_EVERY = 600        # seconds between saves within a pass
@@ -106,7 +106,7 @@ class _Heads(nn.Module):
 def _training_items(specimens: list[Specimen], views: list[crops.View]):
     """One item per gallery view: (path, label, portrait, denomination, mint), with -1 where a
     side task has no answer. The portrait is asked of obverses only."""
-    by_id = {s.id: s for s in specimens if s.collection in GALLERY}
+    by_id = {s.id: s for s in specimens if not s.held_out}
     views = [v for v in views if v.specimen_id in by_id]
     label_of = lambda v: getattr(by_id[v.specimen_id], f"{v.side}_class")
     labels = {name: i for i, name in enumerate(sorted({label_of(v) for v in views}))}

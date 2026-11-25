@@ -24,7 +24,7 @@ import numpy as np
 import torch
 
 from . import resources
-from .records import DOUBTFUL, GALLERY, Specimen
+from .records import DOUBTFUL, Specimen
 
 MODES = ("obverse", "reverse", "both")
 LEVELS = {"type": lambda s: s.type_id, "design": lambda s: s.design}
@@ -50,7 +50,7 @@ def complete(specimens: list[Specimen], views: list[tuple[str, str]]) -> dict[st
 
 
 def split(specimens: list[Specimen], rows: dict[str, tuple[int, int]],
-          gallery_from: tuple[str, ...] = GALLERY
+          gallery_from: tuple[str, ...] | None = None
           ) -> tuple[list[Specimen], list[Specimen], list[Specimen]]:
     """The gallery, the held-out queries and the same-collection queries.
 
@@ -58,9 +58,10 @@ def split(specimens: list[Specimen], rows: dict[str, tuple[int, int]],
     contribute. The held-out queries stay the coins from outside all of them, less those whose
     labels are doubtful (records.DOUBTFUL): see `doubtful`."""
     usable = [s for s in specimens if s.id in rows]
-    gallery = [s for s in usable if s.collection in gallery_from]
+    gallery = [s for s in usable if not s.held_out
+               and (gallery_from is None or s.collection in gallery_from)]
     gallery_types = Counter(s.type_id for s in gallery)
-    held_out = [s for s in usable if s.collection not in GALLERY and s.type_id in gallery_types
+    held_out = [s for s in usable if s.held_out and s.type_id in gallery_types
                 and not s.doubtful]
     same = [s for s in gallery if s.collection == "ans" and gallery_types[s.type_id] >= 2]
     return gallery, held_out, same
@@ -70,7 +71,7 @@ def doubtful(specimens: list[Specimen], rows: dict[str, tuple[int, int]],
              gallery: list[Specimen]) -> list[Specimen]:
     """The held-out coins left out of the main test because their labels are doubtful."""
     gallery_types = {g.type_id for g in gallery}
-    return [s for s in specimens if s.id in rows and s.collection not in GALLERY
+    return [s for s in specimens if s.id in rows and s.held_out
             and s.type_id in gallery_types and s.doubtful]
 
 
@@ -191,7 +192,7 @@ def coin_found(specimens: list[Specimen], views: list[tuple[str, str]], found: l
 
 
 def evaluate(specimens: list[Specimen], views: list[tuple[str, str]], vectors: np.ndarray,
-             log=print, gallery_from: tuple[str, ...] = GALLERY) -> dict:
+             log=print, gallery_from: tuple[str, ...] | None = None) -> dict:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     rows = complete(specimens, views)
     gallery, held_out, same = split(specimens, rows, gallery_from)
@@ -220,12 +221,19 @@ def _table(header: list[str], rows: list[list[str]]) -> str:
     return "\n".join(lines + ["| " + " | ".join(r) + " |" for r in rows])
 
 
+def _largest(collections: dict[str, int], shown: int = 6) -> str:
+    """'ans 65,418, bm 53,639, ... and 31 more collections'."""
+    ordered = sorted(collections.items(), key=lambda item: -item[1])
+    text = ", ".join(f"{name} {n:,}" for name, n in ordered[:shown])
+    return text + (f" and {len(ordered) - shown} more collections" if len(ordered) > shown else "")
+
+
 def markdown(report: dict) -> str:
     """The report as text a person can read."""
     out = [f"# Baseline: {report['model']} at {report['resolution']}px, no training", "",
-           f"Release `{report['release']}`. Gallery: {report['gallery']['specimens']:,} coins of "
+           f"Dataset {report['dataset']}. Gallery: {report['gallery']['specimens']:,} coins of "
            f"{report['gallery']['types']:,} types in {report['gallery']['designs']:,} designs "
-           f"({', '.join(f'{k} {v:,}' for k, v in report['gallery']['collections'].items())}).",
+           f"({_largest(report['gallery']['collections'])}).",
            "", "A design groups types with the same denomination, portrait and reverse description.",
            "", "Pictures in which the crop found a coin (the rest are used whole):", "",
            _table(["Collection", "Pictures", "Coin found"],

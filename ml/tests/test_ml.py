@@ -121,7 +121,7 @@ def test_evaluate_ranks_types_and_never_matches_a_coin_to_itself():
     assert narrow["gallery"]["collections"] == {"ans": 3} and narrow["held_out"]["queries"] == 1
     found = evaluate.coin_found(specimens, views, [True] * (len(views) - 1) + [False])
     assert found["princeton"] == {"pictures": 6, "found": 1.0} and found["ans"]["found"] == 6 / 7
-    text = evaluate.markdown({"release": "r", "model": "m", "resolution": 224, "coin_found": found, **report})
+    text = evaluate.markdown({"dataset": "d", "model": "m", "resolution": 224, "coin_found": found, **report})
     assert "Held-out collections" in text and "Design top 10" in text
 
 
@@ -133,7 +133,7 @@ def test_doubtful_labels_are_graded_apart():
     views = [(s.id, side) for s in specimens for side in ("obverse", "reverse")]
     report = evaluate.evaluate(specimens, views, np.ones((8, 2), dtype=np.float32), log=lambda *_: None)
     assert report["held_out"]["queries"] == 1 and report["doubtful"]["queries"] == 1
-    text = evaluate.markdown({"release": "r", "model": "m", "resolution": 224, "coin_found": {}, **report})
+    text = evaluate.markdown({"dataset": "d", "model": "m", "resolution": 224, "coin_found": {}, **report})
     assert "Held-out coins with doubtful labels" in text and "crro coins at princeton" in text
 
 
@@ -271,3 +271,25 @@ def test_training_saves_and_resumes(tmp_path, monkeypatch):
     settings.epochs = 2
     history = train.train(specimens, tmp_path, tmp_path / "run", settings, **quiet)
     assert [row["epoch"] for row in history] == [0, 1, 2]
+
+
+def test_dataset_is_unpacked_once_and_when_replaced(tmp_path):
+    import gzip, os, sqlite3
+    import pytest
+    from solidi_ml import dataset
+    with pytest.raises(SystemExit, match="solidi training-data"):
+        dataset.locate(tmp_path, log=lambda *_: None)
+    raw = tmp_path / "raw.sqlite"
+    db = sqlite3.connect(raw)
+    db.executescript("""CREATE TABLE readme (key TEXT, value TEXT); CREATE TABLE specimen (id TEXT, dataset_id TEXT);
+                        INSERT INTO readme VALUES ('built_at', '2026-11-22T04:48:25+00:00');
+                        INSERT INTO specimen VALUES ('a', 'ans'), ('b', 'ans'), ('c', 'vienna');""")
+    db.commit(); db.close()
+    packed = tmp_path / "dataset.sqlite.gz"
+    packed.write_bytes(gzip.compress(raw.read_bytes()))
+    found = dataset.locate(tmp_path, log=lambda *_: None)
+    assert dataset.describe(found) == "built 2026-11-22, 2 collections"
+    stamp = found.stat().st_mtime_ns
+    assert dataset.locate(tmp_path, log=lambda *_: None).stat().st_mtime_ns == stamp     # not unpacked twice
+    os.utime(packed, (found.stat().st_mtime + 10, found.stat().st_mtime + 10))            # a newer copy arrives
+    assert dataset.locate(tmp_path, log=lambda *_: None).stat().st_mtime_ns != stamp

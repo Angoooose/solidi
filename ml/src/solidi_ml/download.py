@@ -1,14 +1,20 @@
 """Download the photos, politely and resumably.
 
 Each photo is fetched once, shrunk to fit SIZE and saved as a JPEG named after a hash of its URL,
-so a second run only fetches what is missing. A few requests at a time per host; a host that
-keeps failing is given up on rather than hammered.
+so a second run only fetches what is missing. Each host has its own small team of downloaders,
+so a slow or dead host never holds up the others; a host that keeps failing is given up on
+rather than hammered.
+
+Certificates are checked against the operating system's store, as a browser does. Some museum
+servers leave out part of their certificate chain; the system store fills the gap, and the store
+bundled with Python does not.
 """
 
 from __future__ import annotations
 
 import io
 import json
+import ssl
 import threading
 import time
 from collections import Counter, defaultdict
@@ -17,6 +23,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
+import truststore
 from PIL import Image
 from tqdm import tqdm
 
@@ -24,10 +31,10 @@ from .records import Photo, Specimen
 
 USER_AGENT = "solidi-ml/0.1 (coin photo research; non-commercial)"
 PER_HOST = 3              # downloads at once from one host
-WORKERS = 24
-TIMEOUT = 30.0
+TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 RETRIES = 3
 GIVE_UP_AFTER = 40        # failures in a row before a host is skipped for the rest of the run
+GIVE_UP_UNSEEN = 9        # the same, for a host that has not yet served a single photo
 JPEG_QUALITY = 92
 
 
@@ -40,18 +47,16 @@ class _Hosts:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._slots: dict[str, threading.Semaphore] = {}
         self._streak: Counter[str] = Counter()
+        self._served: set[str] = set()
         self.dead: set[str] = set()
-
-    def slot(self, host: str) -> threading.Semaphore:
-        with self._lock:
-            return self._slots.setdefault(host, threading.Semaphore(PER_HOST))
 
     def record(self, host: str, ok: bool) -> None:
         with self._lock:
+            if ok:
+                self._served.add(host)
             self._streak[host] = 0 if ok else self._streak[host] + 1
-            if self._streak[host] >= GIVE_UP_AFTER:
+            if self._streak[host] >= (GIVE_UP_AFTER if host in self._served else GIVE_UP_UNSEEN):
                 self.dead.add(host)
 
 
@@ -61,30 +66,32 @@ def _fetch(client: httpx.Client, hosts: _Hosts, photo: Photo, dest: Path, size: 
     if host in hosts.dead:
         return "host skipped after repeated failures"
     error = "failed"
-    with hosts.slot(host):
-        for attempt in range(RETRIES):
-            if host in hosts.dead:
-                return "host skipped after repeated failures"
-            try:
-                response = client.get(photo.url)
-                if response.status_code in (429, 500, 502, 503, 504):
-                    error = f"HTTP {response.status_code}"
-                    time.sleep(2.0 * (attempt + 1))
-                    continue
-                if response.status_code != 200:
-                    error = f"HTTP {response.status_code}"
-                    break
-                picture = Image.open(io.BytesIO(response.content)).convert("RGB")
-                picture.thumbnail((size, size), Image.Resampling.LANCZOS)
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                partial = dest.with_suffix(".part")
-                picture.save(partial, "JPEG", quality=JPEG_QUALITY)
-                partial.replace(dest)
-                hosts.record(host, True)
-                return None
-            except (httpx.HTTPError, OSError, ValueError) as exc:   # network, or not a picture
-                error = type(exc).__name__
-                time.sleep(1.0 * (attempt + 1))
+    for attempt in range(RETRIES):
+        if host in hosts.dead:
+            return "host skipped after repeated failures"
+        try:
+            response = client.get(photo.url)
+            if response.status_code in (429, 500, 502, 503, 504):
+                error = f"HTTP {response.status_code}"
+                time.sleep(2.0 * (attempt + 1))
+                continue
+            if response.status_code != 200:
+                error = f"HTTP {response.status_code}"
+                break
+            picture = Image.open(io.BytesIO(response.content)).convert("RGB")
+            picture.thumbnail((size, size), Image.Resampling.LANCZOS)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            partial = dest.with_suffix(".part")
+            picture.save(partial, "JPEG", quality=JPEG_QUALITY)
+            partial.replace(dest)
+            hosts.record(host, True)
+            return None
+        except httpx.ConnectError as exc:    # refused, timed out or a bad certificate: don't linger
+            error = f"{type(exc).__name__}: {str(exc)[:80]}"
+            break
+        except (httpx.HTTPError, OSError, ValueError) as exc:   # network, or not a picture
+            error = type(exc).__name__
+            time.sleep(1.0 * (attempt + 1))
     hosts.record(host, False)
     return error
 
@@ -110,12 +117,19 @@ def download(specimens: list[Specimen], data_dir: Path, size: int = 512, log=pri
 
     # The bar shows photos done, the rate and the time left; smoothing=0 averages the whole run,
     # which is steadier than the last few seconds when hosts differ in speed.
-    with (httpx.Client(timeout=TIMEOUT, follow_redirects=True,
-                       headers={"User-Agent": USER_AGENT}) as client,
+    by_host: dict[str, list[Photo]] = defaultdict(list)
+    for photo in todo:
+        by_host[urlparse(photo.url).netloc].append(photo)
+    with (httpx.Client(timeout=TIMEOUT, follow_redirects=True, headers={"User-Agent": USER_AGENT},
+                       verify=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)) as client,
           tqdm(total=len(todo), unit="photo", smoothing=0, dynamic_ncols=True,
-               disable=not todo) as bar,
-          ThreadPoolExecutor(WORKERS) as pool):
-        list(pool.map(work, todo))
+               disable=not todo) as bar):
+        pools = [ThreadPoolExecutor(PER_HOST) for _ in by_host]
+        jobs = [[pool.submit(work, p) for p in photos] for pool, photos in zip(pools, by_host.values())]
+        for pool in pools:
+            pool.shutdown(wait=True)
+        for job in (j for group in jobs for j in group):
+            job.result()        # surface anything unexpected
 
     (data_dir / "download_failures.jsonl").write_text(
         "".join(json.dumps(f) + "\n" for f in failures))

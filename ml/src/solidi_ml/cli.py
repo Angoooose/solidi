@@ -7,22 +7,27 @@ import json
 import time
 from pathlib import Path
 
-from . import records, release
+from . import dataset, records
 
 
 def _specimens(args) -> tuple[str, list[records.Specimen]]:
-    """The release named on the command line (or a local database file) and its specimens."""
-    data_dir = Path(args.data)
-    if args.db:
-        name, db = Path(args.db).name, Path(args.db)
-    else:
-        name, db = args.release, release.fetch(args.release, data_dir)
+    """What the dataset is (for reports) and its specimens, narrowed as the command line asks."""
+    db = dataset.locate(Path(args.data))
     specimens = records.load(db, size=args.size)
     if args.collections:
         specimens = [s for s in specimens if s.collection in args.collections]
     if args.sample_types:
         specimens = records.sample_types(specimens, args.sample_types)
-    return name, specimens
+    return dataset.describe(db), specimens
+
+
+def _collections(args) -> None:
+    rows = records.census(dataset.locate(Path(args.data)))
+    for role in ("gallery", "held out"):
+        chosen = [r for r in rows if r["role"] == role]
+        print(f"\n{role}: {len(chosen)} collections, {sum(r['coins'] for r in chosen):,} coins")
+        for r in chosen:
+            print(f"  {r['coins']:>7,}  {r['collection']:<32.32}  {r['licence']}")
 
 
 def _download(args) -> None:
@@ -59,9 +64,10 @@ def _baseline(args) -> None:
     views = crops.prepare(specimens, Path(args.data), args.workers)
     vectors = embed(views, Path(args.data), **_embed_args(args))
     pairs = [(v.specimen_id, v.side) for v in views]
-    report = {"release": name, "model": args.weights or args.model, "resolution": args.resolution,
+    report = {"dataset": name, "model": args.weights or args.model, "resolution": args.resolution,
               "coin_found": coin_found(specimens, pairs, [v.found for v in views]),
-              **evaluate(specimens, pairs, vectors, gallery_from=tuple(args.gallery))}
+              **evaluate(specimens, pairs, vectors,
+                         gallery_from=tuple(args.gallery) if args.gallery else None)}
     _save(_run_dir(args, "baseline"), report, markdown(report))
 
 
@@ -69,7 +75,7 @@ def _diagnose(args) -> None:
     from .diagnose import diagnose, markdown
     name, specimens = _specimens(args)
     out = _run_dir(args, "diagnose")
-    report = {"release": name, "model": args.weights or args.model, "resolution": args.resolution,
+    report = {"dataset": name, "model": args.weights or args.model, "resolution": args.resolution,
               **diagnose(specimens, Path(args.data), out, **_embed_args(args))}
     _save(out, report, markdown(report))
 
@@ -88,9 +94,8 @@ def main() -> None:
     from .embed import MODEL, RESOLUTION
     parser = argparse.ArgumentParser(prog="solidi-ml", description=__doc__)
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--release", default=release.RELEASE, help="release tag to read (default %(default)s)")
-    common.add_argument("--db", help="read this local .sqlite file instead of a release")
-    common.add_argument("--data", default="data", help="where photos and vectors are kept")
+    common.add_argument("--data", default="data",
+                        help="where the dataset, photos and vectors are kept (default %(default)s)")
     common.add_argument("--size", type=int, default=512, help="longest side of a saved photo, px")
     common.add_argument("--collections", nargs="+", metavar="NAME",
                         help=f"only these collections ({', '.join(records.COLLECTIONS.values())})")
@@ -108,10 +113,13 @@ def main() -> None:
     grading.add_argument("--batch-size", type=int, default=256,
                          help="pictures per batch (halved automatically if memory runs out)")
     grading.add_argument("--weights", help="grade a trained model: a best.pt written by `train`")
-    grading.add_argument("--gallery", nargs="+", metavar="NAME", default=list(records.GALLERY),
-                         help="search only these gallery collections (default: %(default)s); "
+    grading.add_argument("--gallery", nargs="+", metavar="NAME",
+                         help="search only these gallery collections (default: all of them); "
                               "`baseline` only")
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("collections", parents=[common],
+                        help="list the collections in the dataset and how each is used"
+                        ).set_defaults(run=_collections)
     commands.add_parser("download", parents=[common], help="download the photos (resumable)"
                         ).set_defaults(run=_download)
     commands.add_parser("baseline", parents=[common, machine, grading],

@@ -20,8 +20,8 @@ from . import crop, resources
 from .download import image_path
 from .records import Specimen
 
-SIZE = 256             # the side of a saved crop, px
-JPEG_QUALITY = 92
+SIZE = 448             # the side of a saved crop, px: the largest a model is trained at
+JPEG_QUALITY = 88
 
 
 @dataclass(frozen=True)

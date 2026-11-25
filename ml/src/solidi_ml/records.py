@@ -1,4 +1,7 @@
-"""What the release says about each photographed coin: its photos, its type and its coarse labels.
+"""What the dataset says about each photographed coin: its photos, its type and its coarse labels.
+
+Which collections are in the dataset at all is the pipeline's decision (data/sources.yaml,
+`training`). This module decides only how they are used: gallery, held out, or doubtful.
 
 A "specimen" is one physical coin. Its type is the label we want to predict; the portrait,
 denomination and mint are coarser labels that should be easier.
@@ -12,7 +15,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Short names for the collections (keys are the release's dataset ids).
+# Short names for the collections (keys are the dataset's collection ids).
 COLLECTIONS = {
     "http://numismatics.org/search/": "ans",
     "https://numismatics.org/sitnam/": "sitnam",
@@ -25,16 +28,23 @@ COLLECTIONS = {
     "https://coins.cealex.org:443/": "cealex",
     "http://www.metmuseum.org/": "met",
     "https://libguides.furman.edu/digital-collections/coins-collection": "furman",
+    "https://www.britishmuseum.org/": "bm",
+    "https://www.ikmk.at": "vienna",
+    "https://ikmk.uni-freiburg.de": "freiburg",
+    "https://nnc.dnb.nl/dnb-nnc-ontsluiting-frontend/#/collectie/": "dnb",
+    "https://www.mupreva.org/nomisma/data": "valencia",
+    "http://gams.uni-graz.at/numis": "graz",
+    "https://www.ikmk.uni-tuebingen.de": "tuebingen",
+    "https://www.kbr.be": "kbr",
+    "https://mk-bonn.ikmk.net": "bonn",
+    "https://numid.ub.tu-freiberg.de": "freiberg",
 }
 
-# In the release, but left out here.
-EXCLUDED = {
-    "http://bnf.fr/": "CC BY on the data, but the BnF disputes reuse of its photographs",
-}
-
-# The collections we search in (and later train on). Every other collection is held out whole, so
-# a test coin never shares a photographer, background or lighting setup with the gallery.
-GALLERY = ("ans", "sitnam")
+# Collections held out whole: never trained on and never searched, only used as test coins, so
+# a test coin never shares a photographer, background or lighting setup with the gallery. Every
+# other usable collection is part of the gallery and the training set.
+HELD_OUT = frozenset({"princeton", "fralin", "tongeren", "artic", "cologne", "cealex", "met",
+                      "furman", "pas", "bonn", "freiberg"})
 
 
 # Held-out coins whose type links can't be trusted, by (catalogue, collection). They are graded
@@ -70,6 +80,10 @@ class Specimen:
 
     def label(self, name: str) -> str | None:
         return getattr(self, name)
+
+    @property
+    def held_out(self) -> bool:
+        return self.collection in HELD_OUT
 
     @property
     def doubtful(self) -> bool:
@@ -123,8 +137,8 @@ def _collection(dataset_id: str) -> str:
 def load(db_path: Path, size: int = 512) -> list[Specimen]:
     """Every usable specimen with at least one photo, in a stable order.
 
-    Left out: excluded collections, and the few specimens attributed to more than one type
-    (under 1%), whose label is ambiguous.
+    Left out: the few specimens attributed to more than one type (under 1%), whose label is
+    ambiguous.
     """
     db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     labels = {
@@ -150,8 +164,6 @@ def load(db_path: Path, size: int = 512) -> list[Specimen]:
              JOIN image i ON i.specimen_id = s.id
             ORDER BY s.id, i.side, i.url""")
     for sid, dataset_id, type_id, side, url, iiif in rows:
-        if dataset_id in EXCLUDED or dataset_id is None:
-            continue
         specimen = specimens.get(sid)
         if specimen is None:
             corpus, mint, obverse, reverse, obv_legend, rev_legend = types.get(type_id, (None,) * 6)
@@ -173,8 +185,27 @@ def load(db_path: Path, size: int = 512) -> list[Specimen]:
 def sample_types(specimens: list[Specimen], n: int) -> list[Specimen]:
     """A small, repeatable slice for trying things out: n types that have a held-out coin as well
     as gallery coins, with all of their specimens."""
-    in_gallery = {s.type_id for s in specimens if s.collection in GALLERY}
-    held_out = {s.type_id for s in specimens if s.collection not in GALLERY}
+    in_gallery = {s.type_id for s in specimens if not s.held_out}
+    held_out = {s.type_id for s in specimens if s.held_out}
     both = sorted(in_gallery & held_out, key=lambda t: hashlib.sha1(t.encode()).hexdigest())
     chosen = set(both[:n])
     return [s for s in specimens if s.type_id in chosen]
+
+
+def census(db_path: Path) -> list[dict]:
+    """Every collection in the dataset: its coins, its declared licence and how it is used."""
+    db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    rows = db.execute(
+        """SELECT d.id, d.name, d.data_licence, count(DISTINCT s.id)
+             FROM specimen s JOIN dataset d ON d.id = s.dataset_id
+            WHERE s.id IN (SELECT specimen_id FROM image)
+              AND s.id IN (SELECT specimen_id FROM specimen_type GROUP BY specimen_id HAVING count(*) = 1)
+            GROUP BY d.id ORDER BY count(DISTINCT s.id) DESC""").fetchall()
+    db.close()
+    out = []
+    for dataset_id, name, licence, coins in rows:
+        collection = _collection(dataset_id)
+        out.append({"collection": collection, "name": name or dataset_id, "coins": coins,
+                    "role": "held out" if collection in HELD_OUT else "gallery",
+                    "licence": (licence or "").split("licenses/")[-1].strip("/") or "none stated"})
+    return out

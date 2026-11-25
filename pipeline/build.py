@@ -96,7 +96,20 @@ def main() -> None:
     r = sub.add_parser("release", help="write the downloadable ODbL copy of the database (build/release/)")
     r.add_argument("--build-dir", type=Path, default=ROOT / "build")
     r.add_argument("--publish", action="store_true", help="also publish it as a GitHub release (the repo must be public)")
+    t = sub.add_parser("training-data", help="write the data the ml/ model trains on (build/training/); not for publishing")
+    t.add_argument("--build-dir", type=Path, default=ROOT / "build")
     args = parser.parse_args()
+    if args.command == "training-data":
+        from pipeline import training
+        config = yaml.safe_load((ROOT / "data" / "sources.yaml").read_text())
+        out, info = training.build_training(args.build_dir, config["training"])
+        coins = sum(n for _, n in info["used"])
+        print(f"{out} ({out.stat().st_size / 1e6:.1f} MB): {coins:,} photographed coins from "
+              f"{len(info['used'])} collections; {len(info['left_out'])} sources left out")
+        for name, why in info["left_out"]:
+            print(f"  left out: {name[:48]:<48} {why}")
+        print("Copy it to ml/data/ on the machine that trains. It holds non-commercial data: don't publish it.")
+        return
     if args.command == "score-images":
         raw = args.build_dir / "raw"
         if args.rescore:

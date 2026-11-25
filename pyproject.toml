@@ -32,3 +32,7 @@ dev = [
 [tool.uv.build-backend]
 module-name = "pipeline"
 module-root = ""
+
+# ml/ is a separate project with its own tests: run them from ml/.
+[tool.pytest.ini_options]
+testpaths = ["tests"]

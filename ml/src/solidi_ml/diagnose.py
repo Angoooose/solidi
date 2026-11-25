@@ -136,7 +136,7 @@ def markdown(report: dict) -> str:
                       for name, v in lines.items()]
 
     out = [f"# Diagnostics: {report['model']} at {report['resolution']}px, no training", "",
-           f"Release `{report['release']}`. Type ranks use both sides; labels are graded on the nearest coin.",
+           f"Dataset {report['dataset']}. Type ranks use both sides; labels are graded on the nearest coin.",
            "", "## Held-out collections", "", *table(report["held_out"]),
            "", "## Same collection (ANS, leave one out)", "", *table(report["same_collection"]),
            "", "## Which way up are the held-out photos?", "",
