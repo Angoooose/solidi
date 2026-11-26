@@ -81,8 +81,17 @@ def _diagnose(args) -> None:
 
 
 def _train(args) -> None:
-    from .train import Settings, train
     _, specimens = _specimens(args)
+    if args.teacher:
+        from .distil import Settings as Teaching, distil
+        teaching = Teaching(teacher=args.teacher, init=args.init or "", model=args.model,
+                            resolution=args.resolution, epochs=args.epochs, batch_size=args.batch_size,
+                            lr=args.lr, cached_teacher=args.cached_teacher)
+        distil(specimens, Path(args.data), Path(args.runs) / args.name, teaching,
+               device=args.device, workers=args.workers)
+        print("\n" + (Path(args.runs) / args.name / "report.md").read_text())
+        return
+    from .train import Settings, train
     settings = Settings(model=args.model, resolution=args.resolution, epochs=args.epochs,
                         batch_size=args.batch_size, lr=args.lr, head_lr=args.head_lr)
     train(specimens, Path(args.data), Path(args.runs) / args.name, settings,
@@ -136,6 +145,14 @@ def main() -> None:
                           help="pictures per batch (halved automatically if memory runs out)")
     training.add_argument("--lr", type=float, default=2e-5, help="step size for the pretrained network")
     training.add_argument("--head-lr", type=float, default=5e-3, help="step size for the new label centres")
+    training.add_argument("--teacher", metavar="WEIGHTS",
+                          help="teach this model to answer like a larger one: the larger model's "
+                               "best.pt. Labels are not used; see distil.py")
+    training.add_argument("--init", metavar="WEIGHTS",
+                          help="with --teacher: start the student from these weights")
+    training.add_argument("--cached-teacher", action="store_true",
+                          help="with --teacher: use the teacher's saved vectors of the unchanged "
+                               "pictures (much faster, gentler changes to the pictures)")
     training.set_defaults(run=_train)
     args = parser.parse_args()
     args.run(args)

@@ -31,11 +31,29 @@ BLOCK = 16384          # views per saved file
 MIN_BATCH = 1
 
 
+class Projected(torch.nn.Module):
+    """A network followed by one linear layer. A distilled student is this: the layer maps its
+    vectors into its teacher's space, so the two models' vectors can be compared."""
+
+    def __init__(self, backbone: torch.nn.Module, head: torch.nn.Linear) -> None:
+        super().__init__()
+        self.backbone, self.head = backbone, head
+
+    def forward(self, pixels: torch.Tensor) -> torch.Tensor:
+        return self.head(self.backbone(pixels))
+
+
 def load_model(model_name: str, resolution: int, device: str, weights: Path | None = None):
-    """The network, with the published weights or those saved by `train`."""
+    """The network, with the published weights or those saved by `train` (including, for a
+    distilled student, the layer into its teacher's space)."""
     model = timm.create_model(model_name, pretrained=weights is None, num_classes=0, img_size=resolution)
     if weights is not None:
-        model.load_state_dict(torch.load(weights, map_location="cpu", weights_only=True)["backbone"])
+        saved = torch.load(weights, map_location="cpu", weights_only=True)
+        model.load_state_dict(saved["backbone"])
+        if "head" in saved:
+            head = torch.nn.Linear(*reversed(saved["head"]["weight"].shape))
+            head.load_state_dict(saved["head"])
+            model = Projected(model, head)
     return model.eval().to(device)
 
 

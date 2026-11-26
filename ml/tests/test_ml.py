@@ -196,6 +196,23 @@ def _photo_specimens(tmp_path, n=6):
     return specimens
 
 
+def _photo_specimens_held_out(tmp_path):
+    """Two more made-up coins, of the first two types, in a held-out collection."""
+    from solidi_ml.download import image_path
+    specimens = []
+    for i in range(2):
+        s = records.Specimen(id=f"h{i}", collection="princeton", type_id=f"T{i}", design=f"T{i}",
+                             obverse_class=f"o{i}", reverse_class=f"r{i}", denomination="as", corpus="ocre")
+        for side in ("obverse", "reverse"):
+            photo = records.Photo(f"h{i}{side[0]}".ljust(16, "0"), s.id, side, "")
+            path = image_path(tmp_path / "images", photo.key)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            _coin_picture(box=(130, 90, 250, 210)).point(lambda v: min(v, 195 - 30 * i)).save(path)
+            s.photos.append(photo)
+        specimens.append(s)
+    return specimens
+
+
 def test_crops_are_cut_once_and_remembered(tmp_path):
     from solidi_ml import crops
     specimens = _photo_specimens(tmp_path)
@@ -293,3 +310,74 @@ def test_dataset_is_unpacked_once_and_when_replaced(tmp_path):
     assert dataset.locate(tmp_path, log=lambda *_: None).stat().st_mtime_ns == stamp     # not unpacked twice
     os.utime(packed, (found.stat().st_mtime + 10, found.stat().st_mtime + 10))            # a newer copy arrives
     assert dataset.locate(tmp_path, log=lambda *_: None).stat().st_mtime_ns != stamp
+
+
+def test_distillation_loss_rewards_agreeing_with_the_teacher():
+    import torch
+    from torch.nn.functional import normalize
+    from solidi_ml import distil
+    torch.manual_seed(0)
+    s = distil.Settings(teacher_temperature=0.1)
+    teacher = normalize(torch.randn(4, 8), dim=1)
+    anchors = normalize(torch.randn(4, 5, 8), dim=2)
+    same = distil.loss(teacher.clone(), teacher, anchors, s)
+    other = distil.loss(normalize(torch.randn(4, 8), dim=1), teacher, anchors, s)
+    opposite = distil.loss(-teacher, teacher, anchors, s)
+    assert same < other < opposite
+    # With the neighbourhood term off, a student that matches the teacher exactly loses nothing.
+    assert distil.loss(teacher.clone(), teacher, anchors, distil.Settings(context_weight=0)).item() < 1e-6
+
+
+def test_nearest_lists_each_row_first():
+    import torch
+    from solidi_ml.distil import nearest
+    vectors = torch.eye(4)[[0, 0, 1, 2]] + torch.tensor([[0, 0, 0, 0.0], [0, 0.1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+    vectors = torch.nn.functional.normalize(vectors, dim=1)
+    found = nearest(vectors, 2, "cpu")
+    assert found[:, 0].tolist() == [0, 1, 2, 3] and found[0, 1] == 1 and found[1, 1] == 0
+
+
+def test_distillation_trains_grades_three_ways_and_resumes(tmp_path, monkeypatch):
+    import torch
+    from solidi_ml import distil, embed
+    specimens = _photo_specimens(tmp_path) + _photo_specimens_held_out(tmp_path)
+
+    class Tiny(torch.nn.Module):
+        def __init__(self, width):
+            super().__init__()
+            self.num_features = width
+            self.mix = torch.nn.Linear(3, width)
+
+        def forward(self, x):
+            return self.mix(x.mean(dim=(2, 3)))
+
+    torch.manual_seed(0)
+    teacher_path = tmp_path / "big" / "best.pt"
+    teacher_path.parent.mkdir()
+    torch.save({"backbone": Tiny(6).state_dict(), "settings": {"model": "big", "resolution": 48}}, teacher_path)
+
+    def tiny(name, resolution, device, weights=None):
+        model = Tiny(6 if name == "big" else 4)
+        if weights is not None:
+            model.load_state_dict(torch.load(weights, weights_only=True)["backbone"])
+        return model.eval()
+
+    monkeypatch.setattr(distil, "load_model", tiny)
+    monkeypatch.setattr(embed, "load_model", tiny)
+    settings = distil.Settings(teacher=str(teacher_path), model="small", resolution=32, epochs=1,
+                               batch_size=4, neighbours=3)
+    quiet = dict(device="cpu", workers=0, log=lambda *_: None)
+    history = distil.distil(specimens, tmp_path, tmp_path / "run", settings, **quiet)
+    assert [row["epoch"] for row in history] == [0, 1]
+    assert set(history[1]) == {"epoch", "loss", "mixed", "alone"} and "type_top10" in history[1]["mixed"]
+    report = (tmp_path / "run" / "report.md").read_text()
+    assert "The teacher alone" in report and "| 1 |" in report
+    saved = torch.load(tmp_path / "run" / "best.pt", weights_only=True)
+    assert saved["head"]["weight"].shape == (6, 4)             # the student's 4 numbers mapped to the teacher's 6
+    settings.epochs = 2
+    history = distil.distil(specimens, tmp_path, tmp_path / "run", settings, **quiet)
+    assert [row["epoch"] for row in history] == [0, 1, 2]
+    # The saved-teacher variant runs too, without loading the teacher network.
+    cached = distil.Settings(teacher=str(teacher_path), model="small", resolution=32, epochs=1,
+                             batch_size=4, neighbours=3, cached_teacher=True)
+    assert len(distil.distil(specimens, tmp_path, tmp_path / "cached", cached, **quiet)) == 2

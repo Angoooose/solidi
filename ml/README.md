@@ -43,6 +43,23 @@ It is safe to interrupt. Progress is saved every ten minutes and after each pass
 command again and it resumes. Choose `--epochs` before starting: raising it on a resumed run
 works, but the step size, which eases down to zero by the last pass, jumps back up.
 
+### Teaching the small model from a large one
+
+A browser can only run the small model, but the gallery is embedded offline, where a large model
+costs nothing. `train --teacher` trains the small model to place a photo where the large one
+would, so a query embedded by the small model can search a gallery embedded by the large one:
+
+```sh
+uv run solidi-ml train --name b336-34c --model vit_base_patch14_reg4_dinov2.lvd142m --resolution 336
+uv run solidi-ml train --name s224-from-b336 --teacher runs/b336-34c/best.pt --init runs/s224-34c/best.pt
+```
+
+Its report grades each pass three ways: "mixed" (small model on the query, large model on the
+gallery, which is how it will be used), the small model alone, and the large model alone. The
+large model looks at every batch, so a pass takes several times longer than plain training;
+`--cached-teacher` uses its saved vectors instead, which is much faster and a weaker method.
+The approach and the papers it follows are described in `src/solidi_ml/distil.py`.
+
 Two more commands look closer at a model, the untrained one by default or a trained one with
 `--weights runs/finetune/best.pt`:
 

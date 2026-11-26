@@ -57,28 +57,43 @@ class Settings:
     seed: int = 0
 
 
+def augmentation(resolution: int, light: bool = False) -> v2.Compose:
+    """The random changes made to a training picture. `light` keeps only a gentle zoom and colour
+    shift, for when the picture must stay close to its unchanged self."""
+    if light:
+        return v2.Compose([
+            v2.RandomResizedCrop(resolution, scale=(0.8, 1.0), ratio=(0.95, 1.05), antialias=True),
+            v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        ])
+    return v2.Compose([
+        v2.RandomResizedCrop(resolution, scale=(0.6, 1.0), ratio=(0.9, 1.1), antialias=True),
+        v2.RandomApply([v2.RandomPerspective(distortion_scale=0.15, p=1.0)], p=0.3),
+        v2.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.03),
+        v2.RandomGrayscale(p=0.25),
+        v2.RandomApply([v2.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))], p=0.3),
+    ])
+
+
+def turned(picture: Image.Image) -> Image.Image:
+    """The picture turned by a random angle, the corners filled with its background colour."""
+    return picture.rotate(random.uniform(0, 360), resample=Image.Resampling.BICUBIC,
+                          fillcolor=picture.getpixel((0, 0)))
+
+
 class _Pictures(Dataset):
     """Training pictures, changed at random each time they are shown. No mirror flip: which way
     a portrait faces, and the lettering, are part of the design."""
 
     def __init__(self, items: list[tuple], resolution: int) -> None:
         self.items, self.resolution = items, resolution
-        self.change = v2.Compose([
-            v2.RandomResizedCrop(resolution, scale=(0.6, 1.0), ratio=(0.9, 1.1), antialias=True),
-            v2.RandomApply([v2.RandomPerspective(distortion_scale=0.15, p=1.0)], p=0.3),
-            v2.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.03),
-            v2.RandomGrayscale(p=0.25),
-            v2.RandomApply([v2.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))], p=0.3),
-        ])
+        self.change = augmentation(resolution)
 
     def __len__(self) -> int:
         return len(self.items)
 
     def __getitem__(self, i: int):
         path, label, *aux = self.items[i]
-        picture = Image.open(path).convert("RGB")
-        picture = picture.rotate(random.uniform(0, 360), resample=Image.Resampling.BICUBIC,
-                                 fillcolor=picture.getpixel((0, 0)))
+        picture = turned(Image.open(path).convert("RGB"))
         return to_tensor(self.change(picture), self.resolution), label, torch.tensor(aux)
 
 
