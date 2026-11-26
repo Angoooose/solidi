@@ -242,6 +242,11 @@ def train(specimens: list[Specimen], data_dir: Path, run_dir: Path, settings: Se
     if not state["history"]:
         grade(0, None)       # the bar to beat, measured the same way
         save()
+    elif state["history"][-1]["epoch"] < state["epoch"]:
+        # stopped while grading: the last pass was trained and saved but never scored
+        log(f"pass {state['epoch']} was trained but not graded; grading it now")
+        grade(state["epoch"], None)    # its average loss was not kept
+        save()
 
     total = settings.epochs * len(items)
     n_workers = resources.workers(workers)
