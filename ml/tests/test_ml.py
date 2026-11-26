@@ -262,7 +262,7 @@ def test_training_saves_and_resumes(tmp_path, monkeypatch):
             return self.mix(x.mean(dim=(2, 3)))
 
     monkeypatch.setattr(train, "load_model", lambda *a, **k: Tiny())
-    settings = train.Settings(resolution=32, epochs=1, batch_size=4)
+    settings = train.Settings(resolution=48, epochs=1, batch_size=4)    # not the default: grading must follow it
     quiet = dict(device="cpu", workers=0, log=lambda *_: None)
     history = train.train(specimens, tmp_path, tmp_path / "run", settings, **quiet)
     assert [row["epoch"] for row in history] == [0, 1] and history[1]["loss"] > 0

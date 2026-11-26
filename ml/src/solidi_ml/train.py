@@ -146,9 +146,10 @@ def _save(path: Path, state: dict) -> None:
     partial.replace(path)
 
 
-def _grade(model, specimens, views, data_dir: Path, tag: str, device: str, workers, batch_size, log) -> dict:
-    vectors = embed(views, data_dir, tag=tag, model=model, device=device, workers=workers,
-                    batch_size=max(batch_size, 64), log=log)
+def _grade(model, specimens, views, data_dir: Path, tag: str, resolution: int, device: str, workers,
+           batch_size, log) -> dict:
+    vectors = embed(views, data_dir, tag=tag, model=model, resolution=resolution, device=device,
+                    workers=workers, batch_size=max(batch_size, 64), log=log)
     report = evaluate.evaluate(specimens, [(v.specimen_id, v.side) for v in views], vectors, log=log)
     return {test: {"type_top1": report[test]["type"]["both"]["top1"],
                    "type_top10": report[test]["type"]["both"]["top10"],
@@ -222,7 +223,8 @@ def train(specimens: list[Specimen], data_dir: Path, run_dir: Path, settings: Se
 
     def grade(epoch: int, loss: float | None) -> None:
         tag = f"{run_dir.name}-pass{epoch}"
-        result = _grade(model, specimens, views, data_dir, tag, device, workers, state["batch_size"], log)
+        result = _grade(model, specimens, views, data_dir, tag, settings.resolution, device, workers,
+                        state["batch_size"], log)
         state["history"].append({"epoch": epoch, "loss": loss, **result})
         # The best pass is the one with the highest top 1 and top 10 together: top 10 alone
         # barely moves late in training, and picked an early pass on a two-coin difference.
