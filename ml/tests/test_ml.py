@@ -428,5 +428,41 @@ def test_turning_keeps_what_matters_and_quantising_stays_close():
     whole = index.turn(vectors, mean, directions, 32)
     centred = torch.nn.functional.normalize(vectors - mean, dim=1)
     assert torch.allclose(whole @ whole.T, centred @ centred.T, atol=1e-4)   # a turn, nothing lost
-    coded = index.quantise(whole, 8, "cpu")
+    patterns, codes = index.quantise(whole, 8, "cpu")
+    assert patterns.shape[::2] == (8, 4) and codes.shape == (len(whole), 8)
+    coded = index.read_back(patterns, codes)
     assert (torch.nn.functional.normalize(coded, dim=1) * whole).sum(dim=1).mean() > 0.8
+
+
+def test_index_file_reads_back_what_was_written(tmp_path):
+    import torch
+    from solidi_ml import export, index
+    vectors = torch.nn.functional.normalize(torch.randn(40, 16, generator=torch.Generator().manual_seed(0)), dim=1)
+    patterns, codes = index.quantise(vectors, 4, "cpu")
+    export.write_index(tmp_path, [f"type{i}" for i in range(20)], patterns, codes)
+    types, stored = export.read_index(tmp_path)
+    assert types[3] == "type3" and torch.equal(stored, index.read_back(patterns, codes))
+    assert (tmp_path / "index.bin").stat().st_size == 4 * 40 * 4 * 4 + 40 * 4
+
+
+def test_exported_models_agree_with_the_original(tmp_path):
+    import torch
+    from solidi_ml import export
+    torch.manual_seed(0)
+    network = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3 * 8 * 8, 96), torch.nn.GELU(),
+                                  torch.nn.Linear(96, 48))
+    model = export.Browser(network, torch.zeros(48), torch.linalg.qr(torch.randn(48, 48)).Q[:, :16])
+    export.to_onnx(model, tmp_path / "model.onnx", 8)
+    export.halve(tmp_path / "model.onnx", tmp_path / "half.onnx")
+    export.shrink_weights(tmp_path / "model.onnx", tmp_path / "small.onnx")
+    pictures = []
+    for i in range(5):       # five pictures: the batch size is free
+        pictures.append(tmp_path / f"{i}.png")
+        Image.fromarray(np.random.default_rng(i).integers(0, 255, (8, 8, 3), dtype=np.uint8)).save(pictures[-1])
+    from solidi_ml.embed import to_tensor
+    with torch.no_grad():
+        wanted = model(torch.stack([to_tensor(Image.open(p), 8) for p in pictures])).numpy()
+    for name, close in (("model", 0.9999), ("half", 0.999), ("small", 0.99)):
+        given = export.run_onnx(tmp_path / f"{name}.onnx", pictures, 8)
+        assert given.shape == (5, 16) and (given * wanted).sum(axis=1).min() > close
+    assert (tmp_path / "small.onnx").stat().st_size < 0.5 * (tmp_path / "model.onnx").stat().st_size

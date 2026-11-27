@@ -73,7 +73,7 @@ def fit_turn(vectors: torch.Tensor, device: str) -> tuple[torch.Tensor, torch.Te
     return mean, directions.flip(1).float()
 
 
-def _mixing(dims: int, seed: int) -> torch.Tensor:
+def mixing(dims: int, seed: int = 0) -> torch.Tensor:
     """A random turn. After `fit_turn` the first numbers vary most; product quantisation gives
     every part one byte, so the variation is spread evenly across the parts first."""
     noise = torch.randn(dims, dims, generator=torch.Generator().manual_seed(seed))
@@ -81,22 +81,23 @@ def _mixing(dims: int, seed: int) -> torch.Tensor:
 
 
 def turn(vectors: torch.Tensor, mean: torch.Tensor, directions: torch.Tensor, dims: int,
-         mixing: torch.Tensor | None = None) -> torch.Tensor:
+         mix: torch.Tensor | None = None) -> torch.Tensor:
     """Unit vectors of the first `dims` directions."""
     out = (vectors - mean) @ directions[:, :dims]
-    return F.normalize(out @ mixing if mixing is not None else out, dim=1)
+    return F.normalize(out @ mix if mix is not None else out, dim=1)
 
 
 def quantise(vectors: torch.Tensor, parts: int, device: str, seed: int = 0, rounds: int = 20,
-             sample: int = 200_000) -> torch.Tensor:
-    """Product quantisation: each vector as its stored code would be read back."""
+             sample: int = 200_000) -> tuple[torch.Tensor, torch.Tensor]:
+    """Product quantisation: the learned patterns [parts, patterns, width] and, for each vector,
+    which pattern each of its parts is nearest [n, parts]."""
     n, dims = vectors.shape
     if dims % parts:
         raise ValueError(f"{dims} numbers can't be cut into {parts} equal parts")
     width = dims // parts
     random = torch.Generator().manual_seed(seed)
     learn = vectors[torch.randperm(n, generator=random)[:sample]].to(device)
-    out = torch.empty_like(vectors)
+    learned, codes = [], torch.empty(n, parts, dtype=torch.long)
     for p in range(parts):
         columns = slice(p * width, (p + 1) * width)
         x = learn[:, columns]
@@ -108,8 +109,14 @@ def quantise(vectors: torch.Tensor, parts: int, device: str, seed: int = 0, roun
             patterns = torch.where(counts > 0, sums / counts.clamp(min=1), patterns)
         for start in range(0, n, 65536):
             part = vectors[start:start + 65536, columns].to(device)
-            out[start:start + 65536, columns] = patterns[torch.cdist(part, patterns).argmin(dim=1)].cpu()
-    return out
+            codes[start:start + 65536, p] = torch.cdist(part, patterns).argmin(dim=1).cpu()
+        learned.append(patterns.cpu())
+    return torch.stack(learned), codes
+
+
+def read_back(patterns: torch.Tensor, codes: torch.Tensor) -> torch.Tensor:
+    """The vectors that product-quantised codes stand for."""
+    return torch.cat([patterns[p][codes[:, p].long()] for p in range(patterns.shape[0])], dim=1)
 
 
 def store(vectors: torch.Tensor, variant: Variant, device: str) -> tuple[torch.Tensor, int, int]:
@@ -127,7 +134,7 @@ def store(vectors: torch.Tensor, variant: Variant, device: str) -> tuple[torch.T
     if variant.code == "bit":
         return torch.where(vectors >= 0, 1.0, -1.0) / dims ** 0.5, (dims + 7) // 8, 0
     if variant.parts:
-        return quantise(vectors, variant.parts, device), variant.parts, PATTERNS * dims * 4
+        return read_back(*quantise(vectors, variant.parts, device)), variant.parts, PATTERNS * dims * 4
     raise ValueError(f"unknown code {variant.code!r}")
 
 
@@ -175,9 +182,9 @@ def measure(specimens: list[Specimen], views: list[tuple[str, str]], gallery_vec
         kept, obverse, reverse = keep(gallery, g_obverse, g_reverse, v.coins)
         stored, asked = torch.cat([obverse, reverse]), queries
         if v.dims or v.parts:
-            mixing = _mixing(dims, seed=0) if v.parts else None
-            stored = turn(stored, mean, directions, dims, mixing)
-            asked = turn(queries, mean, directions, dims, mixing)
+            mix = mixing(dims) if v.parts else None
+            stored = turn(stored, mean, directions, dims, mix)
+            asked = turn(queries, mean, directions, dims, mix)
         stored, each, once = store(stored, v, device)
         g_rows = {s.id: (i, len(kept) + i) for i, s in enumerate(kept)}
         summary = evaluate.summary(evaluate.run(held_out, kept, g_rows, stored, device,

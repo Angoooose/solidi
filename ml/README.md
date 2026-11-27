@@ -73,6 +73,18 @@ uv run solidi-ml index --weights runs/s224-from-b336/best.pt --teacher runs/b336
 Give `--teacher` exactly as it was given to `train`, so the gallery vectors saved then are reused.
 The methods are described in `src/solidi_ml/index.py`.
 
+### Exporting for the browser
+
+`export` writes the search index (one averaged vector per type, in the form `index` showed to be
+smallest without loss) and the query model in ONNX at three sizes, then grades each size against
+the index through ONNX Runtime, the engine a browser uses:
+
+```sh
+uv run solidi-ml export --weights runs/s224-from-b336/best.pt --teacher runs/b336-34c/best.pt
+```
+
+The files land in `runs/<time>-export/`. They carry the same licence as the weights.
+
 Two more commands look closer at a model, the untrained one by default or a trained one with
 `--weights runs/finetune/best.pt`:
 
