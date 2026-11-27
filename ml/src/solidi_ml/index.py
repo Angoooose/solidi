@@ -54,7 +54,11 @@ VARIANTS = (
     Variant(coins=10), Variant(coins=5), Variant(coins=3), Variant(coins=1), Variant(coins="mean"),
     Variant(coins=10, dims=256, code="int8"), Variant(coins=10, dims=256, code="pq32"),
     Variant(coins=5, dims=256, code="int8"), Variant(coins=5, dims=256, code="pq32"),
-    Variant(coins=3, dims=256, code="int8"), Variant(coins="mean", dims=256, code="int8"),
+    Variant(coins=3, dims=256, code="int8"),
+    Variant(coins="mean", dims=384, code="int8"), Variant(coins="mean", dims=256, code="int8"),
+    Variant(coins="mean", dims=128, code="int8"), Variant(coins="mean", dims=256, code="bit"),
+    Variant(coins="mean", dims=256, code="pq64"), Variant(coins="mean", dims=256, code="pq32"),
+    Variant(coins="mean", dims=128, code="pq32"),
 )
 
 
