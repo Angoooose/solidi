@@ -80,6 +80,27 @@ def _diagnose(args) -> None:
     _save(out, report, markdown(report))
 
 
+def _index(args) -> None:
+    import torch
+    from . import crops, index
+    from .embed import embed
+    name, specimens = _specimens(args)
+    views = crops.prepare(specimens, Path(args.data), args.workers)
+
+    def vectors(weights: str):
+        path = Path(weights)
+        told = torch.load(path, map_location="cpu", weights_only=True)["settings"]
+        return embed(views, Path(args.data), tag=f"{path.parent.name}-{path.stem}",
+                     model_name=told["model"], weights=path, resolution=told["resolution"],
+                     batch_size=args.batch_size, device=args.device, workers=args.workers)
+
+    query = vectors(args.weights)
+    gallery = vectors(args.teacher) if args.teacher else query
+    report = {"dataset": name, "query_model": args.weights, "gallery_model": args.teacher or args.weights,
+              **index.measure(specimens, [(v.specimen_id, v.side) for v in views], gallery, query)}
+    _save(_run_dir(args, "index"), report, index.markdown(report))
+
+
 def _train(args) -> None:
     _, specimens = _specimens(args)
     if args.teacher:
@@ -137,6 +158,18 @@ def main() -> None:
     commands.add_parser("diagnose", parents=[common, machine, grading],
                         help="check why held-out coins are missed: colour, rotation, a sheet of misses"
                         ).set_defaults(run=_diagnose)
+    sizing = commands.add_parser("index", parents=[common],
+                                 help="measure what shrinking the search index costs in accuracy")
+    sizing.add_argument("--weights", required=True,
+                        help="the model that embeds the query: a best.pt written by `train`")
+    sizing.add_argument("--teacher", metavar="WEIGHTS",
+                        help="the model that embeds the gallery, when --weights is a student "
+                             "taught by it (default: the same model embeds both)")
+    sizing.add_argument("--batch-size", type=int, default=256)
+    sizing.add_argument("--workers", type=int)
+    sizing.add_argument("--device")
+    sizing.add_argument("--runs", default="runs")
+    sizing.set_defaults(run=_index)
     training = commands.add_parser("train", parents=[common, machine],
                                    help="fine-tune the model; run again with the same --name to resume")
     training.add_argument("--name", default="finetune", help="the run's folder under --runs")

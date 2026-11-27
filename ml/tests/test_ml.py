@@ -381,3 +381,52 @@ def test_distillation_trains_grades_three_ways_and_resumes(tmp_path, monkeypatch
     cached = distil.Settings(teacher=str(teacher_path), model="small", resolution=32, epochs=1,
                              batch_size=4, neighbours=3, cached_teacher=True)
     assert len(distil.distil(specimens, tmp_path, tmp_path / "cached", cached, **quiet)) == 2
+
+
+def _index_fixture(types=12, coins=6, width=32):
+    """Coins whose two sides sit near their type's centre: 'ans' in the gallery, 'fralin' held out."""
+    rng = np.random.default_rng(0)
+    centres = rng.normal(size=(types, 2, width))
+    specimens, views, vectors = [], [], []
+    for t in range(types):
+        for c in range(coins):
+            s = records.Specimen(id=f"t{t}c{c}", collection="fralin" if c == 0 else "ans",
+                                 type_id=f"type{t}", design=f"design{t // 2}")
+            specimens.append(s)
+            for i, side in enumerate(("obverse", "reverse")):
+                views.append((s.id, side))
+                vectors.append(centres[t, i] + 0.25 * rng.normal(size=width))
+    vectors = np.array(vectors, dtype=np.float32)
+    return specimens, views, vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+
+def test_index_variants_shrink_the_gallery_and_still_find_coins():
+    from solidi_ml import index
+    specimens, views, vectors = _index_fixture()
+    variants = (index.Variant(), index.Variant(code="int8"), index.Variant(code="bit"),
+                index.Variant(dims=16, code="int8"), index.Variant(dims=16, code="pq4"),
+                index.Variant(coins=2), index.Variant(coins="mean", dims=16, code="int8"))
+    report = index.measure(specimens, views, vectors, vectors, variants, device="cpu", log=lambda _: None)
+    rows = report["variants"]
+    assert report["queries"] == 12 and rows[0]["kept"] == 60
+    assert rows[0]["bytes"] == 60 * (2 * 32 * 4 + 4)
+    assert rows[1]["bytes"] == 60 * (2 * 32 + 4) + 4
+    assert rows[2]["bytes"] == 60 * (2 * 4 + 4)
+    assert rows[4]["bytes"] == 60 * (2 * 4 + 4) + 256 * 16 * 4
+    assert rows[5]["kept"] == 24 and rows[6]["kept"] == 12
+    assert all(row["type_top1"] >= 0.9 for row in rows)      # the types are far apart
+    assert "| type average | 12 | 16 | int8 |" in index.markdown(
+        {"dataset": "d", "gallery_model": "a", "query_model": "b", **report})
+
+
+def test_turning_keeps_what_matters_and_quantising_stays_close():
+    import torch
+    from solidi_ml import index
+    _, _, vectors = _index_fixture()
+    vectors = torch.from_numpy(vectors)
+    mean, directions = index.fit_turn(vectors, "cpu")
+    whole = index.turn(vectors, mean, directions, 32)
+    centred = torch.nn.functional.normalize(vectors - mean, dim=1)
+    assert torch.allclose(whole @ whole.T, centred @ centred.T, atol=1e-4)   # a turn, nothing lost
+    coded = index.quantise(whole, 8, "cpu")
+    assert (torch.nn.functional.normalize(coded, dim=1) * whole).sum(dim=1).mean() > 0.8

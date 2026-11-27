@@ -60,6 +60,19 @@ large model looks at every batch, so a pass takes several times longer than plai
 `--cached-teacher` uses its saved vectors instead, which is much faster and a weaker method.
 The approach and the papers it follows are described in `src/solidi_ml/distil.py`.
 
+### Sizing the search index
+
+A browser has to download the gallery's vectors to search them, and as the model gives them they
+are far too large. `index` measures what each way of shrinking them costs on the held-out
+collections: fewer coins per type, fewer numbers per vector, fewer bits per number.
+
+```sh
+uv run solidi-ml index --weights runs/s224-from-b336/best.pt --teacher runs/b336-34c/best.pt
+```
+
+Give `--teacher` exactly as it was given to `train`, so the gallery vectors saved then are reused.
+The methods are described in `src/solidi_ml/index.py`.
+
 Two more commands look closer at a model, the untrained one by default or a trained one with
 `--weights runs/finetune/best.pt`:
 
